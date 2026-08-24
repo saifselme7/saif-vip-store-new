@@ -469,7 +469,8 @@ VALUES (
   'USD',
   5.00,
   'SAIF STORE',
-  'Premium fashion and digital products. Carefully curated.'
+  'Premium fashion and digital products. Carefully curated.',
+  '© SAIF STORE. All rights reserved.'
 );
 
 -- Insert categories
