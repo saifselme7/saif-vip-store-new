@@ -30,6 +30,7 @@ export interface Database {
           role?: 'customer' | 'admin'
           updated_at?: string
         }
+        Relationships: []
       }
       categories: {
         Row: {
@@ -60,6 +61,7 @@ export interface Database {
           sort_order?: number
           is_active?: boolean
         }
+        Relationships: []
       }
       products: {
         Row: {
@@ -126,6 +128,22 @@ export interface Database {
           metadata?: Record<string, any>
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'products_category_id_fkey'
+            columns: ['category_id']
+            isOneToOne: false
+            referencedRelation: 'categories'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'product_variants_product_id_fkey'
+            columns: ['id']
+            isOneToOne: false
+            referencedRelation: 'product_variants'
+            referencedColumns: ['product_id']
+          }
+        ]
       }
       product_variants: {
         Row: {
@@ -161,6 +179,15 @@ export interface Database {
           color?: string | null
           image?: string | null
         }
+        Relationships: [
+          {
+            foreignKeyName: 'product_variants_product_id_fkey'
+            columns: ['product_id']
+            isOneToOne: false
+            referencedRelation: 'products'
+            referencedColumns: ['id']
+          }
+        ]
       }
       wishlists: {
         Row: {
@@ -176,6 +203,7 @@ export interface Database {
           created_at?: string
         }
         Update: {}
+        Relationships: []
       }
       carts: {
         Row: {
@@ -197,6 +225,7 @@ export interface Database {
           session_id?: string | null
           updated_at?: string
         }
+        Relationships: []
       }
       cart_items: {
         Row: {
@@ -222,6 +251,7 @@ export interface Database {
           variant_id?: string | null
           updated_at?: string
         }
+        Relationships: []
       }
       orders: {
         Row: {
@@ -271,6 +301,15 @@ export interface Database {
           notes?: string | null
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'order_items_order_id_fkey'
+            columns: ['id']
+            isOneToOne: false
+            referencedRelation: 'order_items'
+            referencedColumns: ['order_id']
+          }
+        ]
       }
       order_items: {
         Row: {
@@ -298,6 +337,29 @@ export interface Database {
           created_at?: string
         }
         Update: {}
+        Relationships: [
+          {
+            foreignKeyName: 'order_items_order_id_fkey'
+            columns: ['order_id']
+            isOneToOne: false
+            referencedRelation: 'orders'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'order_items_product_id_fkey'
+            columns: ['product_id']
+            isOneToOne: false
+            referencedRelation: 'products'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'order_items_variant_id_fkey'
+            columns: ['variant_id']
+            isOneToOne: false
+            referencedRelation: 'product_variants'
+            referencedColumns: ['id']
+          }
+        ]
       }
       coupons: {
         Row: {
@@ -334,6 +396,7 @@ export interface Database {
           expires_at?: string | null
           is_active?: boolean
         }
+        Relationships: []
       }
       reviews: {
         Row: {
@@ -362,6 +425,22 @@ export interface Database {
           body?: string
           status?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'reviews_product_id_fkey'
+            columns: ['product_id']
+            isOneToOne: false
+            referencedRelation: 'products'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'reviews_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          }
+        ]
       }
       site_settings: {
         Row: {
@@ -425,6 +504,7 @@ export interface Database {
           footer_text?: string | null
           updated_at?: string
         }
+        Relationships: []
       }
     }
     Views: {}

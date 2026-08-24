@@ -12,7 +12,7 @@ export default function AdminSettings() {
 
   useEffect(() => {
     async function fetch() {
-      const { data } = await supabase.from('site_settings').select('*').limit(1).single()
+      const { data } = await supabase.from('site_settings').select('*').limit(1).maybeSingle()
       if (data) {
         setSettings(data as SiteSettings)
         setForm(data)

@@ -37,14 +37,14 @@ export default function ProductDetailPage() {
   const isDigital = product.product_type === 'digital'
 
   async function handleAddToCart() {
-    addItem(product, variant || null, quantity)
-    addToast(`${product.name} added to bag`)
+    addItem(product!, variant || null, quantity)
+    addToast(`${product!.name} added to bag`)
   }
 
   async function toggleWishlist() {
     if (!user) { addToast('Please sign in to use wishlist', 'error'); return }
-    if (inWishlist) { await remove(product.id); addToast('Removed from wishlist') }
-    else { await add(product.id); addToast('Added to wishlist') }
+    if (inWishlist) { await remove(product!.id); addToast('Removed from wishlist') }
+    else { await add(product!.id); addToast('Added to wishlist') }
   }
 
   return (

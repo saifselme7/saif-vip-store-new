@@ -32,7 +32,7 @@ export function useAllOrders() {
   async function fetchOrders() {
     const { data } = await supabase
       .from('orders')
-      .select('*, order_items(*), profiles(full_name, email)')
+      .select('*, order_items(*)')
       .order('created_at', { ascending: false })
     setOrders((data || []) as Order[])
     setLoading(false)

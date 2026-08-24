@@ -26,27 +26,31 @@ npm install
 cp .env.example .env
 ```
 
-Edit `.env` and add your Supabase credentials:
+`.env.example` already points at the NEW Supabase project:
 
 ```env
-VITE_SUPABASE_URL=https://gheiosuruzvzvorvalfv.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key-here
+VITE_SUPABASE_URL=https://dgaxdbrohvxxarmbmxfv.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_u9agbn4QnN26jDXmJKHXAQ_6e5rEaFJ
 ```
 
-Get your publishable key from: Supabase Dashboard → Project Settings → API → `anon/public` key.
+`VITE_SUPABASE_PUBLISHABLE_KEY` is the public/publishable key for this project
+(Supabase Dashboard → Project Settings → API → `anon/public` key). No secret key
+or service-role key is used or committed anywhere in this codebase.
 
-### 3. Set Up Supabase Database
+### 3. Set Up the NEW Supabase Database
 
-1. Open your Supabase project SQL Editor
-2. Run the files in this order:
-   - `supabase/schema.sql`
-   - `supabase/rls.sql`
-   - `supabase/seed.sql`
+1. Open the NEW Supabase project SQL Editor (`https://supabase.com/dashboard/project/dgaxdbrohvxxarmbmxfv/sql/new`)
+2. Run the migration files in this order:
+   - `supabase/schema.sql` — creates all tables, indexes, triggers
+   - `supabase/rls.sql` — enables RLS and creates the required policies
+   - `supabase/seed.sql` — inserts default site settings, categories, products, variants, coupons
+3. If you prefer one file, run `supabase/setup.sql` (it contains all three steps).
 
 ### 4. Enable Authentication
 
 1. Go to Authentication → Providers → Email
-2. Enable Email provider
+2. Enable Email provider (you can leave email confirmation on or off — the schema
+   auto-creates a `profiles` row on signup either way)
 3. Set Site URL to `http://localhost:5173` (or your deployed URL)
 
 ### 5. Run Locally
@@ -70,9 +74,9 @@ npm i -g vercel
 vercel
 ```
 
-Make sure to add your environment variables in the Vercel dashboard:
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_PUBLISHABLE_KEY`
+Make sure to add these environment variables in the Vercel dashboard:
+- `VITE_SUPABASE_URL=https://dgaxdbrohvxxarmbmxfv.supabase.co`
+- `VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_u9agbn4QnN26jDXmJKHXAQ_6e5rEaFJ`
 
 ## Project Structure
 

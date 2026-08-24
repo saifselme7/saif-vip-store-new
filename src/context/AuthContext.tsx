@@ -37,19 +37,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   async function fetchProfile(userId: string) {
-    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
     setProfile(data as Profile)
     setLoading(false)
   }
 
   async function signUp(email: string, password: string, fullName: string) {
-    const { data, error } = await supabase.auth.signUp({ email, password })
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: fullName },
+      },
+    })
     if (!error && data.user) {
-      await supabase.from('profiles').insert({
-        id: data.user.id,
-        full_name: fullName,
-        role: 'customer',
-      })
+      // The DB trigger also creates the profile row. Upsert ensures the
+      // full name is stored and the call is safe whether the email is
+      // confirmed immediately or later.
+      await supabase.from('profiles').upsert(
+        {
+          id: data.user.id,
+          full_name: fullName,
+          role: 'customer',
+        },
+        { onConflict: 'id' }
+      )
     }
     return { error }
   }
@@ -67,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function updateProfile(data: Partial<Profile>) {
     if (!user) return { error: new Error('Not authenticated') }
-    const { error } = await supabase.from('profiles').update(data).eq('id', user.id)
+    const { error } = await supabase.from('profiles').update(data as any).eq('id', user.id)
     if (!error) setProfile(prev => prev ? { ...prev, ...data } : null)
     return { error }
   }

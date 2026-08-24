@@ -1,4 +1,5 @@
 -- Row Level Security Policies for SAIF STORE
+-- Safe to re-run: every policy is dropped before it is recreated.
 
 -- Enable RLS on all tables
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
@@ -15,26 +16,31 @@ ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE site_settings ENABLE ROW LEVEL SECURITY;
 
 -- Profiles: users see own profile, admins see all
+DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
 CREATE POLICY "Users can view own profile"
   ON profiles FOR SELECT
   USING (auth.uid() = id OR EXISTS (
     SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
   ));
 
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile"
   ON profiles FOR UPDATE
   USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
 CREATE POLICY "Users can insert own profile"
   ON profiles FOR INSERT
   WITH CHECK (auth.uid() = id);
 
 -- Categories: public read, admin write
+DROP POLICY IF EXISTS "Categories public read" ON categories;
 CREATE POLICY "Categories public read"
   ON categories FOR SELECT
   TO authenticated, anon
   USING (true);
 
+DROP POLICY IF EXISTS "Categories admin write" ON categories;
 CREATE POLICY "Categories admin write"
   ON categories FOR ALL
   USING (EXISTS (
@@ -42,11 +48,13 @@ CREATE POLICY "Categories admin write"
   ));
 
 -- Products: public read active, admin all
+DROP POLICY IF EXISTS "Products public read active" ON products;
 CREATE POLICY "Products public read active"
   ON products FOR SELECT
   TO authenticated, anon
   USING (status = 'active');
 
+DROP POLICY IF EXISTS "Products admin all" ON products;
 CREATE POLICY "Products admin all"
   ON products FOR ALL
   USING (EXISTS (
@@ -54,11 +62,13 @@ CREATE POLICY "Products admin all"
   ));
 
 -- Variants: public read, admin write
+DROP POLICY IF EXISTS "Variants public read" ON product_variants;
 CREATE POLICY "Variants public read"
   ON product_variants FOR SELECT
   TO authenticated, anon
   USING (true);
 
+DROP POLICY IF EXISTS "Variants admin write" ON product_variants;
 CREATE POLICY "Variants admin write"
   ON product_variants FOR ALL
   USING (EXISTS (
@@ -66,16 +76,19 @@ CREATE POLICY "Variants admin write"
   ));
 
 -- Wishlists: own only
+DROP POLICY IF EXISTS "Wishlists own" ON wishlists;
 CREATE POLICY "Wishlists own"
   ON wishlists FOR ALL
   USING (auth.uid() = user_id);
 
 -- Carts: own or session
+DROP POLICY IF EXISTS "Carts own or session" ON carts;
 CREATE POLICY "Carts own or session"
   ON carts FOR ALL
   USING (user_id = auth.uid() OR session_id = coalesce(current_setting('request.headers'::text, true)::json->>'x-session-id', ''));
 
 -- Cart items: through cart ownership
+DROP POLICY IF EXISTS "Cart items through cart" ON cart_items;
 CREATE POLICY "Cart items through cart"
   ON cart_items FOR ALL
   USING (EXISTS (
@@ -83,16 +96,19 @@ CREATE POLICY "Cart items through cart"
   ));
 
 -- Orders: own orders, admin all
+DROP POLICY IF EXISTS "Orders own" ON orders;
 CREATE POLICY "Orders own"
   ON orders FOR SELECT
   USING (user_id = auth.uid() OR EXISTS (
     SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
   ));
 
+DROP POLICY IF EXISTS "Orders user insert" ON orders;
 CREATE POLICY "Orders user insert"
   ON orders FOR INSERT
   WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Orders admin update" ON orders;
 CREATE POLICY "Orders admin update"
   ON orders FOR UPDATE
   USING (EXISTS (
@@ -100,6 +116,7 @@ CREATE POLICY "Orders admin update"
   ));
 
 -- Order items: through order ownership
+DROP POLICY IF EXISTS "Order items through order" ON order_items;
 CREATE POLICY "Order items through order"
   ON order_items FOR SELECT
   USING (EXISTS (
@@ -108,18 +125,43 @@ CREATE POLICY "Order items through order"
     ))
   ));
 
-CREATE POLICY "Order items admin insert"
+-- The storefront checkout writes order_items while acting as the
+-- authenticated customer who owns the order, so allow that.
+DROP POLICY IF EXISTS "Order items own insert" ON order_items;
+CREATE POLICY "Order items own insert"
   ON order_items FOR INSERT
-  WITH CHECK (EXISTS (
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM orders WHERE orders.id = order_items.order_id AND orders.user_id = auth.uid()
+    )
+    OR EXISTS (
+      SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+-- Admins can manage order items too.
+DROP POLICY IF EXISTS "Order items admin manage" ON order_items;
+CREATE POLICY "Order items admin manage"
+  ON order_items FOR UPDATE
+  USING (EXISTS (
+    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
+  ));
+
+DROP POLICY IF EXISTS "Order items admin delete" ON order_items;
+CREATE POLICY "Order items admin delete"
+  ON order_items FOR DELETE
+  USING (EXISTS (
     SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
   ));
 
 -- Coupons: public read active, admin all
+DROP POLICY IF EXISTS "Coupons public read active" ON coupons;
 CREATE POLICY "Coupons public read active"
   ON coupons FOR SELECT
   TO authenticated, anon
   USING (is_active = true);
 
+DROP POLICY IF EXISTS "Coupons admin all" ON coupons;
 CREATE POLICY "Coupons admin all"
   ON coupons FOR ALL
   USING (EXISTS (
@@ -127,15 +169,18 @@ CREATE POLICY "Coupons admin all"
   ));
 
 -- Reviews: public read approved, own write
+DROP POLICY IF EXISTS "Reviews public read approved" ON reviews;
 CREATE POLICY "Reviews public read approved"
   ON reviews FOR SELECT
   TO authenticated, anon
   USING (status = 'approved');
 
+DROP POLICY IF EXISTS "Reviews own write" ON reviews;
 CREATE POLICY "Reviews own write"
   ON reviews FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Reviews admin manage" ON reviews;
 CREATE POLICY "Reviews admin manage"
   ON reviews FOR ALL
   USING (EXISTS (
@@ -143,11 +188,13 @@ CREATE POLICY "Reviews admin manage"
   ));
 
 -- Site settings: public read, admin write
+DROP POLICY IF EXISTS "Site settings public read" ON site_settings;
 CREATE POLICY "Site settings public read"
   ON site_settings FOR SELECT
   TO authenticated, anon
   USING (true);
 
+DROP POLICY IF EXISTS "Site settings admin write" ON site_settings;
 CREATE POLICY "Site settings admin write"
   ON site_settings FOR ALL
   USING (EXISTS (

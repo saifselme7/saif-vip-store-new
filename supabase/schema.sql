@@ -1,8 +1,9 @@
 -- SAIF STORE Database Schema
--- Run this in your Supabase SQL Editor
+-- Run this in your Supabase SQL Editor on the NEW project.
 
--- Enable UUID extension
+-- Enable extensions used by the schema
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- Profiles table (extends auth.users)
 CREATE TABLE profiles (
@@ -15,6 +16,33 @@ CREATE TABLE profiles (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Auto-create a profile row whenever a new auth user is created.
+-- This guarantees the storefront, RLS admin checks, and dashboard always
+-- have a matching profile (especially when email confirmation is enabled,
+-- where the browser session is not available immediately after signup).
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, role)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
+    'customer'
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- Categories
 CREATE TABLE categories (
@@ -143,10 +171,12 @@ CREATE TABLE coupons (
 );
 
 -- Reviews
+-- user_id references profiles(id) so PostgREST can embed the author's
+-- profile (profiles.id is the same UUID as the auth user id).
 CREATE TABLE reviews (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
   title TEXT NOT NULL,
   body TEXT NOT NULL,
