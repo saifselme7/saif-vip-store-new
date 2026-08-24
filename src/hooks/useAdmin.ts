@@ -48,20 +48,20 @@ export function useAdminProducts() {
       .from('products')
       .select('*, categories(name), product_variants(*)')
       .order('created_at', { ascending: false })
-    setProducts((data || []) as Product[])
+    setProducts((data || []) as unknown as Product[])
     setLoading(false)
   }, [])
 
   useEffect(() => { fetch() }, [fetch])
 
-  const create = async (product: Partial<Product>) => {
+  const create = async (product: Record<string, any>) => {
     const { data, error } = await supabase.from('products').insert(product).select().single()
     if (!error) fetch()
     return { data, error }
   }
 
-  const update = async (id: string, product: Partial<Product>) => {
-    const { error } = await supabase.from('products').update(product).eq('id', id)
+  const update = async (id: string, product: Record<string, any>) => {
+    const { error } = await supabase.from('products').update(product as any).eq('id', id)
     if (!error) fetch()
     return { error }
   }
@@ -87,14 +87,14 @@ export function useAdminCategories() {
 
   useEffect(() => { fetch() }, [fetch])
 
-  const create = async (cat: Partial<Category>) => {
+  const create = async (cat: Record<string, any>) => {
     const { error } = await supabase.from('categories').insert(cat)
     if (!error) fetch()
     return { error }
   }
 
-  const update = async (id: string, cat: Partial<Category>) => {
-    const { error } = await supabase.from('categories').update(cat).eq('id', id)
+  const update = async (id: string, cat: Record<string, any>) => {
+    const { error } = await supabase.from('categories').update(cat as any).eq('id', id)
     if (!error) fetch()
     return { error }
   }
@@ -120,14 +120,14 @@ export function useAdminCoupons() {
 
   useEffect(() => { fetch() }, [fetch])
 
-  const create = async (coupon: Partial<Coupon>) => {
+  const create = async (coupon: Record<string, any>) => {
     const { error } = await supabase.from('coupons').insert(coupon)
     if (!error) fetch()
     return { error }
   }
 
-  const update = async (id: string, coupon: Partial<Coupon>) => {
-    const { error } = await supabase.from('coupons').update(coupon).eq('id', id)
+  const update = async (id: string, coupon: Record<string, any>) => {
+    const { error } = await supabase.from('coupons').update(coupon as any).eq('id', id)
     if (!error) fetch()
     return { error }
   }

@@ -29,7 +29,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   async function loadSettings() {
-    const { data } = await supabase.from('site_settings').select('*').limit(1).single()
+    const { data } = await supabase.from('site_settings').select('*').limit(1).maybeSingle()
     if (data) setSettings(data as SiteSettings)
   }
 
