@@ -30,7 +30,15 @@ export interface Database {
           role?: 'customer' | 'admin'
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'reviews_user_id_fkey'
+            columns: ['id']
+            isOneToOne: false
+            referencedRelation: 'reviews'
+            referencedColumns: ['user_id']
+          }
+        ]
       }
       categories: {
         Row: {
@@ -61,7 +69,15 @@ export interface Database {
           sort_order?: number
           is_active?: boolean
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'products_category_id_fkey'
+            columns: ['id']
+            isOneToOne: false
+            referencedRelation: 'products'
+            referencedColumns: ['category_id']
+          }
+        ]
       }
       products: {
         Row: {
@@ -203,7 +219,15 @@ export interface Database {
           created_at?: string
         }
         Update: {}
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'wishlists_product_id_fkey'
+            columns: ['product_id']
+            isOneToOne: false
+            referencedRelation: 'products'
+            referencedColumns: ['id']
+          }
+        ]
       }
       carts: {
         Row: {
@@ -225,7 +249,15 @@ export interface Database {
           session_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'cart_items_cart_id_fkey'
+            columns: ['id']
+            isOneToOne: false
+            referencedRelation: 'cart_items'
+            referencedColumns: ['cart_id']
+          }
+        ]
       }
       cart_items: {
         Row: {
@@ -251,7 +283,29 @@ export interface Database {
           variant_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'cart_items_cart_id_fkey'
+            columns: ['cart_id']
+            isOneToOne: false
+            referencedRelation: 'carts'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cart_items_product_id_fkey'
+            columns: ['product_id']
+            isOneToOne: false
+            referencedRelation: 'products'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cart_items_variant_id_fkey'
+            columns: ['variant_id']
+            isOneToOne: false
+            referencedRelation: 'product_variants'
+            referencedColumns: ['id']
+          }
+        ]
       }
       orders: {
         Row: {
