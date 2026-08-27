@@ -1,54 +1,57 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 
+/** Subtle cursor ring — desktop pointers only, respects reduced motion,
+ * and the rAF loop idles when the pointer leaves the window. */
 export default function CursorFollower() {
   const ref = useRef<HTMLDivElement>(null)
-  const pos = useRef({ x: 0, y: 0 })
-  const target = useRef({ x: 0, y: 0 })
-  const [active, setActive] = useState(false)
-  const [clicking, setClicking] = useState(false)
 
   useEffect(() => {
-    const onMove = (e: MouseEvent) => { target.current = { x: e.clientX, y: e.clientY } }
-    const onEnter = () => setActive(true)
-    const onLeave = () => setActive(false)
-    const onDown = () => setClicking(true)
-    const onUp = () => setClicking(false)
+    if (typeof window === 'undefined') return
+    // Skip on touch devices and for users who prefer reduced motion.
+    if (!window.matchMedia('(pointer: fine)').matches) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
 
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseenter', onEnter)
-    document.addEventListener('mouseleave', onLeave)
-    document.addEventListener('mousedown', onDown)
-    document.addEventListener('mouseup', onUp)
+    const el = ref.current
+    if (!el) return
 
-    let raf: number
+    const pos = { x: -100, y: -100 }
+    const target = { x: -100, y: -100 }
+    let active = false
+    let raf = 0
+    let running = false
+
     const animate = () => {
-      pos.current.x += (target.current.x - pos.current.x) * 0.15
-      pos.current.y += (target.current.y - pos.current.y) * 0.15
-      if (ref.current) {
-        ref.current.style.left = pos.current.x + 'px'
-        ref.current.style.top = pos.current.y + 'px'
-      }
+      pos.x += (target.x - pos.x) * 0.18
+      pos.y += (target.y - pos.y) * 0.18
+      el.style.transform = `translate(${pos.x}px, ${pos.y}px) translate(-50%, -50%)`
       raf = requestAnimationFrame(animate)
     }
-    raf = requestAnimationFrame(animate)
+    const start = () => { if (!running) { running = true; raf = requestAnimationFrame(animate) } }
+    const stop = () => { running = false; cancelAnimationFrame(raf) }
+
+    const onMove = (e: MouseEvent) => {
+      target.x = e.clientX
+      target.y = e.clientY
+      if (!active) { active = true; el.style.opacity = '1' }
+      start()
+    }
+    const onLeave = () => { active = false; el.style.opacity = '0'; stop() }
+
+    document.addEventListener('mousemove', onMove, { passive: true })
+    document.documentElement.addEventListener('mouseleave', onLeave)
 
     return () => {
       document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseenter', onEnter)
-      document.removeEventListener('mouseleave', onLeave)
-      document.removeEventListener('mousedown', onDown)
-      document.removeEventListener('mouseup', onUp)
-      cancelAnimationFrame(raf)
+      document.documentElement.removeEventListener('mouseleave', onLeave)
+      stop()
     }
   }, [])
 
   return (
     <div
       ref={ref}
-      className={`fixed w-5 h-5 border border-saif-text rounded-full pointer-events-none z-[9999] mix-blend-difference transition-[transform,opacity] duration-150 ${
-        active ? 'opacity-100 scale-150' : 'opacity-0 scale-100'
-      } ${clicking ? 'scale-75' : ''}`}
-      style={{ transform: 'translate(-50%, -50%)' }}
+      aria-hidden="true"
+      className="fixed top-0 left-0 w-5 h-5 border border-saif-text/60 rounded-full pointer-events-none z-[9999] mix-blend-difference opacity-0 transition-opacity duration-300 hidden md:block"
     />
   )
 }

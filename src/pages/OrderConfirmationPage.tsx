@@ -1,80 +1,116 @@
-import { useEffect, useState } from 'react'
-import { useParams, useSearchParams, Link } from 'react-router-dom'
-import { supabase } from '@/lib/supabase'
-import { CheckCircle } from 'lucide-react'
-import { formatPrice } from '@/lib/utils'
-import { ORDER_STATUS_LABELS } from '@/lib/constants'
-import type { Order } from '@/types'
-import Footer from '@/components/Footer'
+import { useParams, Link } from 'react-router-dom'
+import { Clock, Copy, CheckCircle2 } from 'lucide-react'
+import { useOrder, latestPayment } from '@/hooks/useOrders'
+import { useApp } from '@/context/AppContext'
+import { usePageMeta } from '@/hooks/usePageMeta'
+import { PAYMENT_METHODS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS } from '@/lib/constants'
+import { formatPrice, formatDateTime, copyToClipboard } from '@/lib/utils'
 import Loading from '@/components/Loading'
+import Price from '@/components/ui/Price'
+import { StatusBadge } from '@/components/ui/Badge'
 
 export default function OrderConfirmationPage() {
   const { id } = useParams<{ id: string }>()
-  const [searchParams] = useSearchParams()
-  const [order, setOrder] = useState<Order | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { order, loading } = useOrder(id)
+  const { settings, addToast } = useApp()
 
-  useEffect(() => {
-    async function fetch() {
-      if (!id) return
-      const { data } = await supabase
-        .from('orders')
-        .select('*, order_items(*)')
-        .eq('id', id)
-        .single()
-      setOrder(data as Order)
-      setLoading(false)
-    }
-    fetch()
-  }, [id])
+  usePageMeta('Order Received', 'Your SAIF STORE order has been received.')
 
-  if (loading) return <div className="pt-28"><Loading /></div>
+  if (loading) return <div className="pt-16"><Loading /></div>
   if (!order) return (
-    <div className="pt-28 px-6 text-center">
+    <div className="pt-16 px-6 text-center min-h-[50vh]">
       <p className="text-saif-dim">Order not found.</p>
+      <Link to="/orders" className="btn mt-4 text-xs">My Orders</Link>
     </div>
   )
 
-  return (
-    <div className="animate-[pageIn_0.6s_ease] pt-28 px-6 lg:px-10 pb-20">
-      <div className="max-w-2xl mx-auto text-center">
-        <CheckCircle size={48} className="mx-auto text-green-400 mb-6" />
-        <h1 className="text-3xl font-black tracking-tight text-saif-text mb-2">Order Confirmed</h1>
-        <p className="text-sm text-saif-dim mb-8">Thank you for your purchase. We will process your order shortly.</p>
+  const payment = latestPayment(order)
+  const currency = settings?.currency || 'EGP'
+  const methodName = PAYMENT_METHODS.find(m => m.id === order.payment_method)?.name || order.payment_method
 
-        <div className="border border-saif-border p-6 text-left mb-8">
-          <div className="flex justify-between mb-4">
-            <span className="text-sm text-saif-dim">Order Number</span>
-            <span className="text-sm font-bold text-saif-text">{order.order_number}</span>
+  return (
+    <div className="animate-[pageIn_0.5s_ease] px-4 sm:px-6 lg:px-10 pt-14 pb-20">
+      <div className="max-w-2xl mx-auto">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-400/10 border border-amber-400/30 mb-5">
+            <Clock size={26} className="text-amber-400" />
           </div>
-          <div className="flex justify-between mb-4">
-            <span className="text-sm text-saif-dim">Status</span>
-            <span className="text-sm font-semibold text-saif-text">{ORDER_STATUS_LABELS[order.status]}</span>
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-saif-text">Order Received</h1>
+          <p className="mt-3 text-sm text-saif-dim leading-relaxed max-w-md mx-auto">
+            {payment
+              ? 'Your payment proof was submitted and is now under manual review. We usually verify within a few hours — nothing is confirmed until then.'
+              : 'Your order was created. Submit your payment proof to start verification.'}
+          </p>
+        </div>
+
+        <div className="border border-saif-border divide-y divide-[rgba(245,240,232,0.08)] mb-8">
+          <Row label="Order Number">
+            <span className="flex items-center gap-2">
+              <span className="font-bold text-saif-text">{order.order_number}</span>
+              <button
+                onClick={async () => {
+                  const ok = await copyToClipboard(order.order_number)
+                  addToast(ok ? 'Order number copied' : 'Could not copy', ok ? 'success' : 'error')
+                }}
+                className="p-1 border border-saif-border text-saif-dim hover:text-saif-text transition-colors"
+                aria-label="Copy order number"
+              >
+                <Copy size={11} />
+              </button>
+            </span>
+          </Row>
+          <Row label="Date">{formatDateTime(order.created_at)}</Row>
+          <Row label="Payment Method">{methodName || '—'}</Row>
+          <Row label="Payment Status">
+            <StatusBadge className={payment ? PAYMENT_STATUS_COLORS[payment.status] : PAYMENT_STATUS_COLORS.awaiting_payment}>
+              {payment ? PAYMENT_STATUS_LABELS[payment.status] : 'Awaiting Payment'}
+            </StatusBadge>
+          </Row>
+          <div className="p-5">
+            <p className="text-xs uppercase tracking-widest text-saif-dim mb-3">Items</p>
+            <div className="space-y-2">
+              {order.items?.map(item => (
+                <div key={item.id} className="flex justify-between text-sm">
+                  <span className="text-saif-dim">{item.product_name}{item.variant_name ? ` (${item.variant_name})` : ''} × {item.quantity}</span>
+                  <Price value={item.total} className="text-saif-text" />
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 pt-3 border-t border-saif-border space-y-1.5 text-sm">
+              <div className="flex justify-between text-saif-dim"><span>Subtotal</span><Price value={order.subtotal} className="text-saif-text" /></div>
+              {order.discount > 0 && <div className="flex justify-between text-green-400"><span>Discount</span><span>−{formatPrice(order.discount, currency)}</span></div>}
+              <div className="flex justify-between text-saif-dim"><span>Shipping</span><span>{order.shipping_fee === 0 ? 'Free' : formatPrice(order.shipping_fee, currency)}</span></div>
+              <div className="flex justify-between text-base font-bold text-saif-text pt-1"><span>Total</span><Price value={order.total} className="text-saif-text" /></div>
+            </div>
           </div>
-          <div className="flex justify-between mb-4">
-            <span className="text-sm text-saif-dim">Date</span>
-            <span className="text-sm text-saif-text">{new Date(order.created_at).toLocaleDateString()}</span>
-          </div>
-          <div className="border-t border-saif-border pt-4 space-y-2">
-            {order.items?.map(item => (
-              <div key={item.id} className="flex justify-between text-sm">
-                <span className="text-saif-dim">{item.product_name} × {item.quantity}</span>
-                <span className="text-saif-text">{formatPrice(item.total)}</span>
-              </div>
-            ))}
-          </div>
-          <div className="border-t border-saif-border pt-4 flex justify-between">
-            <span className="text-base font-bold text-saif-text">Total</span>
-            <span className="text-base font-bold text-saif-text">{formatPrice(order.total)}</span>
-          </div>
+        </div>
+
+        {/* Next steps */}
+        <div className="border border-saif-border p-5 mb-8">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-saif-text mb-3 flex items-center gap-2">
+            <CheckCircle2 size={14} className="text-saif-accent" /> What happens next
+          </h2>
+          <ol className="space-y-2 text-sm text-saif-dim list-decimal list-inside leading-relaxed">
+            <li>Our team verifies your transfer against the screenshot.</li>
+            <li>Once approved, your order is confirmed ({order.items?.some(i => i.product_type === 'digital') ? 'digital items are fulfilled and physical items ship' : 'physical items are prepared and shipped'}).</li>
+            <li>You can track everything from your order page — no need to contact us.</li>
+          </ol>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Link to="/orders" className="btn btn-primary">View Orders</Link>
+          <Link to={`/orders/${order.id}`} className="btn btn-primary">Track This Order</Link>
           <Link to="/products" className="btn">Continue Shopping</Link>
         </div>
       </div>
-      <Footer />
+    </div>
+  )
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-4 p-5">
+      <span className="text-xs uppercase tracking-widest text-saif-dim">{label}</span>
+      <span className="text-sm text-saif-text">{children}</span>
     </div>
   )
 }
