@@ -1,8 +1,8 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { SiteSettings } from '@/types'
 
-interface Toast {
+export interface Toast {
   id: string
   message: string
   type: 'success' | 'error' | 'info'
@@ -10,6 +10,7 @@ interface Toast {
 
 interface AppContextType {
   settings: SiteSettings | null
+  refreshSettings: () => Promise<void>
   toasts: Toast[]
   addToast: (message: string, type?: Toast['type']) => void
   removeToast: (id: string) => void
@@ -24,27 +25,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  useEffect(() => {
-    loadSettings()
+  const loadSettings = useCallback(async () => {
+    const { data } = await supabase.from('site_settings').select('*').limit(1).maybeSingle()
+    if (data) setSettings(data as unknown as SiteSettings)
   }, [])
 
-  async function loadSettings() {
-    const { data } = await supabase.from('site_settings').select('*').limit(1).maybeSingle()
-    if (data) setSettings(data as SiteSettings)
-  }
+  useEffect(() => {
+    loadSettings()
+  }, [loadSettings])
 
-  function addToast(message: string, type: Toast['type'] = 'success') {
+  const addToast = useCallback((message: string, type: Toast['type'] = 'success') => {
     const id = crypto.randomUUID()
-    setToasts(prev => [...prev, { id, message, type }])
-    setTimeout(() => removeToast(id), 3000)
-  }
+    setToasts(prev => [...prev.slice(-3), { id, message, type }])
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500)
+  }, [])
 
-  function removeToast(id: string) {
+  const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id))
-  }
+  }, [])
 
   return (
-    <AppContext.Provider value={{ settings, toasts, addToast, removeToast, mobileMenuOpen, setMobileMenuOpen }}>
+    <AppContext.Provider value={{
+      settings, refreshSettings: loadSettings, toasts, addToast, removeToast,
+      mobileMenuOpen, setMobileMenuOpen,
+    }}>
       {children}
     </AppContext.Provider>
   )
