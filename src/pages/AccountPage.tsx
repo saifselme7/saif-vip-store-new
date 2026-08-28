@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { useOrders } from '@/hooks/useOrders'
 import { usePageMeta } from '@/hooks/usePageMeta'
+import { useI18n } from '@/i18n'
 import { formatPrice, formatDate, cn, copyToClipboard } from '@/lib/utils'
 import { ORDER_STATUS_LABELS } from '@/lib/constants'
 import { OrderStatusBadge, PaymentStatusBadge } from '@/components/ui/StatusBadge'
@@ -16,6 +17,7 @@ import EmptyState from '@/components/EmptyState'
 type Tab = 'overview' | 'orders' | 'digital' | 'settings'
 
 export default function AccountPage() {
+  const { t, formatPrice } = useI18n()
   const { user, profile, signOut, updateProfile } = useAuth()
   const { addToast } = useToast()
   const { orders, loading } = useOrders()
@@ -65,9 +67,9 @@ export default function AccountPage() {
       phone: form.phone.trim(),
     })
     setSaving(false)
-    if (error) addToast(error, 'error')
+    if (error) addToast(error || t('errors.generic'), 'error')
     else {
-      addToast('Profile updated')
+      addToast(t('account.profileSaved'))
       setEditing(false)
     }
   }
@@ -96,7 +98,7 @@ export default function AccountPage() {
               <p className="text-[10px] text-saif-faint uppercase tracking-wider mt-2">{profile?.role}</p>
             </div>
 
-            <nav className="space-y-1" aria-label="Account sections">
+            <nav className="space-y-1" aria-label={t('a11y.accountSections')}>
               {TABS.map(t => (
                 <button
                   key={t.id}
@@ -161,10 +163,10 @@ export default function AccountPage() {
                   >
                     <p className="text-sm text-yellow-400 font-semibold flex items-center gap-2">
                       <ShieldAlert size={15} />
-                      {stats.pendingPayments} order{stats.pendingPayments > 1 ? 's' : ''} need payment attention
+                      {t('account.attention', { count: stats.pendingPayments })}
                     </p>
                     <p className="text-xs text-saif-dim mt-1">
-                      Submit your transfer proof so we can verify the payment.
+                      {t('account.attentionDesc')}
                     </p>
                   </Link>
                 )}
@@ -172,7 +174,7 @@ export default function AccountPage() {
                 {/* Recent orders */}
                 <div className="card p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text">Recent Orders</h2>
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text">{t('account.recentOrders')}</h2>
                     <button onClick={() => setTab('orders')} className="text-xs text-saif-dim hover:text-saif-text transition-colors">
                       View All
                     </button>
@@ -207,14 +209,14 @@ export default function AccountPage() {
 
             {tab === 'orders' && (
               <div className="card p-6">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-4">All Orders</h2>
+                <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-4">{t('account.tabs.orders')}</h2>
                 {loading ? (
                   <Loading />
                 ) : orders.length === 0 ? (
                   <EmptyState
                     icon={Package}
                     title="No orders yet"
-                    description="Your order history will appear here."
+                    description="{t('account.noOrders')}"
                     action={
                       <Link to="/products" className="btn btn-sm btn-primary">
                         Start Shopping
@@ -249,7 +251,7 @@ export default function AccountPage() {
 
             {tab === 'digital' && (
               <div className="card p-6">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-1">Digital Purchases</h2>
+                <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-1">{t('orders.digital.section')}</h2>
                 <p className="text-xs text-saif-dim mb-5">
                   Delivery details appear here once the order has been fulfilled.
                 </p>
@@ -299,7 +301,7 @@ export default function AccountPage() {
             {tab === 'settings' && (
               <div className="card p-6">
                 <div className="flex items-center justify-between mb-5">
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text">Profile Settings</h2>
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text">{t('account.profile')}</h2>
                   <button
                     onClick={() => {
                       setEditing(!editing)
@@ -314,7 +316,7 @@ export default function AccountPage() {
                 {editing ? (
                   <div className="space-y-4">
                     <div>
-                      <label className="label" htmlFor="ac-name">Full Name</label>
+                      <label className="label" htmlFor="ac-name">{t('auth.fullName')}</label>
                       <input
                         id="ac-name"
                         type="text"
@@ -332,7 +334,7 @@ export default function AccountPage() {
                         className={cn('input', errors.phone && 'input-error')}
                         value={form.phone}
                         onChange={e => setForm({ ...form, phone: e.target.value })}
-                        placeholder="01012345678"
+                        placeholder="01xxxxxxxxx"
                       />
                       {errors.phone && <p className="field-error">{errors.phone}</p>}
                     </div>

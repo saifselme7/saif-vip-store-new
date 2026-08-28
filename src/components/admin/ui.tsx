@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import { Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ReactNode } from 'react'
+import { useI18n } from '@/i18n'
 
 export function PageHeader({
   title,
@@ -50,6 +51,7 @@ export function StatCard({
   )
 }
 
+const { t: _t } = { t: undefined as never }
 export function SearchInput({
   value,
   onChange,
@@ -63,6 +65,7 @@ export function SearchInput({
   className?: string
   label?: string
 }) {
+  const { t } = useI18n()
   const id = `search-${placeholder.replace(/\W/g, '')}`
   return (
     <div className={cn('relative', className)}>
@@ -82,7 +85,7 @@ export function SearchInput({
         <button
           onClick={() => onChange('')}
           className="absolute right-2.5 top-1/2 -translate-y-1/2 text-saif-dim hover:text-saif-text text-xs"
-          aria-label="Clear search"
+          aria-label={t('a11y.clearSearch')}
         >
           ✕
         </button>

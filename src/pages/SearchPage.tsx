@@ -8,8 +8,10 @@ import ProductCard from '@/components/ProductCard'
 import Footer from '@/components/Footer'
 import EmptyState from '@/components/EmptyState'
 import { ProductGridSkeleton } from '@/components/ui/Skeletons'
+import { useI18n } from '@/i18n'
 
 export default function SearchPage() {
+  const { t } = useI18n()
   const [searchParams, setSearchParams] = useSearchParams()
   const query = searchParams.get('q') || ''
   const [input, setInput] = useState(query)
@@ -57,7 +59,7 @@ export default function SearchPage() {
               type="text"
               value={input}
               onChange={e => setInput(e.target.value)}
-              placeholder="Search products, categories…"
+              placeholder={t('search.placeholder')}
               autoComplete="off"
               className="w-full bg-transparent border border-saif-border text-saif-text text-sm pl-11 pr-11 py-3.5 focus:outline-none focus:border-saif-text placeholder:text-saif-faint rounded-sm"
             />
@@ -70,7 +72,7 @@ export default function SearchPage() {
                   setSearchParams({}, { replace: true })
                 }}
                 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-saif-dim hover:text-saif-text"
-                aria-label="Clear search"
+                aria-label={t('a11y.clearSearch')}
               >
                 <X size={16} />
               </button>
@@ -89,7 +91,7 @@ export default function SearchPage() {
         ) : !submitted ? (
           <EmptyState
             icon={Search}
-            title="Start typing to search"
+            title={t('search.noQueryTitle')}
             description="Search across product names and descriptions."
           />
         ) : products.length === 0 ? (

@@ -3,6 +3,7 @@ import { TrendingUp, ShoppingCart, DollarSign, Zap, CreditCard, Package } from '
 import { adminSalesAnalytics } from '@/lib/api'
 import { useApp } from '@/context/AppContext'
 import { usePageMeta } from '@/hooks/usePageMeta'
+import { useI18n } from '@/i18n'
 import { formatPrice, cn } from '@/lib/utils'
 import { ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import { PageHeader, StatCard, FilterTabs } from '@/components/admin/ui'
@@ -24,6 +25,7 @@ interface Analytics {
 }
 
 export default function AdminAnalytics() {
+  const { t } = useI18n()
   const { settings } = useApp()
   const currency = settings?.currency ?? 'EGP'
   const [days, setDays] = useState('30')
@@ -56,7 +58,7 @@ export default function AdminAnalytics() {
   return (
     <div className="animate-[pageIn_0.4s_ease]">
       <PageHeader
-        title="Sales Analytics"
+        title={t('admin.analytics.title')}
         description="Aggregated from real order data."
         actions={
           <FilterTabs
@@ -99,7 +101,7 @@ export default function AdminAnalytics() {
             <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-6">
               Orders & Revenue — Last {data.days} Days
             </h2>
-            <div className="flex items-end gap-1 h-48 overflow-x-auto pb-2" role="img" aria-label="Daily revenue chart">
+            <div className="flex items-end gap-1 h-48 overflow-x-auto pb-2" role="img" aria-label={t('a11y.dailyRevenueChart')}>
               {data.daily.map(t => {
                 const revenue = Number(t.revenue)
                 const paid = Number((data.paid_daily.find(p => p.day === t.day) || {}).revenue || 0)
@@ -140,7 +142,7 @@ export default function AdminAnalytics() {
                 <Package size={13} className="text-saif-accent" /> Top Products (paid)
               </h2>
               {data.top_products.length === 0 ? (
-                <p className="text-sm text-saif-dim py-6 text-center">No sales yet.</p>
+                <p className="text-sm text-saif-dim py-6 text-center">{t('admin.analytics.noSales')}</p>
               ) : (
                 <div className="space-y-3">
                   {data.top_products.map(p => (
@@ -169,7 +171,7 @@ export default function AdminAnalytics() {
                 <TrendingUp size={13} className="text-saif-accent" /> Top Categories (paid)
               </h2>
               {data.top_categories.length === 0 ? (
-                <p className="text-sm text-saif-dim py-6 text-center">No sales yet.</p>
+                <p className="text-sm text-saif-dim py-6 text-center">{t('admin.analytics.noSales')}</p>
               ) : (
                 <div className="space-y-3">
                   {data.top_categories.map(c => (
@@ -198,7 +200,7 @@ export default function AdminAnalytics() {
                 <CreditCard size={13} className="text-saif-accent" /> Payment Methods
               </h2>
               {data.payment_methods.length === 0 ? (
-                <p className="text-sm text-saif-dim py-6 text-center">No payments yet.</p>
+                <p className="text-sm text-saif-dim py-6 text-center">{t('admin.analytics.noPayments')}</p>
               ) : (
                 <div className="space-y-3">
                   {data.payment_methods.map(m => {
@@ -230,7 +232,7 @@ export default function AdminAnalytics() {
                 <ShoppingCart size={13} className="text-saif-accent" /> Order Status Distribution
               </h2>
               {data.order_status_distribution.length === 0 ? (
-                <p className="text-sm text-saif-dim py-6 text-center">No orders yet.</p>
+                <p className="text-sm text-saif-dim py-6 text-center">{t('admin.analytics.noOrders')}</p>
               ) : (
                 <div className="space-y-2.5">
                   {data.order_status_distribution.map(s => {
@@ -259,7 +261,7 @@ export default function AdminAnalytics() {
                 <Zap size={13} className="text-saif-accent" /> Digital vs Physical (paid)
               </h2>
               {data.product_type_split.length === 0 ? (
-                <p className="text-sm text-saif-dim py-6 text-center">No sales yet.</p>
+                <p className="text-sm text-saif-dim py-6 text-center">{t('admin.analytics.noSales')}</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {['digital', 'physical'].map(type => {

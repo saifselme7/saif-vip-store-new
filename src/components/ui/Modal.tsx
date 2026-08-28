@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/i18n'
 
 interface ModalProps {
   open: boolean
@@ -16,6 +17,7 @@ interface ModalProps {
  * focus trapped inside while open, focus restored to the trigger on close.
  */
 export default function Modal({ open, onClose, title, children, className, wide }: ModalProps) {
+  const { t } = useI18n()
   const panelRef = useRef<HTMLDivElement>(null)
   const restoreFocusRef = useRef<HTMLElement | null>(null)
 
@@ -91,7 +93,7 @@ export default function Modal({ open, onClose, title, children, className, wide 
             <button
               onClick={onClose}
               className="w-11 h-11 flex items-center justify-center text-saif-dim hover:text-saif-text transition-colors -mr-2"
-              aria-label="Close dialog"
+              aria-label={t('a11y.closeDialog')}
             >
               <X size={18} />
             </button>

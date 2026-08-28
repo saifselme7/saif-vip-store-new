@@ -3,6 +3,7 @@ import { Star, Check, X, Trash2 } from 'lucide-react'
 import { useAdminReviews } from '@/hooks/admin/useAdminData'
 import { useToast } from '@/context/ToastContext'
 import { usePageMeta } from '@/hooks/usePageMeta'
+import { useI18n } from '@/i18n'
 import { useDebounce } from '@/hooks/useDebounce'
 import { formatDate, cn } from '@/lib/utils'
 import { PageHeader, SearchInput, FilterTabs, EmptyPanel } from '@/components/admin/ui'
@@ -11,6 +12,7 @@ import Loading from '@/components/Loading'
 import RatingStars from '@/components/ui/RatingStars'
 
 export default function AdminReviews() {
+  const { t } = useI18n()
   const { reviews, loading, updateStatus, remove } = useAdminReviews()
   const { addToast } = useToast()
   const [statusFilter, setStatusFilter] = useState('pending')
@@ -40,7 +42,7 @@ export default function AdminReviews() {
 
   async function handleStatus(id: string, status: 'approved' | 'rejected') {
     const { error } = await updateStatus(id, status)
-    if (error) addToast('Failed to update review', 'error')
+    if (error) addToast(t('errors.saveFailed'), 'error')
     else addToast(status === 'approved' ? 'Review approved — now visible in the store' : 'Review rejected')
   }
 
@@ -50,14 +52,14 @@ export default function AdminReviews() {
     const { error } = await remove(deleteTarget.id)
     setDeleting(false)
     setDeleteTarget(null)
-    if (error) addToast('Failed to delete review', 'error')
-    else addToast('Review deleted')
+    if (error) addToast(t('errors.saveFailed'), 'error')
+    else addToast(t('admin.common.saved'))
   }
 
   if (loading) {
     return (
       <div>
-        <PageHeader title="Reviews" />
+        <PageHeader title={t('admin.reviews.title')} />
         <Loading />
       </div>
     )
@@ -71,17 +73,17 @@ export default function AdminReviews() {
 
   return (
     <div className="animate-[pageIn_0.4s_ease]">
-      <PageHeader title="Reviews" description="Moderate customer reviews before they appear in the store." />
+      <PageHeader title={t('admin.reviews.title')} description="Moderate customer reviews before they appear in the store." />
 
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
-        <SearchInput value={search} onChange={setSearch} placeholder="Search title, product, author…" className="flex-1" />
+        <SearchInput value={search} onChange={setSearch} placeholder={t('admin.reviews.searchPlaceholder')} className="flex-1" />
         <select
           value={ratingFilter}
           onChange={e => setRatingFilter(e.target.value)}
           className="input py-2.5 text-xs w-full sm:w-36"
-          aria-label="Filter by rating"
+          aria-label={t('admin.reviews.allRatings')}
         >
-          <option value="">All ratings</option>
+          <option value="">{t('admin.reviews.allRatings')}</option>
           {[5, 4, 3, 2, 1].map(r => (
             <option key={r} value={r} className="bg-black">
               {r} stars
@@ -95,10 +97,10 @@ export default function AdminReviews() {
           value={statusFilter}
           onChange={setStatusFilter}
           options={[
-            { value: 'pending', label: 'Pending', count: counts.pending },
-            { value: 'approved', label: 'Approved', count: counts.approved },
-            { value: 'rejected', label: 'Rejected', count: counts.rejected },
-            { value: '', label: 'All', count: reviews.length },
+            { value: 'pending', label: t('admin.reviews.pending'), count: counts.pending },
+            { value: 'approved', label: t('admin.reviews.approved'), count: counts.approved },
+            { value: 'rejected', label: t('admin.reviews.rejected'), count: counts.rejected },
+            { value: '', label: t('admin.common.all'), count: reviews.length },
           ]}
         />
       </div>

@@ -250,7 +250,7 @@ describe('ProductDetailPage — loading → loaded transition', () => {
     })
 
     // Cart drawer opens with the item
-    const dialog = document.querySelector('[role="dialog"][aria-label="Shopping bag"]')
+    const dialog = document.querySelector('[role="dialog"][aria-label*="Shopping bag"]')
     expect(dialog).toBeTruthy()
     expect(dialog?.textContent).toContain('Off by Design Tee')
   })

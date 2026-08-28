@@ -3,10 +3,12 @@ import { useApp } from '@/context/AppContext'
 import { usePageMeta } from '@/hooks/usePageMeta'
 import { validateFullName, validateEmail, type FieldErrors } from '@/lib/validation'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/i18n'
 import Footer from '@/components/Footer'
 import { Mail, Phone } from 'lucide-react'
 
 export default function ContactPage() {
+  const { t } = useI18n()
   const { settings } = useApp()
   const [form, setForm] = useState({ name: '', email: '', message: '' })
   const [errors, setErrors] = useState<FieldErrors>({})
@@ -72,7 +74,7 @@ export default function ContactPage() {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <div>
-              <label className="label" htmlFor="ct-name">Name</label>
+              <label className="label" htmlFor="ct-name">{t('contact.name')}</label>
               <input
                 id="ct-name"
                 required
@@ -85,7 +87,7 @@ export default function ContactPage() {
               {errors.name && <p className="field-error">{errors.name}</p>}
             </div>
             <div>
-              <label className="label" htmlFor="ct-email">Email</label>
+              <label className="label" htmlFor="ct-email">{t('contact.email')}</label>
               <input
                 id="ct-email"
                 required
@@ -98,7 +100,7 @@ export default function ContactPage() {
               {errors.email && <p className="field-error">{errors.email}</p>}
             </div>
             <div>
-              <label className="label" htmlFor="ct-message">Message</label>
+              <label className="label" htmlFor="ct-message">{t('contact.message')}</label>
               <textarea
                 id="ct-message"
                 required

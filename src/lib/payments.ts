@@ -6,7 +6,21 @@ import type { PaymentMethod, PaymentStatus } from '@/types'
 export const PAYMENT_BUCKET = 'payment-screenshots'
 export const PRODUCT_IMAGES_BUCKET = 'product-images'
 
-export function getPaymentInstructions(method: PaymentMethod, receivingNumber: string) {
+export function getPaymentInstructions(method: PaymentMethod, receivingNumber: string, lang: 'en' | 'ar' = 'en') {
+  if (lang === 'ar') {
+    if (method === 'instapay') {
+      return [
+        `افتح تطبيق البنك أو انستا باي وابعت الإجمالي بالظبط على ${receivingNumber}.`,
+        'صوّر الشاشة بعد ما التحويل ينجح.',
+        'ارفع الصورة من تحت واكتب الرقم أو الحساب اللي حولت منه.',
+      ]
+    }
+    return [
+      `افتح تطبيق فودافون كاش أو روح لأقرب مندوب وابعت الإجمالي بالظبط على ${receivingNumber}.`,
+      'صوّر رسالة التأكيد أو إيصال التطبيق.',
+      'ارفع الصورة من تحت واكتب رقم فودافون اللي حولت منه.',
+    ]
+  }
   if (method === 'instapay') {
     return [
       `Open your bank app or InstaPay app and send the exact total to ${receivingNumber}.`,

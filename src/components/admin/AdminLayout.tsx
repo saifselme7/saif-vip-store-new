@@ -138,7 +138,7 @@ export default function AdminLayout() {
             <button
               onClick={() => setMobileOpen(false)}
               className="absolute top-4 right-3 text-saif-dim hover:text-saif-text p-1"
-              aria-label="Close menu"
+              aria-label={t('a11y.closeMenu')}
             >
               <X size={20} />
             </button>
@@ -153,7 +153,7 @@ export default function AdminLayout() {
           <button
             onClick={() => setMobileOpen(true)}
             className="text-saif-text p-1"
-            aria-label="Open admin menu"
+            aria-label={t('a11y.openMenu')}
           >
             <Menu size={20} />
           </button>

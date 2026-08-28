@@ -7,8 +7,10 @@ import RatingStars from '@/components/ui/RatingStars'
 import Modal from '@/components/ui/Modal'
 import { cn, formatDate } from '@/lib/utils'
 import type { Product } from '@/types'
+import { useI18n } from '@/i18n'
 
 export default function ProductReviews({ product }: { product: Product }) {
+  const { t } = useI18n()
   const { user } = useAuth()
   const { addToast } = useToast()
   const { reviews, stats, loading } = useReviews(product.id)
@@ -22,7 +24,7 @@ export default function ProductReviews({ product }: { product: Product }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!title.trim() || !body.trim()) {
-      addToast('Please add a title and review text', 'error')
+      addToast(t('product.enterTitleBody'), 'error')
       return
     }
     setSubmitting(true)
@@ -41,7 +43,7 @@ export default function ProductReviews({ product }: { product: Product }) {
     setTitle('')
     setBody('')
     setRating(5)
-    addToast('Review submitted — it will appear after moderation')
+    addToast(t('product.reviewSubmitted'))
   }
 
   return (
@@ -54,7 +56,7 @@ export default function ProductReviews({ product }: { product: Product }) {
           className="btn btn-sm"
           onClick={() => {
             if (!user) {
-              addToast('Sign in to write a review', 'info')
+              addToast(t('product.signInForWishlist'), 'info')
               return
             }
             setFormOpen(true)
@@ -128,8 +130,8 @@ export default function ProductReviews({ product }: { product: Product }) {
       <Modal open={formOpen} onClose={() => setFormOpen(false)} title={`Review ${product.name}`}>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <span className="label">Your Rating</span>
-            <div className="flex gap-1.5" role="radiogroup" aria-label="Rating">
+            <span className="label">{t('product.yourRating')}</span>
+            <div className="flex gap-1.5" role="radiogroup" aria-label={t('a11y.rating')}>
               {[1, 2, 3, 4, 5].map(value => (
                 <button
                   key={value}
@@ -164,7 +166,7 @@ export default function ProductReviews({ product }: { product: Product }) {
               className="input"
               value={title}
               onChange={e => setTitle(e.target.value)}
-              placeholder="Sum up your experience"
+              placeholder={t('product.reviewTitlePlaceholder')}
               maxLength={80}
               required
             />
@@ -179,13 +181,13 @@ export default function ProductReviews({ product }: { product: Product }) {
               rows={4}
               value={body}
               onChange={e => setBody(e.target.value)}
-              placeholder="What did you like or dislike?"
+              placeholder={t('product.reviewBodyPlaceholder')}
               maxLength={1000}
               required
             />
           </div>
           <p className="text-xs text-saif-dim">
-            Reviews are moderated — yours will appear once approved.
+            {t('product.reviewPending')}
           </p>
           <button type="submit" className="btn btn-primary w-full" disabled={submitting}>
             {submitting ? 'Submitting…' : 'Submit Review'}

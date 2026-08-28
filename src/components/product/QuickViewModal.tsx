@@ -8,6 +8,7 @@ import { useCart } from '@/context/CartContext'
 import { useToast } from '@/context/ToastContext'
 import { formatPrice } from '@/lib/utils'
 import type { Product } from '@/types'
+import { useI18n } from '@/i18n'
 
 interface Props {
   product: Product
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function QuickViewModal({ product, open, onClose }: Props) {
+  const { t } = useI18n()
   const { addItem, setIsOpen } = useCart()
   const { addToast } = useToast()
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null)
@@ -33,23 +35,23 @@ export default function QuickViewModal({ product, open, onClose }: Props) {
 
   function handleAdd() {
     if (!isDigital && variants.length > 0 && !selectedVariant) {
-      addToast('Please select an option first', 'error')
+      addToast(t('product.selectOptionFirst'), 'error')
       return
     }
     const result = addItem(product, selectedVariant, quantity)
     if (result.ok) {
-      addToast(`${product.name} added to bag`)
+      addToast(t('product.addedToBag', { name: product.name }))
       onClose()
       setIsOpen(true)
       setSelectedVariantId(null)
       setQuantity(1)
     } else {
-      addToast(result.message || 'Could not add to bag', 'error')
+      addToast(result.message || t('product.couldNotAdd'), 'error')
     }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Quick View" wide>
+    <Modal open={open} onClose={onClose} title={t('product.quickView')} wide>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <div className="aspect-[3/4] bg-saif-panel overflow-hidden rounded-sm">
           <img
@@ -94,7 +96,7 @@ export default function QuickViewModal({ product, open, onClose }: Props) {
           )}
 
           <div className="mt-5">
-            <span className="label">Quantity</span>
+            <span className="label">{t('product.quantity')}</span>
             <QuantityStepper
               value={quantity}
               onChange={setQuantity}
@@ -102,7 +104,7 @@ export default function QuickViewModal({ product, open, onClose }: Props) {
               ariaLabel="Quantity"
             />
             {!isDigital && availableStock > 0 && availableStock <= product.low_stock_threshold && (
-              <p className="text-xs text-yellow-400 mt-2">Only {availableStock} left in stock</p>
+              <p className="text-xs text-yellow-400 mt-2">{t('product.lowStock', { count: availableStock })}</p>
             )}
           </div>
 

@@ -107,7 +107,7 @@ export default function AdminProductForm() {
       .then(({ data }) => {
         if (cancelled) return
         if (!data) {
-          addToast('Product not found', 'error')
+          addToast(t('product.notFound'), 'error')
           navigate('/admin/products')
           return
         }
@@ -198,7 +198,7 @@ export default function AdminProductForm() {
     } else {
       const { data } = supabase.storage.from(PRODUCT_IMAGES_BUCKET).getPublicUrl(path)
       setImages(prev => [...prev, data.publicUrl])
-      addToast('Image uploaded')
+      addToast(t('admin.common.saved'))
     }
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
@@ -340,9 +340,9 @@ export default function AdminProductForm() {
     const { error } = await supabase.from('products').delete().eq('id', id)
     setDeleting(false)
     setDeleteOpen(false)
-    if (error) addToast('Failed to delete product', 'error')
+    if (error) addToast(t('errors.saveFailed'), 'error')
     else {
-      addToast('Product deleted')
+      addToast(t('admin.products.deleted'))
       navigate('/admin/products')
     }
   }
@@ -378,14 +378,14 @@ export default function AdminProductForm() {
       <div className="space-y-8">
         {/* Basic info */}
         <section className="card p-6">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-5">Basic Information</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-5">{t('admin.products.form.tabs.basic')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label className="label" htmlFor="pf-name">Product Name *</label>
               <input id="pf-name" className="input" value={form.name} onChange={e => set('name', e.target.value)} />
             </div>
             <div>
-              <label className="label" htmlFor="pf-slug">Slug *</label>
+              <label className="label" htmlFor="pf-slug">{t('admin.products.form.slug')} *</label>
               <input
                 id="pf-slug"
                 className="input font-mono text-xs"
@@ -401,37 +401,37 @@ export default function AdminProductForm() {
               <input id="pf-sku" className="input font-mono text-xs" value={form.sku} onChange={e => set('sku', e.target.value)} />
             </div>
             <div>
-              <label className="label" htmlFor="pf-category">Category</label>
+              <label className="label" htmlFor="pf-category">{t('admin.products.form.category')}</label>
               <select id="pf-category" className="input" value={form.category_id} onChange={e => set('category_id', e.target.value)}>
-                <option value="">No category</option>
+                <option value="">{t('admin.products.form.noCategory')}</option>
                 {categories.map(c => (
                   <option key={c.id} value={c.id} className="bg-black">{c.name}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="label" htmlFor="pf-type">Product Type</label>
+              <label className="label" htmlFor="pf-type">{t('admin.products.form.type')}</label>
               <select
                 id="pf-type"
                 className="input"
                 value={form.product_type}
                 onChange={e => set('product_type', e.target.value as 'physical' | 'digital')}
               >
-                <option value="physical" className="bg-black">Physical (shipped)</option>
-                <option value="digital" className="bg-black">Digital (delivered online)</option>
+                <option value="physical" className="bg-black">{t('admin.products.form.physical')}</option>
+                <option value="digital" className="bg-black">{t('admin.products.form.digital')}</option>
               </select>
             </div>
             <div>
-              <label className="label" htmlFor="pf-status">Status</label>
+              <label className="label" htmlFor="pf-status">{t('admin.products.form.status')}</label>
               <select
                 id="pf-status"
                 className="input"
                 value={form.status}
                 onChange={e => set('status', e.target.value as FormState['status'])}
               >
-                <option value="draft" className="bg-black">Draft (hidden)</option>
-                <option value="active" className="bg-black">Active (visible)</option>
-                <option value="archived" className="bg-black">Archived</option>
+                <option value="draft" className="bg-black">{t('admin.products.form.draft')}</option>
+                <option value="active" className="bg-black">{t('admin.products.form.active')}</option>
+                <option value="archived" className="bg-black">{t('admin.products.form.archived')}</option>
               </select>
             </div>
             <div className="flex items-end gap-6 pb-1">
@@ -455,7 +455,7 @@ export default function AdminProductForm() {
               </label>
             </div>
             <div>
-              <label className="label" htmlFor="pf-short">Short Description (English)</label>
+              <label className="label" htmlFor="pf-short">{t('admin.products.form.shortDescEn')}</label>
               <input
                 id="pf-short"
                 className="input"
@@ -465,7 +465,7 @@ export default function AdminProductForm() {
               />
             </div>
             <div>
-              <label className="label" htmlFor="pf-short-ar" dir="rtl">Short Description (Arabic)</label>
+              <label className="label" htmlFor="pf-short-ar" dir="rtl">{t('admin.products.form.shortDescAr')}</label>
               <input
                 id="pf-short-ar"
                 className="input"
@@ -475,7 +475,7 @@ export default function AdminProductForm() {
               />
             </div>
             <div>
-              <label className="label" htmlFor="pf-desc">Full Description (English)</label>
+              <label className="label" htmlFor="pf-desc">{t('admin.products.form.descEn')}</label>
               <textarea
                 id="pf-desc"
                 className="input resize-none"
@@ -485,7 +485,7 @@ export default function AdminProductForm() {
               />
             </div>
             <div>
-              <label className="label" htmlFor="pf-desc-ar" dir="rtl">Full Description (Arabic)</label>
+              <label className="label" htmlFor="pf-desc-ar" dir="rtl">{t('admin.products.form.descAr')}</label>
               <textarea
                 id="pf-desc-ar"
                 className="input resize-none"
@@ -496,7 +496,7 @@ export default function AdminProductForm() {
               />
             </div>
             <div className="md:col-span-2">
-              <label className="label" htmlFor="pf-tags">Tags (comma separated)</label>
+              <label className="label" htmlFor="pf-tags">{t('admin.products.form.tags')}</label>
               <input
                 id="pf-tags"
                 className="input"
@@ -510,7 +510,7 @@ export default function AdminProductForm() {
 
         {/* Pricing & inventory */}
         <section className="card p-6">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-5">Pricing & Inventory</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-5">{t('admin.products.form.tabs.pricing')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="label" htmlFor="pf-price">Price ({settings?.currency ?? 'EGP'}) *</label>
@@ -521,7 +521,7 @@ export default function AdminProductForm() {
               <input id="pf-compare" type="number" step="0.01" min="0" className="input" value={form.compare_at_price} onChange={e => set('compare_at_price', e.target.value)} placeholder="Optional — shows a sale badge" />
             </div>
             <div>
-              <label className="label" htmlFor="pf-stock">Stock</label>
+              <label className="label" htmlFor="pf-stock">{t('admin.products.form.stock')}</label>
               <input
                 id="pf-stock"
                 type="number"
@@ -539,7 +539,7 @@ export default function AdminProductForm() {
           </div>
           {form.product_type === 'digital' && (
             <div className="mt-4">
-              <label className="label" htmlFor="pf-delivery">Digital Delivery Information</label>
+              <label className="label" htmlFor="pf-delivery">{t('admin.products.form.deliveryInfoEn')}</label>
               <textarea
                 id="pf-delivery"
                 className="input resize-none"
@@ -549,7 +549,7 @@ export default function AdminProductForm() {
                 placeholder="Shown to the customer after payment approval — e.g. how and when the item is delivered."
               />
               <div className="mt-4">
-                <label className="label" htmlFor="pf-delivery-ar" dir="rtl">Digital Delivery Information (Arabic)</label>
+                <label className="label" htmlFor="pf-delivery-ar" dir="rtl">{t('admin.products.form.deliveryInfoAr')}</label>
                 <textarea
                   id="pf-delivery-ar"
                   className="input resize-none"
@@ -568,7 +568,7 @@ export default function AdminProductForm() {
 
         {/* Images */}
         <section className="card p-6">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-5">Images</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-5">{t('admin.products.form.media')}</h2>
           <div className="flex flex-col sm:flex-row gap-2 mb-5">
             <input
               className="input text-xs"
@@ -595,7 +595,7 @@ export default function AdminProductForm() {
               accept="image/png,image/jpeg,image/webp"
               onChange={handleImageUpload}
               className="sr-only"
-              aria-label="Upload image file"
+              aria-label={t('admin.products.form.uploadFile')}
             />
           </div>
 
@@ -612,22 +612,22 @@ export default function AdminProductForm() {
                   </div>
                   <div className="flex items-center justify-between gap-1 p-1.5 bg-black/60">
                     <div className="flex gap-0.5">
-                      <button onClick={() => moveImage(i, -1)} disabled={i === 0} className="p-1 text-saif-dim hover:text-saif-text disabled:opacity-30" aria-label="Move image up" title="Move earlier">
+                      <button onClick={() => moveImage(i, -1)} disabled={i === 0} className="p-1 text-saif-dim hover:text-saif-text disabled:opacity-30" aria-label={t('admin.common.moveUp')} title="Move earlier">
                         <ArrowUp size={12} />
                       </button>
-                      <button onClick={() => moveImage(i, 1)} disabled={i === images.length - 1} className="p-1 text-saif-dim hover:text-saif-text disabled:opacity-30" aria-label="Move image down" title="Move later">
+                      <button onClick={() => moveImage(i, 1)} disabled={i === images.length - 1} className="p-1 text-saif-dim hover:text-saif-text disabled:opacity-30" aria-label={t('admin.common.moveDown')} title="Move later">
                         <ArrowDown size={12} />
                       </button>
                     </div>
                     <button
                       onClick={() => setThumbnail(img)}
                       className={cn('p-1', thumbnail === img ? 'text-saif-accent' : 'text-saif-dim hover:text-yellow-400')}
-                      aria-label="Set as primary image"
+                      aria-label={t('admin.products.form.primary')}
                       title={thumbnail === img ? 'Primary image' : 'Set as primary'}
                     >
                       <Star size={12} className={thumbnail === img ? 'fill-saif-accent' : ''} />
                     </button>
-                    <button onClick={() => removeImage(i)} className="p-1 text-saif-dim hover:text-saif-accent" aria-label="Remove image">
+                    <button onClick={() => removeImage(i)} className="p-1 text-saif-dim hover:text-saif-accent" aria-label={t('admin.common.remove')}>
                       <X size={12} />
                     </button>
                   </div>
@@ -642,7 +642,7 @@ export default function AdminProductForm() {
 
         {/* Specifications */}
         <section className="card p-6">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-5">Specifications</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-5">{t('admin.products.form.seo')}</h2>
           {specEntries.length === 0 && (
             <p className="text-sm text-saif-dim mb-4">No specifications yet.</p>
           )}

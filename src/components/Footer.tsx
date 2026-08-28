@@ -68,7 +68,7 @@ export default function Footer() {
             )}
           </div>
 
-          <nav aria-label="Shop links">
+          <nav aria-label={t('a11y.shopLinks')}>
             <h4 className="text-[11px] font-semibold text-saif-text mb-5 tracking-[0.2em] uppercase">{t('footer.shop')}</h4>
             <ul className="space-y-1">
               {[
@@ -90,7 +90,7 @@ export default function Footer() {
             </ul>
           </nav>
 
-          <nav aria-label="Support links">
+          <nav aria-label={t('a11y.supportLinks')}>
             <h4 className="text-[11px] font-semibold text-saif-text mb-5 tracking-[0.2em] uppercase">{t('footer.support')}</h4>
             <ul className="space-y-1">
               {[

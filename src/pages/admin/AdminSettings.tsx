@@ -77,10 +77,10 @@ export default function AdminSettings() {
       .eq('id', settings.id)
     setSaving(false)
     if (error) {
-      addToast('Failed to save settings', 'error')
+      addToast(t('admin.settings.saveFailed'), 'error')
       return
     }
-    addToast('Settings saved')
+    addToast(t('admin.settings.saved'))
     refreshSettings()
   }
 
@@ -91,7 +91,7 @@ export default function AdminSettings() {
     if (settings) {
       const next = !form.maintenance_mode
       const { error } = await supabase.from('site_settings').update({ maintenance_mode: next }).eq('id', settings.id)
-      if (error) addToast('Failed to toggle maintenance mode', 'error')
+      if (error) addToast(t('admin.settings.saveFailed'), 'error')
       else {
         addToast(next ? 'Maintenance mode enabled' : 'Maintenance mode disabled')
         refreshSettings()
@@ -133,7 +133,7 @@ export default function AdminSettings() {
         }
       />
 
-      <div className="flex gap-1.5 overflow-x-auto pb-1 mb-6" role="group" aria-label="Settings sections">
+      <div className="flex gap-1.5 overflow-x-auto pb-1 mb-6" role="group" aria-label={t('a11y.accountSections')}>
         {TABS.map(tabDef => (
           <button
             key={tabDef.id}
@@ -152,30 +152,30 @@ export default function AdminSettings() {
       {tab === 'general' && (
         <section className="card p-6 space-y-4">
           <div>
-            <label className="label" htmlFor="st-name">Store Name</label>
+            <label className="label" htmlFor="st-name">{t('admin.settings.storeName')}</label>
             <input id="st-name" className="input" value={String(form.store_name ?? '')} onChange={e => set('store_name', e.target.value)} />
           </div>
           <div>
-            <label className="label" htmlFor="st-desc">Store Description</label>
+            <label className="label" htmlFor="st-desc">{t('admin.settings.description')}</label>
             <textarea id="st-desc" className="input resize-none" rows={2} value={String(form.store_description ?? '')} onChange={e => set('store_description', e.target.value)} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="label" htmlFor="st-email">Support Email</label>
+              <label className="label" htmlFor="st-email">{t('admin.settings.supportEmail')}</label>
               <input id="st-email" type="email" className="input" value={String(form.contact_email ?? '')} onChange={e => set('contact_email', e.target.value)} />
             </div>
             <div>
-              <label className="label" htmlFor="st-phone">Support Phone</label>
+              <label className="label" htmlFor="st-phone">{t('admin.settings.supportPhone')}</label>
               <input id="st-phone" className="input" value={String(form.contact_phone ?? '')} onChange={e => set('contact_phone', e.target.value)} />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="label" htmlFor="st-logo">Logo URL</label>
+              <label className="label" htmlFor="st-logo">{t('admin.settings.logoUrl')}</label>
               <input id="st-logo" className="input text-xs" value={String(form.logo_url ?? '')} onChange={e => set('logo_url', e.target.value)} placeholder="https://…" />
             </div>
             <div>
-              <label className="label" htmlFor="st-currency">Currency</label>
+              <label className="label" htmlFor="st-currency">{t('admin.settings.currency')}</label>
               <select id="st-currency" className="input" value={currency} onChange={e => set('currency', e.target.value)}>
                 <option value="EGP" className="bg-black">EGP — Egyptian Pound</option>
                 <option value="USD" className="bg-black">USD — US Dollar</option>
@@ -186,7 +186,7 @@ export default function AdminSettings() {
             </div>
           </div>
           <div>
-            <label className="label" htmlFor="st-announce">Announcement Bar</label>
+            <label className="label" htmlFor="st-announce">{t('admin.settings.announcement')}</label>
             <input
               id="st-announce"
               className="input"
@@ -197,7 +197,7 @@ export default function AdminSettings() {
             <p className="text-xs text-saif-dim mt-1.5">Leave empty to hide the announcement bar.</p>
           </div>
           <div>
-            <label className="label" htmlFor="st-footer">Footer Text</label>
+            <label className="label" htmlFor="st-footer">{t('admin.settings.footerText')}</label>
             <input id="st-footer" className="input" value={String(form.footer_text ?? '')} onChange={e => set('footer_text', e.target.value)} />
           </div>
         </section>
@@ -266,15 +266,15 @@ export default function AdminSettings() {
         <section className="card p-6 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="label" htmlFor="sh-fee">Shipping Fee</label>
+              <label className="label" htmlFor="sh-fee">{t('admin.settings.shippingFee')}</label>
               <input id="sh-fee" type="number" step="0.01" min="0" className="input" value={String(form.shipping_fee ?? 0)} onChange={e => set('shipping_fee', e.target.value)} />
             </div>
             <div>
-              <label className="label" htmlFor="sh-free">Free Shipping Above</label>
+              <label className="label" htmlFor="sh-free">{t('admin.settings.freeShippingAbove')}</label>
               <input id="sh-free" type="number" step="0.01" min="0" className="input" value={String(form.free_shipping_threshold ?? '')} onChange={e => set('free_shipping_threshold', e.target.value)} placeholder="Leave empty to disable" />
             </div>
             <div>
-              <label className="label" htmlFor="sh-min">Minimum Order</label>
+              <label className="label" htmlFor="sh-min">{t('admin.settings.minOrder')}</label>
               <input id="sh-min" type="number" step="0.01" min="0" className="input" value={String(form.min_order_amount ?? '')} onChange={e => set('min_order_amount', e.target.value)} placeholder="Leave empty to disable" />
             </div>
           </div>
@@ -290,7 +290,7 @@ export default function AdminSettings() {
       {tab === 'payment' && (
         <section className="card p-6 space-y-5">
           <div>
-            <label className="label" htmlFor="pm-number">Payment Receiving Number</label>
+            <label className="label" htmlFor="pm-number">{t('admin.settings.paymentNumber')}</label>
             <input
               id="pm-number"
               className="input font-mono text-lg tracking-wider"
@@ -310,7 +310,7 @@ export default function AdminSettings() {
                 onChange={e => set('instapay_enabled', e.target.checked)}
                 className="w-4 h-4 accent-[#E63946]"
               />
-              <span className="text-sm text-saif-text">Offer InstaPay at checkout</span>
+              <span className="text-sm text-saif-text">{t('admin.settings.instapayEnabled')}</span>
             </label>
             <label className="flex items-center gap-3 border border-saif-border p-4 cursor-pointer rounded-sm">
               <input
@@ -319,11 +319,11 @@ export default function AdminSettings() {
                 onChange={e => set('vodafone_cash_enabled', e.target.checked)}
                 className="w-4 h-4 accent-[#E63946]"
               />
-              <span className="text-sm text-saif-text">Offer Vodafone Cash at checkout</span>
+              <span className="text-sm text-saif-text">{t('admin.settings.vodafoneEnabled')}</span>
             </label>
           </div>
           <div>
-            <label className="label" htmlFor="pm-instructions">Extra Payment Instructions (optional)</label>
+            <label className="label" htmlFor="pm-instructions">{t('admin.settings.paymentInstructions')}</label>
             <textarea
               id="pm-instructions"
               className="input resize-none"
@@ -343,11 +343,11 @@ export default function AdminSettings() {
       {tab === 'homepage' && (
         <section className="card p-6 space-y-4">
           <div>
-            <label className="label" htmlFor="hp-title">Hero Title</label>
+            <label className="label" htmlFor="hp-title">{t('admin.settings.heroTitle')}</label>
             <input id="hp-title" className="input" value={String(form.hero_title ?? '')} onChange={e => set('hero_title', e.target.value)} placeholder="SAIF STORE" />
           </div>
           <div>
-            <label className="label" htmlFor="hp-sub">Hero Subtitle</label>
+            <label className="label" htmlFor="hp-sub">{t('admin.settings.heroSubtitle')}</label>
             <textarea id="hp-sub" className="input resize-none" rows={2} value={String(form.hero_subtitle ?? '')} onChange={e => set('hero_subtitle', e.target.value)} />
           </div>
           <div>
@@ -379,7 +379,7 @@ export default function AdminSettings() {
         <section className="card p-6 space-y-5">
           <div className="flex items-center justify-between gap-4 border border-saif-border p-4 rounded-sm">
             <div>
-              <p className="text-sm font-semibold text-saif-text">Maintenance Mode</p>
+              <p className="text-sm font-semibold text-saif-text">{t('admin.settings.maintenance')}</p>
               <p className="text-xs text-saif-dim mt-1">
                 Hides the storefront from everyone except admins. The admin dashboard stays accessible.
               </p>

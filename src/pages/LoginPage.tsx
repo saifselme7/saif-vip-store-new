@@ -5,8 +5,10 @@ import { useToast } from '@/context/ToastContext'
 import { usePageMeta } from '@/hooks/usePageMeta'
 import { validateEmail, type FieldErrors } from '@/lib/validation'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/i18n'
 
 export default function LoginPage() {
+  const { t } = useI18n()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const redirectTo = searchParams.get('redirect') || '/'
@@ -31,9 +33,9 @@ export default function LoginPage() {
     const { error } = await signIn(email, password)
     setLoading(false)
     if (error) {
-      addToast(error, 'error')
+      addToast(error || t('errors.generic'), 'error')
     } else {
-      addToast('Welcome back')
+      addToast(t('auth.welcomeBack'))
       navigate(redirectTo, { replace: true })
     }
   }
@@ -41,12 +43,12 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-5 pt-20">
       <div className="w-full max-w-sm">
-        <h1 className="text-3xl font-black tracking-tighter text-saif-text mb-2">Sign In</h1>
-        <p className="text-sm text-saif-dim mb-8">Welcome back to SAIF STORE.</p>
+        <h1 className="text-3xl font-black tracking-tighter text-saif-text mb-2">{t('auth.signInTitle')}</h1>
+        <p className="text-sm text-saif-dim mb-8">{t('auth.signInSubtitle')}</p>
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
-            <label className="label" htmlFor="li-email">Email</label>
+            <label className="label" htmlFor="li-email">{t('auth.email')}</label>
             <input
               id="li-email"
               required
@@ -59,7 +61,7 @@ export default function LoginPage() {
             {errors.email && <p className="field-error">{errors.email}</p>}
           </div>
           <div>
-            <label className="label" htmlFor="li-password">Password</label>
+            <label className="label" htmlFor="li-password">{t('auth.password')}</label>
             <input
               id="li-password"
               required
@@ -77,7 +79,7 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-6 text-sm text-saif-dim text-center">
-          Don&apos;t have an account?{' '}
+          {t('auth.noAccount')}{' '}
           <Link to={`/register?redirect=${encodeURIComponent(redirectTo)}`} className="text-saif-text hover:underline">
             Create one
           </Link>

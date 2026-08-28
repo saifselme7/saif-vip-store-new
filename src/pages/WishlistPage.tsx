@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Heart } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { useI18n } from '@/i18n'
 import { useWishlist } from '@/hooks/useWishlist'
 import { usePageMeta } from '@/hooks/usePageMeta'
 import ProductCard from '@/components/ProductCard'
@@ -9,6 +10,7 @@ import { ProductGridSkeleton } from '@/components/ui/Skeletons'
 import EmptyState from '@/components/EmptyState'
 
 export default function WishlistPage() {
+  const { t } = useI18n()
   const { user } = useAuth()
   const { items, loading } = useWishlist()
   usePageMeta({ title: 'Wishlist', description: 'Products you saved for later at SAIF STORE.' })
@@ -18,7 +20,7 @@ export default function WishlistPage() {
       <div className="pt-28 px-5">
         <EmptyState
           icon={Heart}
-          title="Sign in to view your wishlist"
+          title={t('wishlist.signInTitle')}
           description="Save products you love and find them here on any device."
           action={
             <Link to="/login?redirect=/wishlist" className="btn btn-primary">
@@ -40,7 +42,7 @@ export default function WishlistPage() {
         ) : items.length === 0 ? (
           <EmptyState
             icon={Heart}
-            title="Your wishlist is empty"
+            title={t('wishlist.emptyTitle')}
             description="Tap the heart on any product to save it for later."
             action={
               <Link to="/products" className="btn btn-primary">

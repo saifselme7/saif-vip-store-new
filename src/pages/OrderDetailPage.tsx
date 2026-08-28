@@ -32,6 +32,7 @@ import Footer from '@/components/Footer'
 import Loading from '@/components/Loading'
 import EmptyState from '@/components/EmptyState'
 import type { Order, OrderEvent, PaymentStatus } from '@/types'
+import { useI18n } from '@/i18n'
 
 const EVENT_ICONS: Record<string, typeof Clock> = {
   order_created: Package,
@@ -46,6 +47,7 @@ const EVENT_ICONS: Record<string, typeof Clock> = {
 const TIMELINE_STATUS_ORDER: PaymentStatus[] = ['awaiting_payment', 'payment_submitted', 'under_review', 'approved']
 
 export default function OrderDetailPage() {
+  const { t, lang, formatPrice, isRTL } = useI18n()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { order, loading, refetch } = useOrder(id)
@@ -145,9 +147,9 @@ export default function OrderDetailPage() {
         customerNote: customerNote.trim() || null,
       })
       if (error) {
-        addToast(error, 'error')
+        addToast(error || t('errors.generic'), 'error')
       } else {
-        addToast('Payment resubmitted — under review again')
+        addToast(t('payment.submittedToast'))
         setResubmitOpen(false)
         refetch()
       }
@@ -163,9 +165,9 @@ export default function OrderDetailPage() {
     setCancelling(false)
     setCancelOpen(false)
     if (error) {
-      addToast(error, 'error')
+      addToast(error || t('errors.generic'), 'error')
     } else {
-      addToast('Order cancelled')
+      addToast(t('orders.cancelled'))
       refetch()
     }
   }
@@ -185,17 +187,17 @@ export default function OrderDetailPage() {
       if (result.ok) added++
     }
     if (added > 0) {
-      addToast(`${added} item${added > 1 ? 's' : ''} added back to your bag`)
+      addToast(t('orders.reordered', { count: added }))
       navigate('/cart')
     } else {
-      addToast('These items are no longer available', 'error')
+      addToast(t('orders.noLongerAvailable'), 'error')
     }
   }
 
   async function handleCopyNumber() {
     if (!order) return
     const ok = await copyToClipboard(order.order_number)
-    addToast(ok ? 'Order number copied' : 'Copy failed', ok ? 'success' : 'error')
+    addToast(ok ? t('orders.copied') : t('errors.generic'), ok ? 'success' : 'error')
   }
 
   if (loading) {
@@ -211,8 +213,8 @@ export default function OrderDetailPage() {
     return (
       <div className="pt-28 px-5">
         <EmptyState
-          title="Order not found"
-          description="This order does not exist or belongs to another account."
+          title={t('orders.notFound')}
+          description={t('orders.notFoundDesc')}
           action={
             <Link to="/orders" className="btn btn-sm">
               My Orders
@@ -233,14 +235,14 @@ export default function OrderDetailPage() {
     <div className="animate-[pageIn_0.6s_ease] pt-24 md:pt-28 px-5 lg:px-10 pb-20">
       <div className="max-w-4xl mx-auto">
         <Link to="/orders" className="text-xs text-saif-dim hover:text-saif-text transition-colors inline-flex items-center gap-1 mb-6">
-          ← All Orders
+          ← {t('orders.allOrders')}
         </Link>
 
         <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-saif-text flex items-center gap-3 flex-wrap">
               {order.order_number}
-              <button onClick={handleCopyNumber} className="text-saif-dim hover:text-saif-accent transition-colors" aria-label="Copy order number">
+              <button onClick={handleCopyNumber} className="text-saif-dim hover:text-saif-accent transition-colors" aria-label={t('orders.copyOrderNumber')}>
                 <Copy size={16} />
               </button>
             </h1>
@@ -271,7 +273,7 @@ export default function OrderDetailPage() {
               </p>
             ) : (
               <p className="text-sm text-saif-dim mb-3">
-                Transfer {formatPrice(payment.expected_amount, currency)} to {receivingNumber} via{' '}
+                Transfer {formatPrice(payment.expected_amount)} to {receivingNumber} via{' '}
                 {PAYMENT_METHOD_LABELS[payment.payment_method]} and upload your screenshot.
               </p>
             )}
@@ -302,7 +304,7 @@ export default function OrderDetailPage() {
           <div className="space-y-8">
             {/* Items */}
             <section className="border border-saif-border rounded-sm p-6">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-5">Items</h2>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-5">{t('orders.items')}</h2>
               <div className="space-y-4">
                 {order.items?.map(item => (
                   <div key={item.id} className="flex gap-4">
@@ -319,11 +321,11 @@ export default function OrderDetailPage() {
                           )}
                         </div>
                         <span className="text-sm font-semibold text-saif-text flex-shrink-0">
-                          {formatPrice(item.total, currency)}
+                          {formatPrice(item.total)}
                         </span>
                       </div>
                       <p className="text-xs text-saif-dim mt-1">
-                        {formatPrice(item.price, currency)} × {item.quantity}
+                        {formatPrice(item.price)} × {item.quantity}
                       </p>
 
                       {/* Digital fulfillment (only shown after payment approval) */}
@@ -343,23 +345,23 @@ export default function OrderDetailPage() {
               <div className="border-t border-saif-border mt-5 pt-5 space-y-2 text-sm">
                 <div className="flex justify-between text-saif-dim">
                   <span>Subtotal</span>
-                  <span className="text-saif-text">{formatPrice(order.subtotal, currency)}</span>
+                  <span className="text-saif-text">{formatPrice(order.subtotal)}</span>
                 </div>
                 {order.discount > 0 && (
                   <div className="flex justify-between text-saif-dim">
                     <span>Discount {order.coupon_code ? <span className="font-mono text-green-400 text-xs">({order.coupon_code})</span> : null}</span>
-                    <span className="text-green-400">−{formatPrice(order.discount, currency)}</span>
+                    <span className="text-green-400">−{formatPrice(order.discount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-saif-dim">
                   <span>Shipping</span>
                   <span className="text-saif-text">
-                    {hasPhysicalItems ? (order.shipping_fee === 0 ? 'Free' : formatPrice(order.shipping_fee, currency)) : '—'}
+                    {hasPhysicalItems ? (order.shipping_fee === 0 ? 'Free' : formatPrice(order.shipping_fee)) : '—'}
                   </span>
                 </div>
                 <div className="flex justify-between text-base font-bold text-saif-text pt-2 border-t border-saif-border">
                   <span>Total</span>
-                  <span>{formatPrice(order.total, currency)}</span>
+                  <span>{formatPrice(order.total)}</span>
                 </div>
               </div>
             </section>
@@ -367,7 +369,7 @@ export default function OrderDetailPage() {
             {/* Timeline */}
             {events.length > 0 && (
               <section className="border border-saif-border rounded-sm p-6">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-5">Order Timeline</h2>
+                <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-5">{t('orders.timeline')}</h2>
                 <ol className="relative border-l border-saif-border ml-2 space-y-6">
                   {events.map(event => {
                     const Icon = EVENT_ICONS[event.event_type] ?? Clock
@@ -391,15 +393,15 @@ export default function OrderDetailPage() {
             {/* Payment card */}
             {payment && (
               <section className="border border-saif-border rounded-sm p-5">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-saif-text mb-4">Payment</h2>
+                <h2 className="text-xs font-bold uppercase tracking-wider text-saif-text mb-4">{t('orders.payment')}</h2>
 
                 {/* Progress steps */}
                 <div className="space-y-3 mb-5">
                   {[
-                    { key: 'awaiting_payment', label: 'Order placed' },
-                    { key: 'payment_submitted', label: 'Proof submitted' },
-                    { key: 'under_review', label: 'Under review' },
-                    { key: 'approved', label: 'Payment approved' },
+                    { key: 'awaiting_payment', label: t('payment.progressPlaced') },
+                    { key: 'payment_submitted', label: t('payment.progressSubmitted') },
+                    { key: 'under_review', label: t('payment.progressUnderReview') },
+                    { key: 'approved', label: t('payment.progressApproved') },
                   ].map((step, i) => {
                     const done =
                       i <= currentPaymentStep ||
@@ -432,28 +434,28 @@ export default function OrderDetailPage() {
 
                 <dl className="space-y-2.5 text-xs">
                   <div className="flex justify-between gap-2">
-                    <dt className="text-saif-dim">Method</dt>
+                    <dt className="text-saif-dim">{t('payment.method')}</dt>
                     <dd className="text-saif-text">{PAYMENT_METHOD_LABELS[payment.payment_method]}</dd>
                   </div>
                   <div className="flex justify-between gap-2">
-                    <dt className="text-saif-dim">Expected</dt>
-                    <dd className="text-saif-text">{formatPrice(payment.expected_amount, currency)}</dd>
+                    <dt className="text-saif-dim">{t('payment.expected')}</dt>
+                    <dd className="text-saif-text">{formatPrice(payment.expected_amount)}</dd>
                   </div>
                   {payment.transferred_amount !== null && (
                     <div className="flex justify-between gap-2">
-                      <dt className="text-saif-dim">Transferred</dt>
-                      <dd className="text-saif-text">{formatPrice(payment.transferred_amount, currency)}</dd>
+                      <dt className="text-saif-dim">{t('payment.transferred')}</dt>
+                      <dd className="text-saif-text">{formatPrice(payment.transferred_amount)}</dd>
                     </div>
                   )}
                   {payment.payer_identifier && (
                     <div className="flex justify-between gap-2">
-                      <dt className="text-saif-dim">Paid from</dt>
+                      <dt className="text-saif-dim">{t('payment.paidFrom')}</dt>
                       <dd className="text-saif-text font-mono">{payment.payer_identifier}</dd>
                     </div>
                   )}
                   {payment.verified_at && (
                     <div className="flex justify-between gap-2">
-                      <dt className="text-saif-dim">Verified</dt>
+                      <dt className="text-saif-dim">{t('payment.verified')}</dt>
                       <dd className="text-saif-text">{formatDate(payment.verified_at, true)}</dd>
                     </div>
                   )}
@@ -468,7 +470,7 @@ export default function OrderDetailPage() {
                 {/* Screenshot */}
                 {payment.screenshot_path && (
                   <div className="mt-4 border-t border-saif-border pt-4">
-                    <p className="text-xs text-saif-dim mb-2">Your transfer screenshot</p>
+                    <p className="text-xs text-saif-dim mb-2">{t('payment.yourScreenshot')}</p>
                     {urlLoading ? (
                       <div className="h-32 skeleton rounded-sm" />
                     ) : signedUrl ? (
@@ -480,7 +482,7 @@ export default function OrderDetailPage() {
                         />
                       </a>
                     ) : (
-                      <p className="text-xs text-saif-dim">Screenshot unavailable.</p>
+                      <p className="text-xs text-saif-dim">{t('payment.screenshotUnavailable')}</p>
                     )}
                   </div>
                 )}
@@ -525,21 +527,21 @@ export default function OrderDetailPage() {
         open={cancelOpen}
         onClose={() => setCancelOpen(false)}
         onConfirm={handleCancel}
-        title="Cancel this order?"
-        message="The reserved items will be returned to stock. This cannot be undone."
-        confirmLabel="Cancel Order"
+        title={t('orders.cancelTitle')}
+        message={t('orders.cancelDesc')}
+        confirmLabel={t('orders.cancelConfirm')}
         danger
         busy={cancelling}
       />
 
       {/* Resubmit payment modal */}
       {resubmitOpen && payment && order && (
-        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true" aria-label="Submit payment proof">
+        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true" aria-label={t('payment.resubmit')}>
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => (submitting ? undefined : setResubmitOpen(false))} />
           <div className="relative w-full bg-black border border-saif-border max-w-lg max-h-[92vh] overflow-y-auto animate-scaleIn rounded-t-lg sm:rounded-sm">
             <div className="flex items-center justify-between px-6 py-4 border-b border-saif-border sticky top-0 bg-black z-10">
-              <h2 className="text-base font-bold tracking-tight text-saif-text">Submit Payment Proof</h2>
-              <button onClick={() => setResubmitOpen(false)} className="text-saif-dim hover:text-saif-text p-1" aria-label="Close" disabled={submitting}>
+              <h2 className="text-base font-bold tracking-tight text-saif-text">{t('payment.resubmitTitle')}</h2>
+              <button onClick={() => setResubmitOpen(false)} className="text-saif-dim hover:text-saif-text p-1" aria-label={t('common.close')} disabled={submitting}>
                 <X size={18} />
               </button>
             </div>
@@ -551,7 +553,7 @@ export default function OrderDetailPage() {
                   {PAYMENT_METHOD_LABELS[payment.payment_method]} · {receivingNumber}
                 </p>
                 <p className="font-bold text-saif-accent text-sm mb-2">
-                  Transfer exactly {formatPrice(payment.expected_amount, currency)}
+                  Transfer exactly {formatPrice(payment.expected_amount)}
                 </p>
                 <ul className="list-disc list-inside space-y-1">
                   {getPaymentInstructions(payment.payment_method, receivingNumber).map(line => (
@@ -574,7 +576,7 @@ export default function OrderDetailPage() {
               </div>
 
               <div>
-                <label className="label" htmlFor="re-amount">Transferred Amount</label>
+                <label className="label" htmlFor="re-amount">{t('checkout.transferredAmount')}</label>
                 <input
                   id="re-amount"
                   type="number"
@@ -622,7 +624,7 @@ export default function OrderDetailPage() {
                         setScreenshotPreview(null)
                       }}
                       className="p-1 text-saif-dim hover:text-saif-accent"
-                      aria-label="Remove screenshot"
+                      aria-label={t('a11y.removeItem', { name: t('checkout.uploadScreenshot') })}
                     >
                       <X size={14} />
                     </button>

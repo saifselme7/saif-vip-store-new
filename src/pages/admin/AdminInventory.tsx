@@ -5,6 +5,7 @@ import { useInventoryLogs } from '@/hooks/admin/useAdminData'
 import { useToast } from '@/context/ToastContext'
 import { useApp } from '@/context/AppContext'
 import { usePageMeta } from '@/hooks/usePageMeta'
+import { useI18n } from '@/i18n'
 import { adminAdjustStock } from '@/lib/api'
 import { formatPrice, formatDate, cn } from '@/lib/utils'
 import { PageHeader, SearchInput, FilterTabs, DataList, type Cell } from '@/components/admin/ui'
@@ -14,6 +15,7 @@ import Loading from '@/components/Loading'
 type Filter = '' | 'low' | 'out' | 'variants'
 
 export default function AdminInventory() {
+  const { t } = useI18n()
   const { products, loading, refetch } = useAdminProducts()
   const { settings } = useApp()
   const { addToast } = useToast()
@@ -46,7 +48,7 @@ export default function AdminInventory() {
   if (loading) {
     return (
       <div>
-        <PageHeader title="Inventory" />
+        <PageHeader title={t('admin.inventory.title')} />
         <Loading />
       </div>
     )
@@ -63,7 +65,7 @@ export default function AdminInventory() {
     if (!adjustTarget) return
     const value = Number(adjustValue)
     if (Number.isNaN(value) || value < 0) {
-      addToast('Enter a valid non-negative number', 'error')
+      addToast(t('product.enterValidAmount'), 'error')
       return
     }
     setAdjusting(true)
@@ -79,7 +81,7 @@ export default function AdminInventory() {
       addToast(error, 'error')
       return
     }
-    addToast('Stock updated')
+    addToast(t('admin.inventory.updated'))
     setAdjustTarget(null)
     refetch()
   }
@@ -184,12 +186,12 @@ export default function AdminInventory() {
   return (
     <div className="animate-[pageIn_0.4s_ease]">
       <PageHeader
-        title="Inventory"
+        title={t('admin.inventory.title')}
         description="Stock levels update automatically when orders are placed and cancelled."
       />
 
       <div className="mb-4">
-        <SearchInput value={search} onChange={setSearch} placeholder="Search product or SKU…" className="max-w-sm" />
+        <SearchInput value={search} onChange={setSearch} placeholder={t('admin.inventory.searchPlaceholder')} className="max-w-sm" />
       </div>
 
       <div className="mb-6">
@@ -197,10 +199,10 @@ export default function AdminInventory() {
           value={filter}
           onChange={v => setFilter(v as Filter)}
           options={[
-            { value: '', label: 'All', count: products.length },
-            { value: 'low', label: 'Low stock', count: products.filter(p => p.product_type === 'physical' && p.stock > 0 && p.stock <= p.low_stock_threshold).length },
-            { value: 'out', label: 'Out of stock', count: products.filter(p => p.stock === 0).length },
-            { value: 'variants', label: 'Has variants', count: products.filter(p => (p.variants?.length ?? 0) > 0).length },
+            { value: '', label: t('admin.common.all'), count: products.length },
+            { value: 'low', label: t('admin.inventory.low'), count: products.filter(p => p.product_type === 'physical' && p.stock > 0 && p.stock <= p.low_stock_threshold).length },
+            { value: 'out', label: t('admin.inventory.out'), count: products.filter(p => p.stock === 0).length },
+            { value: 'variants', label: t('admin.inventory.hasVariants'), count: products.filter(p => (p.variants?.length ?? 0) > 0).length },
           ]}
         />
       </div>
@@ -222,8 +224,8 @@ export default function AdminInventory() {
             Current stock: <span className="text-saif-text font-bold">{adjustTarget?.current ?? 0}</span>
           </p>
           <div>
-            <span className="label">Action</span>
-            <div className="grid grid-cols-3 gap-2" role="group" aria-label="Stock action">
+            <span className="label">{t('admin.inventory.action')}</span>
+            <div className="grid grid-cols-3 gap-2" role="group" aria-label={t('admin.inventory.action')}>
               {[
                 { value: 'set' as const, label: 'Set to', icon: Equal },
                 { value: 'increase' as const, label: 'Increase by', icon: Plus },
@@ -269,7 +271,7 @@ export default function AdminInventory() {
             <input
               id="adj-note"
               className="input"
-              placeholder="e.g. received new shipment"
+              placeholder={t('admin.inventory.notePlaceholder')}
               value={adjustNote}
               onChange={e => setAdjustNote(e.target.value)}
             />
@@ -295,7 +297,7 @@ export default function AdminInventory() {
         {historyLoading ? (
           <Loading />
         ) : historyLogs.length === 0 ? (
-          <p className="text-sm text-saif-dim py-6 text-center">No stock movements recorded yet.</p>
+          <p className="text-sm text-saif-dim py-6 text-center">{t('admin.inventory.noHistory')}</p>
         ) : (
           <div className="divide-y divide-saif-border max-h-[60vh] overflow-y-auto">
             {historyLogs.map(log => (

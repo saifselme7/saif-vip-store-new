@@ -16,6 +16,7 @@ import { useCart } from '@/context/CartContext'
 import { useToast } from '@/context/ToastContext'
 import { useApp } from '@/context/AppContext'
 import { usePageMeta } from '@/hooks/usePageMeta'
+import { useI18n } from '@/i18n'
 import { placeOrder, submitPayment } from '@/lib/api'
 import { uploadPaymentScreenshot, getPaymentInstructions } from '@/lib/payments'
 import {
@@ -41,13 +42,14 @@ import type { PaymentMethod } from '@/types'
 
 type Step = 'information' | 'payment' | 'verification'
 
-const STEPS: { id: Step; label: string }[] = [
-  { id: 'information', label: 'Information' },
-  { id: 'payment', label: 'Payment Method' },
-  { id: 'verification', label: 'Payment Proof' },
+const STEPS: { id: Step; labelKey: string }[] = [
+  { id: 'information', labelKey: 'checkout.steps.information' },
+  { id: 'payment', labelKey: 'checkout.steps.payment' },
+  { id: 'verification', labelKey: 'checkout.steps.proof' },
 ]
 
 export default function CheckoutPage() {
+  const { t, lang, formatPrice, isRTL } = useI18n()
   const navigate = useNavigate()
   const { user, profile, loading: authLoading } = useAuth()
   const {
@@ -103,15 +105,15 @@ export default function CheckoutPage() {
     const methods: { id: PaymentMethod; label: string; description: string; icon: typeof Smartphone; enabled: boolean }[] = [
       {
         id: 'instapay',
-        label: 'InstaPay',
-        description: 'Transfer from any Egyptian bank app via InstaPay.',
+        label: t('checkout.instapay'),
+        description: t('checkout.instapayDesc'),
         icon: Landmark,
         enabled: settings?.instapay_enabled !== false,
       },
       {
         id: 'vodafone_cash',
-        label: 'Vodafone Cash',
-        description: 'Send from your Vodafone Cash wallet or any agent.',
+        label: t('checkout.vodafoneCash'),
+        description: t('checkout.vodafoneCashDesc'),
         icon: Smartphone,
         enabled: settings?.vodafone_cash_enabled !== false,
       },
@@ -145,7 +147,7 @@ export default function CheckoutPage() {
 
   function validatePaymentStep(): boolean {
     if (!paymentMethod) {
-      addToast('Please choose a payment method', 'error')
+      addToast(t('checkout.errors.chooseMethod'), 'error')
       return false
     }
     return true
@@ -159,7 +161,7 @@ export default function CheckoutPage() {
     if (!screenshot) errs.screenshot = 'Upload a screenshot of your transfer'
     setErrors(errs)
     const valid = Object.values(errs).every(v => !v)
-    if (!valid) addToast('Please complete the payment details', 'error')
+    if (!valid) addToast(t('checkout.errors.completeDetails'), 'error')
     return valid
   }
 
@@ -247,7 +249,7 @@ export default function CheckoutPage() {
       })
 
       if (orderError || !result) {
-        addToast(orderError || 'The order could not be created', 'error')
+        addToast(orderError || t('errors.generic'), 'error')
         setSubmitting(false)
         return
       }
@@ -293,10 +295,10 @@ export default function CheckoutPage() {
       }
 
       clearCartSilently()
-      addToast('Payment submitted — under review')
+      addToast(t('payment.submittedToast'))
       navigate(`/orders/${result.order_id}/confirmation`)
     } catch (err) {
-      addToast('Something went wrong during checkout. Please try again.', 'error')
+      addToast(t('errors.generic'), 'error')
     } finally {
       setSubmitting(false)
       setUploadProgress(0)
@@ -320,8 +322,8 @@ export default function CheckoutPage() {
     return (
       <div className="pt-28 px-5 min-h-[70vh]">
         <EmptyState
-          title="Sign in to checkout"
-          description="You need an account so we can attach the order to you and let you track payment verification."
+          title={t('checkout.signInRequired')}
+          description={t('checkout.signInRequiredDesc')}
           action={
             <Link to="/login?redirect=/checkout" className="btn btn-primary">
               Sign In
@@ -337,8 +339,8 @@ export default function CheckoutPage() {
     return (
       <div className="pt-28 px-5 min-h-[70vh]">
         <EmptyState
-          title="Your bag is empty"
-          description="Add some products before checking out."
+          title={t('checkout.emptyCart')}
+          description={t('checkout.emptyCartDesc')}
           action={
             <Link to="/products" className="btn btn-primary">
               Continue Shopping
@@ -355,10 +357,10 @@ export default function CheckoutPage() {
   return (
     <div className="animate-[pageIn_0.6s_ease] pt-24 md:pt-28 px-5 lg:px-10 pb-20">
       <div className="max-w-5xl mx-auto">
-        <h1 className="text-[clamp(34px,5vw,60px)] font-black tracking-tighter text-saif-text mb-8">Checkout</h1>
+        <h1 className="text-[clamp(34px,5vw,60px)] font-black tracking-tighter text-saif-text mb-8">{t('checkout.title')}</h1>
 
         {/* Step indicator */}
-        <ol className="flex items-center gap-2 sm:gap-3 mb-12" aria-label="Checkout progress">
+        <ol className="flex items-center gap-2 sm:gap-3 mb-12" aria-label={t('checkout.title')}>
           {STEPS.map((s, i) => (
             <li key={s.id} className="flex items-center gap-2 sm:gap-3 flex-1 last:flex-none">
               <button
@@ -394,7 +396,7 @@ export default function CheckoutPage() {
                     i === stepIndex ? 'text-saif-text' : i < stepIndex ? 'text-saif-dim' : 'text-saif-faint',
                   )}
                 >
-                  {s.label}
+                  {t(s.labelKey)}
                 </span>
               </button>
               {i < STEPS.length - 1 && (
@@ -409,7 +411,7 @@ export default function CheckoutPage() {
         {stockIssues.length > 0 && (
           <div className="border border-yellow-500/40 bg-yellow-500/10 text-yellow-400 text-sm px-4 py-3 mb-6 rounded-sm">
             Some items in your bag exceed available stock: {stockIssues.map(i => i.product.name).join(', ')}. Update
-            quantities in your <Link to="/cart" className="underline">bag</Link> before continuing.
+            quantities in your <Link to="/cart" className="underline">{t('checkout.bagLink')}</Link> before continuing.
           </div>
         )}
 
@@ -419,10 +421,10 @@ export default function CheckoutPage() {
             {step === 'information' && (
               <div className="space-y-8 animate-scaleIn">
                 <section>
-                  <h2 className="text-sm font-semibold uppercase tracking-wider text-saif-dim mb-5">Customer Information</h2>
+                  <h2 className="text-sm font-semibold uppercase tracking-wider text-saif-dim mb-5">{t('checkout.customerInfo')}</h2>
                   <div className="space-y-4">
                     <div>
-                      <label className="label" htmlFor="co-name">Full Name</label>
+                      <label className="label" htmlFor="co-name">{t('checkout.fullName')}</label>
                       <input
                         id="co-name"
                         className={cn('input', errors.name && 'input-error')}
@@ -434,7 +436,7 @@ export default function CheckoutPage() {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="label" htmlFor="co-email">Email</label>
+                        <label className="label" htmlFor="co-email">{t('checkout.email')}</label>
                         <input
                           id="co-email"
                           type="email"
@@ -446,14 +448,14 @@ export default function CheckoutPage() {
                         {errors.email && <p className="field-error">{errors.email}</p>}
                       </div>
                       <div>
-                        <label className="label" htmlFor="co-phone">Phone Number</label>
+                        <label className="label" htmlFor="co-phone">{t('checkout.phone')}</label>
                         <input
                           id="co-phone"
                           type="tel"
                           className={cn('input', errors.phone && 'input-error')}
                           value={form.phone}
                           onChange={e => setForm({ ...form, phone: e.target.value })}
-                          placeholder="01012345678"
+                          placeholder="01xxxxxxxxx"
                           autoComplete="tel"
                         />
                         {errors.phone && <p className="field-error">{errors.phone}</p>}
@@ -464,18 +466,18 @@ export default function CheckoutPage() {
 
                 {hasPhysical && (
                   <section>
-                    <h2 className="text-sm font-semibold uppercase tracking-wider text-saif-dim mb-5">Delivery Information</h2>
+                    <h2 className="text-sm font-semibold uppercase tracking-wider text-saif-dim mb-5">{t('checkout.deliveryInfo')}</h2>
                     <div className="space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="label" htmlFor="co-gov">Governorate</label>
+                          <label className="label" htmlFor="co-gov">{t('checkout.governorate')}</label>
                           <select
                             id="co-gov"
                             className={cn('input', errors.governorate && 'input-error')}
                             value={form.governorate}
                             onChange={e => setForm({ ...form, governorate: e.target.value })}
                           >
-                            <option value="">Select governorate</option>
+                            <option value="">{t('checkout.selectGovernorate')}</option>
                             {EGYPT_GOVERNORATES.map(g => (
                               <option key={g} value={g} className="bg-black">{g}</option>
                             ))}
@@ -483,25 +485,25 @@ export default function CheckoutPage() {
                           {errors.governorate && <p className="field-error">{errors.governorate}</p>}
                         </div>
                         <div>
-                          <label className="label" htmlFor="co-city">City / Area</label>
+                          <label className="label" htmlFor="co-city">{t('checkout.city')}</label>
                           <input
                             id="co-city"
                             className={cn('input', errors.city && 'input-error')}
                             value={form.city}
                             onChange={e => setForm({ ...form, city: e.target.value })}
-                            placeholder="e.g. Nasr City"
+                            placeholder={t('checkout.city')}
                           />
                           {errors.city && <p className="field-error">{errors.city}</p>}
                         </div>
                       </div>
                       <div>
-                        <label className="label" htmlFor="co-address">Address</label>
+                        <label className="label" htmlFor="co-address">{t('checkout.address')}</label>
                         <input
                           id="co-address"
                           className={cn('input', errors.address && 'input-error')}
                           value={form.address}
                           onChange={e => setForm({ ...form, address: e.target.value })}
-                          placeholder="Street, building, floor, apartment"
+                          placeholder={t('checkout.addressPlaceholder')}
                           autoComplete="street-address"
                         />
                         {errors.address && <p className="field-error">{errors.address}</p>}
@@ -518,18 +520,18 @@ export default function CheckoutPage() {
                 )}
 
                 <section>
-                  <h2 className="text-sm font-semibold uppercase tracking-wider text-saif-dim mb-5">Order Notes (Optional)</h2>
+                  <h2 className="text-sm font-semibold uppercase tracking-wider text-saif-dim mb-5">{t('checkout.orderNotes')}</h2>
                   <textarea
                     className="input resize-none"
                     rows={3}
                     value={form.notes}
                     onChange={e => setForm({ ...form, notes: e.target.value })}
-                    placeholder="Anything we should know about this order?"
+                    placeholder={t('checkout.notesPlaceholder')}
                   />
                 </section>
 
                 <button type="button" onClick={goNext} className="btn btn-primary w-full sm:w-auto">
-                  Continue to Payment <ChevronLeft size={14} className="rotate-180" />
+                  {t('checkout.continueToPayment')} <ChevronLeft size={14} className="rotate-180" />
                 </button>
               </div>
             )}
@@ -538,12 +540,12 @@ export default function CheckoutPage() {
             {step === 'payment' && (
               <div className="space-y-8 animate-scaleIn">
                 <section>
-                  <h2 className="text-sm font-semibold uppercase tracking-wider text-saif-dim mb-2">Payment Method</h2>
+                  <h2 className="text-sm font-semibold uppercase tracking-wider text-saif-dim mb-2">{t('checkout.paymentMethod')}</h2>
                   <p className="text-xs text-saif-faint mb-5">
-                    Both methods are verified manually by our team — usually within a few hours.
+                    {t('checkout.paymentMethodDesc')}
                   </p>
 
-                  <div className="space-y-3" role="radiogroup" aria-label="Payment method">
+                  <div className="space-y-3" role="radiogroup" aria-label={t('checkout.paymentMethod')}>
                     {availableMethods.map(method => (
                       <label
                         key={method.id}
@@ -570,7 +572,7 @@ export default function CheckoutPage() {
                             {paymentMethod === method.id && <Check size={16} className="text-saif-accent" />}
                           </div>
                           <p className="text-xs text-saif-dim mt-1">{method.description}</p>
-                          {!method.enabled && <p className="text-xs text-saif-dim mt-1">Temporarily unavailable</p>}
+                          {!method.enabled && <p className="text-xs text-saif-dim mt-1">{t('checkout.methodUnavailable')}</p>}
                         </div>
                       </label>
                     ))}
@@ -578,12 +580,12 @@ export default function CheckoutPage() {
                 </section>
 
                 <section className="border border-saif-border p-5 rounded-sm">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-saif-dim mb-3">How manual payment works</h3>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-saif-dim mb-3">{t('checkout.howManualWorks')}</h3>
                   <ol className="space-y-2 text-xs text-saif-dim leading-relaxed list-decimal list-inside">
-                    <li>Place your order — we reserve your items immediately.</li>
-                    <li>Transfer the exact total to the number shown in the next step.</li>
-                    <li>Upload a screenshot of the transfer confirmation.</li>
-                    <li>We verify the transfer manually and confirm your order.</li>
+                    <li>{t('checkout.howManual1')}</li>
+                    <li>{t('checkout.howManual2')}</li>
+                    <li>{t('checkout.howManual3')}</li>
+                    <li>{t('checkout.howManual4')}</li>
                   </ol>
                 </section>
 
@@ -592,7 +594,7 @@ export default function CheckoutPage() {
                     <ChevronLeft size={14} /> Back
                   </button>
                   <button type="button" onClick={goNext} className="btn btn-primary sm:flex-1">
-                    Continue to Payment Proof
+                    {t('checkout.continueToProof')}
                   </button>
                 </div>
               </div>
@@ -616,7 +618,7 @@ export default function CheckoutPage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-5 sm:gap-8 items-center mb-7">
                     <div>
-                      <p className="label mb-2.5">Send to this number</p>
+                      <p className="label mb-2.5">{t('checkout.sendToThisNumber')}</p>
                       <button
                         type="button"
                         className="group w-full flex items-center justify-between gap-4 font-mono text-2xl md:text-[28px] font-bold tracking-[0.12em] text-saif-text border border-saif-text/60 px-5 py-4 hover:border-saif-accent hover:text-saif-accent transition-colors rounded-sm"
@@ -624,7 +626,7 @@ export default function CheckoutPage() {
                         onClick={async () => {
                           try {
                             await navigator.clipboard.writeText(receivingNumber)
-                            addToast('Number copied')
+                            addToast(t('payment.numberCopied'))
                           } catch {
                             addToast(receivingNumber, 'info')
                           }
@@ -632,20 +634,20 @@ export default function CheckoutPage() {
                       >
                         <span dir="ltr">{receivingNumber}</span>
                         <span className="text-[10px] font-sans font-semibold uppercase tracking-[0.15em] text-saif-faint group-hover:text-saif-accent transition-colors">
-                          Copy
+                          {t('common.copy')}
                         </span>
                       </button>
                     </div>
                     <div className="sm:text-right sm:border-l sm:border-saif-border sm:pl-8">
-                      <p className="label mb-1 sm:mb-2.5">Exact amount</p>
+                      <p className="label mb-1 sm:mb-2.5">{t('checkout.exactAmount')}</p>
                       <p className="text-3xl font-black text-saif-accent tabular-nums tracking-tight">
-                        {formatPrice(total, currency)}
+                        {formatPrice(total)}
                       </p>
                     </div>
                   </div>
 
                   <ol className="space-y-2.5">
-                    {getPaymentInstructions(paymentMethod, receivingNumber).map((line, i) => (
+                    {getPaymentInstructions(paymentMethod, receivingNumber, lang).map((line, i) => (
                       <li key={line} className="flex gap-3.5 items-start text-sm text-saif-dim leading-relaxed">
                         <span className="text-[11px] font-bold text-saif-accent tabular-nums pt-0.5 flex-shrink-0">
                           {String(i + 1).padStart(2, '0')}
@@ -663,11 +665,11 @@ export default function CheckoutPage() {
 
                 {/* Payment form */}
                 <section className="space-y-4">
-                  <h2 className="text-sm font-semibold uppercase tracking-wider text-saif-dim">Transfer Details</h2>
+                  <h2 className="text-sm font-semibold uppercase tracking-wider text-saif-dim">{t('checkout.transferTitle')}</h2>
 
                   <div>
                     <label className="label" htmlFor="payer-id">
-                      {paymentMethod === 'vodafone_cash' ? 'Vodafone number you paid from' : 'Phone / account you paid from'}
+                      {paymentMethod === 'vodafone_cash' ? t('checkout.payerNumberVodafone') : t('checkout.payerNumber')}
                     </label>
                     <input
                       id="payer-id"
@@ -681,7 +683,7 @@ export default function CheckoutPage() {
                   </div>
 
                   <div>
-                    <label className="label" htmlFor="transferred-amount">Transferred Amount</label>
+                    <label className="label" htmlFor="transferred-amount">{t('checkout.transferredAmount')}</label>
                     <input
                       id="transferred-amount"
                       type="number"
@@ -696,14 +698,14 @@ export default function CheckoutPage() {
                       <p className="field-error">{errors.transferredAmount}</p>
                     ) : (
                       <p className="text-xs text-saif-dim mt-1.5">
-                        Order total: {formatPrice(total, currency)}. Enter the exact amount you transferred.
+                        {t('checkout.transferredAmountHint', { amount: formatPrice(total) })}
                       </p>
                     )}
                   </div>
 
                   {/* Screenshot upload */}
                   <div>
-                    <span className="label">Transfer Screenshot *</span>
+                    <span className="label">{t('checkout.uploadScreenshot')} *</span>
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -727,9 +729,9 @@ export default function CheckoutPage() {
                           <Upload size={22} className="text-saif-dim group-hover:text-saif-accent transition-colors" />
                         </span>
                         <span className="text-sm text-saif-text font-medium">
-                          Click to upload your transfer screenshot
+                          {t('checkout.uploadCta')}
                         </span>
-                        <span className="text-xs text-saif-faint">PNG, JPG or WEBP · max {MAX_SCREENSHOT_SIZE_MB}MB</span>
+                        <span className="text-xs text-saif-faint">{t('checkout.uploadHint', { size: MAX_SCREENSHOT_SIZE_MB })}</span>
                       </label>
                     ) : (
                       <div className="border border-saif-border p-3 rounded-sm">
@@ -752,7 +754,7 @@ export default function CheckoutPage() {
                             type="button"
                             onClick={clearScreenshot}
                             className="p-2 text-saif-dim hover:text-saif-accent transition-colors"
-                            aria-label="Remove screenshot"
+                            aria-label={t('a11y.removeItem', { name: t('checkout.uploadScreenshot') })}
                           >
                             <X size={16} />
                           </button>
@@ -763,14 +765,14 @@ export default function CheckoutPage() {
                   </div>
 
                   <div>
-                    <label className="label" htmlFor="customer-note">Note for Verification (Optional)</label>
+                    <label className="label" htmlFor="customer-note">{t('checkout.customerNote')}</label>
                     <textarea
                       id="customer-note"
                       className="input resize-none"
                       rows={2}
                       value={customerNote}
                       onChange={e => setCustomerNote(e.target.value)}
-                      placeholder="e.g. transfer reference, sender name on the receipt…"
+                      placeholder={t('checkout.customerNotePlaceholder')}
                     />
                   </div>
                 </section>
@@ -779,7 +781,7 @@ export default function CheckoutPage() {
                   <div className="border border-saif-border p-4 rounded-sm" aria-live="polite">
                     <p className="text-sm text-saif-text flex items-center gap-2 mb-2">
                       <Loader2 size={15} className="animate-spin text-saif-accent" />
-                      {uploadProgress > 0 ? 'Uploading payment proof…' : 'Placing your order…'}
+                      {uploadProgress > 0 ? t('checkout.uploadingProof') : t('checkout.placingOrder')}
                     </p>
                     <div className="h-1 bg-white/10 rounded-full overflow-hidden">
                       <div
@@ -799,11 +801,11 @@ export default function CheckoutPage() {
                     <ChevronLeft size={14} /> Back
                   </button>
                   <button type="submit" className="btn btn-primary sm:flex-1" disabled={submitting}>
-                    {submitting ? 'Processing…' : `Submit Payment — ${formatPrice(total, currency)}`}
+                    {submitting ? 'Processing…' : `Submit Payment — ${formatPrice(total)}`}
                   </button>
                 </div>
                 <p className="text-xs text-saif-dim">
-                  Your payment will be reviewed manually. We will never mark it as approved automatically.
+                  {t('checkout.neverAutoApproved')}
                 </p>
               </div>
             )}
@@ -812,7 +814,7 @@ export default function CheckoutPage() {
           {/* ============ ORDER SUMMARY ============ */}
           <aside className="lg:sticky lg:top-28 lg:self-start">
             <div className="border border-saif-border p-6 rounded-sm">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-5">Order Summary</h2>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-5">{t('cart.orderSummary')}</h2>
 
               <div className="space-y-3 mb-5 max-h-64 overflow-y-auto pr-1">
                 {items.map(item => (
@@ -831,7 +833,7 @@ export default function CheckoutPage() {
                       <p className="text-[11px] text-saif-dim">Qty {item.quantity}</p>
                     </div>
                     <span className="text-xs font-semibold text-saif-text flex-shrink-0">
-                      {formatPrice((item.variant?.price ?? item.product.price) * item.quantity, currency)}
+                      {formatPrice((item.variant?.price ?? item.product.price) * item.quantity)}
                     </span>
                   </div>
                 ))}
@@ -841,7 +843,7 @@ export default function CheckoutPage() {
               {coupon ? (
                 <div className="flex items-center justify-between border border-green-500/30 bg-green-500/5 px-3 py-2.5 rounded-sm mb-4">
                   <span className="text-xs font-mono text-green-400">{coupon.code}</span>
-                  <button type="button" onClick={removeCoupon} className="text-saif-dim hover:text-saif-accent transition-colors" aria-label="Remove coupon">
+                  <button type="button" onClick={removeCoupon} className="text-saif-dim hover:text-saif-accent transition-colors" aria-label={t('cart.removeCoupon')}>
                     <X size={13} />
                   </button>
                 </div>
@@ -851,10 +853,10 @@ export default function CheckoutPage() {
                     <input
                       type="text"
                       className="input text-xs font-mono uppercase"
-                      placeholder="Coupon code"
+                      placeholder={t('cart.coupon')}
                       value={couponCode}
                       onChange={e => setCouponCode(e.target.value.toUpperCase())}
-                      aria-label="Coupon code"
+                      aria-label={t('cart.coupon')}
                     />
                     <button
                       type="button"
@@ -862,7 +864,7 @@ export default function CheckoutPage() {
                       onClick={async () => {
                         const ok = await applyCoupon(couponCode)
                         if (ok) {
-                          addToast(`Coupon ${couponCode} applied`)
+                          addToast(t('cart.applied', { code: couponCode }))
                           setCouponCode('')
                         }
                       }}
@@ -877,29 +879,29 @@ export default function CheckoutPage() {
 
               <div className="border-t border-saif-border pt-4 space-y-2 text-sm">
                 <div className="flex justify-between text-saif-dim">
-                  <span>Subtotal ({count} items)</span>
-                  <span className="text-saif-text">{formatPrice(subtotal, currency)}</span>
+                  <span>{t('common.subtotal')} ({count})</span>
+                  <span className="text-saif-text">{formatPrice(subtotal)}</span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between text-saif-dim">
-                    <span>Discount</span>
-                    <span className="text-green-400">−{formatPrice(discount, currency)}</span>
+                    <span>{t('common.discount')}</span>
+                    <span className="text-green-400">−{formatPrice(discount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-saif-dim">
-                  <span>Shipping</span>
+                  <span>{t('common.shipping')}</span>
                   <span className={shipping === 0 ? 'text-green-400' : 'text-saif-text'}>
-                    {hasPhysical ? (shipping === 0 ? 'Free' : formatPrice(shipping, currency)) : '—'}
+                    {hasPhysical ? (shipping === 0 ? 'Free' : formatPrice(shipping)) : '—'}
                   </span>
                 </div>
                 <div className="flex justify-between text-base font-bold text-saif-text pt-2 border-t border-saif-border">
-                  <span>Total</span>
-                  <span>{formatPrice(total, currency)}</span>
+                  <span>{t('common.total')}</span>
+                  <span>{formatPrice(total)}</span>
                 </div>
               </div>
 
               <p className="text-[11px] text-saif-faint mt-4 leading-relaxed">
-                Final totals are validated server-side when the order is placed.
+                {t('checkout.serverValidated')}
               </p>
             </div>
           </aside>

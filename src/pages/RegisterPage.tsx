@@ -5,8 +5,10 @@ import { useToast } from '@/context/ToastContext'
 import { usePageMeta } from '@/hooks/usePageMeta'
 import { validateFullName, validateEmail, validatePassword, type FieldErrors } from '@/lib/validation'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/i18n'
 
 export default function RegisterPage() {
+  const { t } = useI18n()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const redirectTo = searchParams.get('redirect') || '/'
@@ -33,9 +35,9 @@ export default function RegisterPage() {
     const { error } = await signUp(email, password, fullName)
     setLoading(false)
     if (error) {
-      addToast(error, 'error')
+      addToast(error || t('errors.generic'), 'error')
     } else {
-      addToast('Account created! Check your email to confirm if required.')
+      addToast(t('auth.accountCreated'))
       navigate(redirectTo, { replace: true })
     }
   }
@@ -43,12 +45,12 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-5 pt-20">
       <div className="w-full max-w-sm">
-        <h1 className="text-3xl font-black tracking-tighter text-saif-text mb-2">Create Account</h1>
-        <p className="text-sm text-saif-dim mb-8">Join SAIF STORE today.</p>
+        <h1 className="text-3xl font-black tracking-tighter text-saif-text mb-2">{t('auth.createTitle')}</h1>
+        <p className="text-sm text-saif-dim mb-8">{t('auth.createSubtitle')}</p>
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
-            <label className="label" htmlFor="rg-name">Full Name</label>
+            <label className="label" htmlFor="rg-name">{t('auth.fullName')}</label>
             <input
               id="rg-name"
               required
@@ -61,7 +63,7 @@ export default function RegisterPage() {
             {errors.name && <p className="field-error">{errors.name}</p>}
           </div>
           <div>
-            <label className="label" htmlFor="rg-email">Email</label>
+            <label className="label" htmlFor="rg-email">{t('auth.email')}</label>
             <input
               id="rg-email"
               required
@@ -74,7 +76,7 @@ export default function RegisterPage() {
             {errors.email && <p className="field-error">{errors.email}</p>}
           </div>
           <div>
-            <label className="label" htmlFor="rg-password">Password</label>
+            <label className="label" htmlFor="rg-password">{t('auth.password')}</label>
             <input
               id="rg-password"
               required
@@ -83,7 +85,7 @@ export default function RegisterPage() {
               value={password}
               onChange={e => setPassword(e.target.value)}
               autoComplete="new-password"
-              placeholder="At least 6 characters"
+              placeholder={t('auth.passwordHint')}
             />
             {errors.password && <p className="field-error">{errors.password}</p>}
           </div>
@@ -93,7 +95,7 @@ export default function RegisterPage() {
         </form>
 
         <p className="mt-6 text-sm text-saif-dim text-center">
-          Already have an account?{' '}
+          {t('auth.haveAccount')}{' '}
           <Link to={`/login?redirect=${encodeURIComponent(redirectTo)}`} className="text-saif-text hover:underline">
             Sign in
           </Link>

@@ -22,6 +22,7 @@ import { PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS, ORDER_STATUS_LABELS } fro
 import { OrderStatusBadge, PaymentStatusBadge } from '@/components/ui/StatusBadge'
 import { PageHeader, StatCard } from '@/components/admin/ui'
 import { CardSkeleton, LineSkeleton } from '@/components/ui/Skeletons'
+import { useI18n } from '@/i18n'
 
 interface DashboardStats {
   total_orders: number
@@ -71,6 +72,7 @@ interface DashboardStats {
 }
 
 export default function AdminDashboard() {
+  const { t } = useI18n()
   const { settings } = useApp()
   const currency = settings?.currency ?? 'EGP'
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -95,7 +97,7 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div>
-        <PageHeader title="Dashboard" description="Store overview from live data." />
+        <PageHeader title={t('admin.dashboard.title')} description="Store overview from live data." />
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
           {Array.from({ length: 8 }).map((_, i) => (
             <CardSkeleton key={i} className="h-28" />
@@ -112,9 +114,9 @@ export default function AdminDashboard() {
   if (error || !stats) {
     return (
       <div>
-        <PageHeader title="Dashboard" />
+        <PageHeader title={t('admin.dashboard.title')} />
         <div className="border border-saif-accent/40 bg-saif-accent/5 p-6 rounded-sm">
-          <p className="text-sm text-saif-text mb-2">Could not load statistics.</p>
+          <p className="text-sm text-saif-text mb-2">{t('admin.dashboard.couldNotLoad')}</p>
           <p className="text-xs text-saif-dim mb-4">{error}</p>
           <p className="text-xs text-saif-dim">
             Make sure the database functions from <span className="font-mono">supabase/functions.sql</span> have been
@@ -133,7 +135,7 @@ export default function AdminDashboard() {
   return (
     <div className="animate-[pageIn_0.4s_ease]">
       <PageHeader
-        title="Dashboard"
+        title={t('admin.dashboard.title')}
         description="Live overview of your store."
         actions={
           <button className="btn btn-sm" onClick={load}>
@@ -177,7 +179,7 @@ export default function AdminDashboard() {
             </Link>
           </div>
           {stats.recent_payments.length === 0 ? (
-            <p className="text-sm text-saif-dim py-6 text-center">No payment submissions yet.</p>
+            <p className="text-sm text-saif-dim py-6 text-center">{t('admin.dashboard.noPayments')}</p>
           ) : (
             <div className="divide-y divide-saif-border">
               {stats.recent_payments.slice(0, 5).map(p => (
@@ -213,7 +215,7 @@ export default function AdminDashboard() {
             </Link>
           </div>
           {stats.recent_orders.length === 0 ? (
-            <p className="text-sm text-saif-dim py-6 text-center">No orders yet.</p>
+            <p className="text-sm text-saif-dim py-6 text-center">{t('admin.dashboard.noOrders')}</p>
           ) : (
             <div className="divide-y divide-saif-border">
               {stats.recent_orders.slice(0, 5).map(o => (
@@ -244,7 +246,7 @@ export default function AdminDashboard() {
           <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text flex items-center gap-2 mb-6">
             <TrendingUp size={14} className="text-saif-accent" /> Paid Revenue — Last 14 Days
           </h2>
-          <div className="flex items-end gap-1.5 h-40" role="img" aria-label="Daily paid revenue for the last 14 days">
+          <div className="flex items-end gap-1.5 h-40" role="img" aria-label={t('a11y.dailyRevenueChart')}>
             {stats.sales_trend.map(t => (
               <div key={t.day} className="flex-1 flex flex-col items-center gap-1.5 group">
                 <div
@@ -267,7 +269,7 @@ export default function AdminDashboard() {
             <TrendingUp size={14} className="text-saif-accent" /> Best Sellers
           </h2>
           {stats.best_sellers.length === 0 ? (
-            <p className="text-sm text-saif-dim py-6 text-center">No sales data yet.</p>
+            <p className="text-sm text-saif-dim py-6 text-center">{t('admin.analytics.noSales')}</p>
           ) : (
             <div className="space-y-3">
               {stats.best_sellers.map((p, i) => (
@@ -301,7 +303,7 @@ export default function AdminDashboard() {
             </Link>
           </div>
           {stats.low_stock_list.length === 0 ? (
-            <p className="text-sm text-saif-dim py-6 text-center">All products are sufficiently stocked.</p>
+            <p className="text-sm text-saif-dim py-6 text-center">{t('admin.dashboard.allStocked')}</p>
           ) : (
             <div className="divide-y divide-saif-border">
               {stats.low_stock_list.map(p => (
@@ -331,22 +333,22 @@ export default function AdminDashboard() {
           </h2>
           <dl className="divide-y divide-saif-border text-sm">
             <div className="flex justify-between py-3">
-              <dt className="text-saif-dim">Orders in payment review</dt>
+              <dt className="text-saif-dim">{t('admin.dashboard.ordersInReview')}</dt>
               <dd className="text-saif-text font-semibold">{stats.pending_orders}</dd>
             </div>
             <div className="flex justify-between py-3">
-              <dt className="text-saif-dim">Digital orders</dt>
+              <dt className="text-saif-dim">{t('admin.dashboard.digitalOrders')}</dt>
               <dd className="text-saif-text font-semibold flex items-center gap-1.5">
                 <Zap size={12} className="text-saif-accent" />
                 {stats.digital_orders}
               </dd>
             </div>
             <div className="flex justify-between py-3">
-              <dt className="text-saif-dim">Payments awaiting customer</dt>
+              <dt className="text-saif-dim">{t('admin.dashboard.paymentsAwaiting')}</dt>
               <dd className="text-saif-text font-semibold">{stats.payments_awaiting}</dd>
             </div>
             <div className="flex justify-between py-3">
-              <dt className="text-saif-dim">Payments under review</dt>
+              <dt className="text-saif-dim">{t('admin.dashboard.paymentsUnderReview')}</dt>
               <dd className="text-saif-text font-semibold">{stats.payments_under_review}</dd>
             </div>
           </dl>

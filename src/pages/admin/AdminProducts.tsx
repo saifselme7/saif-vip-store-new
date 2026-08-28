@@ -9,11 +9,13 @@ import { formatPrice, formatDate } from '@/lib/utils'
 import { PageHeader, SearchInput, FilterTabs, DataList, type Cell } from '@/components/admin/ui'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import Loading from '@/components/Loading'
+import { useI18n } from '@/i18n'
 
 type StatusFilter = '' | 'active' | 'draft' | 'archived'
 type SortKey = 'newest' | 'name' | 'price_asc' | 'price_desc' | 'stock_asc'
 
 export default function AdminProducts() {
+  const { t } = useI18n()
   const { products, loading, update, remove, duplicate } = useAdminProducts()
   const { categories } = useCategories()
   const { addToast } = useToast()
@@ -97,7 +99,7 @@ export default function AdminProducts() {
                 ? { featured: true as const }
                 : { featured: false as const }
         const { error } = await updateBulk(ids, patch)
-        if (error) addToast('Bulk update failed', 'error')
+        if (error) addToast(t('errors.saveFailed'), 'error')
         else addToast(`${ids.length} products updated`)
       }
     } finally {
@@ -121,22 +123,22 @@ export default function AdminProducts() {
     const { error } = await remove(deleteTarget.id)
     setDeleting(false)
     setDeleteTarget(null)
-    if (error) addToast('Failed to delete product', 'error')
-    else addToast('Product deleted')
+    if (error) addToast(t('errors.saveFailed'), 'error')
+    else addToast(t('admin.products.deleted'))
   }
 
   async function handleDuplicate(id: string) {
     const product = products.find(p => p.id === id)
     if (!product) return
     const { error } = await duplicate(product)
-    if (error) addToast('Failed to duplicate product', 'error')
-    else addToast('Product duplicated as draft')
+    if (error) addToast(t('errors.saveFailed'), 'error')
+    else addToast(t('admin.products.duplicated'))
   }
 
   if (loading) {
     return (
       <div>
-        <PageHeader title="Products" />
+        <PageHeader title={t('admin.products.title')} />
         <Loading />
       </div>
     )
@@ -254,7 +256,7 @@ export default function AdminProducts() {
   return (
     <div className="animate-[pageIn_0.4s_ease]">
       <PageHeader
-        title="Products"
+        title={t('admin.products.title')}
         description={`${products.length} products in catalog`}
         actions={
           <Link to="/admin/products/new" className="btn btn-primary btn-sm">
@@ -264,14 +266,14 @@ export default function AdminProducts() {
       />
 
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
-        <SearchInput value={search} onChange={setSearch} placeholder="Search name, SKU…" className="flex-1" />
+        <SearchInput value={search} onChange={setSearch} placeholder={t('admin.products.searchPlaceholder')} className="flex-1" />
         <select
           value={categoryFilter}
           onChange={e => setCategoryFilter(e.target.value)}
           className="input py-2.5 text-xs w-full sm:w-44"
-          aria-label="Filter by category"
+          aria-label={t('filters.category')}
         >
-          <option value="">All categories</option>
+          <option value="">{t('admin.products.allCategories')}</option>
           {categories.map(c => (
             <option key={c.id} value={c.id} className="bg-black">
               {c.name}
@@ -282,9 +284,9 @@ export default function AdminProducts() {
           value={sort}
           onChange={e => setSort(e.target.value as SortKey)}
           className="input py-2.5 text-xs w-full sm:w-44"
-          aria-label="Sort products"
+          aria-label={t('filters.sortBy')}
         >
-          <option value="newest">Newest first</option>
+          <option value="newest">{t('admin.products.sort.newest')}</option>
           <option value="name">Name A–Z</option>
           <option value="price_asc">Price low → high</option>
           <option value="price_desc">Price high → low</option>

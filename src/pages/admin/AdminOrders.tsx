@@ -4,6 +4,7 @@ import { useAdminOrders } from '@/hooks/admin/useAdminData'
 import { useApp } from '@/context/AppContext'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePageMeta } from '@/hooks/usePageMeta'
+import { useI18n } from '@/i18n'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { ORDER_STATUSES, ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import { OrderStatusBadge, PaymentStatusBadge } from '@/components/ui/StatusBadge'
@@ -11,6 +12,7 @@ import { PageHeader, SearchInput, FilterTabs, DataList, type Cell } from '@/comp
 import Loading from '@/components/Loading'
 
 export default function AdminOrders() {
+  const { t } = useI18n()
   const { orders, loading, refetch } = useAdminOrders()
   const { settings } = useApp()
   const currency = settings?.currency ?? 'EGP'
@@ -44,7 +46,7 @@ export default function AdminOrders() {
   if (loading) {
     return (
       <div>
-        <PageHeader title="Orders" />
+        <PageHeader title={t('admin.orders.title')} />
         <Loading />
       </div>
     )
@@ -97,7 +99,7 @@ export default function AdminOrders() {
   ])
 
   const statusOptions = [
-    { value: '', label: 'All', count: orders.length },
+    { value: '', label: t('admin.common.all'), count: orders.length },
     ...ORDER_STATUSES.map(s => ({
       value: s,
       label: ORDER_STATUS_LABELS[s],
@@ -117,8 +119,8 @@ export default function AdminOrders() {
   return (
     <div className="animate-[pageIn_0.4s_ease]">
       <PageHeader
-        title="Orders"
-        description={`${orders.length} orders`}
+        title={t('admin.orders.title')}
+        description={`${orders.length} {t('admin.orders.title')}`}
         actions={
           <button className="btn btn-sm" onClick={refetch}>
             Refresh
@@ -127,12 +129,12 @@ export default function AdminOrders() {
       />
 
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
-        <SearchInput value={search} onChange={setSearch} placeholder="Order #, name, phone, email…" className="flex-1" />
+        <SearchInput value={search} onChange={setSearch} placeholder={t('admin.orders.searchPlaceholder')} className="flex-1" />
         <select
           value={paymentFilter}
           onChange={e => setPaymentFilter(e.target.value)}
           className="input py-2.5 text-xs w-full sm:w-40"
-          aria-label="Filter by payment status"
+          aria-label={t('admin.orders.anyPayment')}
         >
           {paymentOptions.map(o => (
             <option key={o.value} value={o.value} className="bg-black">
@@ -144,11 +146,11 @@ export default function AdminOrders() {
           value={sort}
           onChange={e => setSort(e.target.value as typeof sort)}
           className="input py-2.5 text-xs w-full sm:w-40"
-          aria-label="Sort orders"
+          aria-label={t('filters.sortBy')}
         >
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
-          <option value="total_desc">Highest total</option>
+          <option value="newest">{t('admin.orders.sortNewest')}</option>
+          <option value="oldest">{t('admin.orders.sortOldest')}</option>
+          <option value="total_desc">{t('admin.orders.sortTotal')}</option>
         </select>
       </div>
 

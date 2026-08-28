@@ -1,8 +1,10 @@
 import { CheckCircle, XCircle, Info, X } from 'lucide-react'
 import { useToast } from '@/context/ToastContext'
+import { useI18n } from '@/i18n'
 
 export default function Toasts() {
   const { toasts, removeToast } = useToast()
+  const { t } = useI18n()
 
   return (
     <div
@@ -26,7 +28,7 @@ export default function Toasts() {
           <button
             onClick={() => removeToast(toast.id)}
             className="opacity-60 hover:opacity-100"
-            aria-label="Dismiss notification"
+            aria-label={t('a11y.dismissNotification')}
           >
             <X size={14} />
           </button>

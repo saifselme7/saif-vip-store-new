@@ -2,12 +2,14 @@ import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { X, ShoppingBag, Trash2 } from 'lucide-react'
 import { useCart } from '@/context/CartContext'
+import { useI18n } from '@/i18n'
 import { useApp } from '@/context/AppContext'
 import { formatPrice, cn } from '@/lib/utils'
 import { effectiveStock } from '@/lib/pricing'
 import QuantityStepper from './ui/QuantityStepper'
 
 export default function CartDrawer() {
+  const { t } = useI18n()
   const closeRef = useRef<HTMLButtonElement>(null)
   const {
     items,
@@ -43,19 +45,19 @@ export default function CartDrawer() {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-[150]" role="dialog" aria-modal="true" aria-label="Shopping bag">
+    <div className="fixed inset-0 z-[150]" role="dialog" aria-modal="true" aria-label={t('a11y.shoppingBag', { count })}>
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsOpen(false)} aria-hidden="true" />
       <aside className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-black border-l border-saif-border flex flex-col animate-drawerIn shadow-2xl">
         <header className="flex items-center justify-between px-6 py-5 border-b border-saif-border">
           <h2 className="text-base font-bold tracking-tight text-saif-text flex items-center gap-2.5">
             <ShoppingBag size={16} />
-            Your Bag {count > 0 && <span className="text-saif-dim font-normal">({count})</span>}
+            {t('cart.title')} {count > 0 && <span className="text-saif-dim font-normal">({count})</span>}
           </h2>
           <button
             ref={closeRef}
             onClick={() => setIsOpen(false)}
             className="w-11 h-11 flex items-center justify-center text-saif-dim hover:text-saif-text transition-colors -mr-2"
-            aria-label="Close cart"
+            aria-label={t('a11y.closeCart')}
           >
             <X size={20} />
           </button>
@@ -64,7 +66,7 @@ export default function CartDrawer() {
         {items.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6 text-center">
             <ShoppingBag size={40} className="text-saif-faint" />
-            <p className="text-sm text-saif-dim">Your bag is empty.</p>
+            <p className="text-sm text-saif-dim">{t('cart.empty')}</p>
             <button className="btn btn-sm" onClick={() => setIsOpen(false)}>
               Continue Shopping
             </button>
@@ -74,7 +76,7 @@ export default function CartDrawer() {
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
               {freeShippingRemaining !== null && freeShippingRemaining > 0 && (
                 <p className="text-xs text-saif-accent">
-                  Add {formatPrice(freeShippingRemaining, currency)} more for free shipping
+                  {t('cart.freeShippingProgress', { amount: formatPrice(freeShippingRemaining) })}
                 </p>
               )}
               {items.map(item => {
@@ -106,10 +108,10 @@ export default function CartDrawer() {
                           </Link>
                           {item.variant && <p className="text-xs text-saif-dim mt-0.5">{item.variant.name}</p>}
                           {item.product.product_type === 'digital' && (
-                            <p className="text-[10px] text-saif-accent uppercase tracking-wider mt-0.5">Digital</p>
+                            <p className="text-[10px] text-saif-accent uppercase tracking-wider mt-0.5">{t('product.digital')}</p>
                           )}
                           {item.quantity >= stock && stock > 0 && (
-                            <p className="text-[10px] text-yellow-400 mt-0.5">Max stock ({stock})</p>
+                            <p className="text-[10px] text-yellow-400 mt-0.5">{t('cart.maxStock', { count: stock })}</p>
                           )}
                         </div>
                         <button
@@ -128,7 +130,7 @@ export default function CartDrawer() {
                           ariaLabel={`Quantity for ${item.product.name}`}
                         />
                         <span className="text-sm font-semibold text-saif-text">
-                          {formatPrice(price * item.quantity, currency)}
+                          {formatPrice(price * item.quantity)}
                         </span>
                       </div>
                     </div>
@@ -140,26 +142,26 @@ export default function CartDrawer() {
             <footer className="border-t border-saif-border px-6 py-5 space-y-3">
               <div className="space-y-1.5 text-sm">
                 <div className="flex justify-between text-saif-dim">
-                  <span>Subtotal</span>
-                  <span className="text-saif-text">{formatPrice(subtotal, currency)}</span>
+                  <span>{t('common.subtotal')}</span>
+                  <span className="text-saif-text">{formatPrice(subtotal)}</span>
                 </div>
                 {discount > 0 && coupon && (
                   <div className="flex justify-between text-saif-dim">
                     <span>
                       Discount <span className="text-green-400 font-mono text-xs">{coupon.code}</span>
                     </span>
-                    <span className="text-green-400">−{formatPrice(discount, currency)}</span>
+                    <span className="text-green-400">−{formatPrice(discount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-saif-dim">
-                  <span>Shipping</span>
+                  <span>{t('common.shipping')}</span>
                   <span className={cn(shipping === 0 && 'text-green-400')}>
-                    {shipping === 0 ? 'Free' : formatPrice(shipping, currency)}
+                    {shipping === 0 ? 'Free' : formatPrice(shipping)}
                   </span>
                 </div>
                 <div className="flex justify-between text-base font-bold text-saif-text pt-2 border-t border-saif-border">
-                  <span>Total</span>
-                  <span>{formatPrice(total, currency)}</span>
+                  <span>{t('common.total')}</span>
+                  <span>{formatPrice(total)}</span>
                 </div>
               </div>
               <Link

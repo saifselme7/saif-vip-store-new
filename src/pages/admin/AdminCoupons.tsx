@@ -4,6 +4,7 @@ import { useAdminCoupons } from '@/hooks/admin/useAdminData'
 import { useToast } from '@/context/ToastContext'
 import { useApp } from '@/context/AppContext'
 import { usePageMeta } from '@/hooks/usePageMeta'
+import { useI18n } from '@/i18n'
 import { formatPrice, formatDate, cn, copyToClipboard } from '@/lib/utils'
 import { PageHeader, DataList, type Cell } from '@/components/admin/ui'
 import Modal from '@/components/ui/Modal'
@@ -33,6 +34,7 @@ const EMPTY: CouponForm = {
 }
 
 export default function AdminCoupons() {
+  const { t } = useI18n()
   const { coupons, loading, create, update, remove } = useAdminCoupons()
   const { addToast } = useToast()
   const { settings } = useApp()
@@ -66,16 +68,16 @@ export default function AdminCoupons() {
 
   async function handleSave() {
     if (!form.code.trim()) {
-      addToast('Coupon code is required', 'error')
+      addToast(t('admin.coupons.errors.code'), 'error')
       return
     }
     const value = Number(form.value)
     if (Number.isNaN(value) || value <= 0) {
-      addToast('Enter a valid discount value', 'error')
+      addToast(t('admin.coupons.errors.value'), 'error')
       return
     }
     if (form.type === 'percentage' && value > 100) {
-      addToast('Percentage cannot exceed 100', 'error')
+      addToast(t('admin.coupons.errors.percentMax'), 'error')
       return
     }
 
@@ -107,14 +109,14 @@ export default function AdminCoupons() {
     const { error } = await remove(deleteTarget.id)
     setDeleting(false)
     setDeleteTarget(null)
-    if (error) addToast('Failed to delete coupon', 'error')
-    else addToast('Coupon deleted')
+    if (error) addToast(t('errors.saveFailed'), 'error')
+    else addToast(t('admin.coupons.deleted'))
   }
 
   if (loading) {
     return (
       <div>
-        <PageHeader title="Coupons" />
+        <PageHeader title={t('admin.coupons.title')} />
         <Loading />
       </div>
     )
@@ -208,7 +210,7 @@ export default function AdminCoupons() {
             <button
               onClick={async () => {
                 const { error } = await update(c.id, { is_active: !c.is_active })
-                if (error) addToast('Failed to update', 'error')
+                if (error) addToast(t('errors.saveFailed'), 'error')
                 else addToast(c.is_active ? 'Coupon disabled' : 'Coupon enabled')
               }}
               className="btn btn-sm btn-ghost text-[10px]"
@@ -231,7 +233,7 @@ export default function AdminCoupons() {
   return (
     <div className="animate-[pageIn_0.4s_ease]">
       <PageHeader
-        title="Coupons"
+        title={t('admin.coupons.title')}
         description="Validated server-side at checkout — codes are never listed publicly."
         actions={
           <button className="btn btn-primary btn-sm" onClick={openCreate}>
@@ -249,7 +251,7 @@ export default function AdminCoupons() {
       <Modal open={editing !== undefined} onClose={() => setEditing(undefined)} title={editing ? 'Edit Coupon' : 'New Coupon'}>
         <div className="space-y-4">
           <div>
-            <label className="label" htmlFor="cp-code">Code *</label>
+            <label className="label" htmlFor="cp-code">{t('admin.coupons.code')} *</label>
             <input
               id="cp-code"
               className="input font-mono uppercase"
@@ -260,35 +262,35 @@ export default function AdminCoupons() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label" htmlFor="cp-type">Type</label>
+              <label className="label" htmlFor="cp-type">{t('admin.coupons.type')}</label>
               <select id="cp-type" className="input" value={form.type} onChange={e => setForm({ ...form, type: e.target.value as 'percentage' | 'fixed' })}>
-                <option value="percentage" className="bg-black">Percentage (%)</option>
-                <option value="fixed" className="bg-black">Fixed amount</option>
+                <option value="percentage" className="bg-black">{t('admin.coupons.percentage')}</option>
+                <option value="fixed" className="bg-black">{t('admin.coupons.fixed')}</option>
               </select>
             </div>
             <div>
-              <label className="label" htmlFor="cp-value">Value *</label>
+              <label className="label" htmlFor="cp-value">{t('admin.coupons.value')} *</label>
               <input id="cp-value" type="number" min="0" step="0.01" className="input" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} />
             </div>
           </div>
           {form.type === 'percentage' && (
             <div>
-              <label className="label" htmlFor="cp-max">Max Discount Amount (optional)</label>
+              <label className="label" htmlFor="cp-max">{t('admin.coupons.maxDiscount')}</label>
               <input id="cp-max" type="number" min="0" step="0.01" className="input" value={form.max_discount_amount} onChange={e => setForm({ ...form, max_discount_amount: e.target.value })} placeholder="Caps the discount" />
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label" htmlFor="cp-min">Min Order (optional)</label>
+              <label className="label" htmlFor="cp-min">{t('admin.coupons.minOrder')}</label>
               <input id="cp-min" type="number" min="0" step="0.01" className="input" value={form.min_order_value} onChange={e => setForm({ ...form, min_order_value: e.target.value })} />
             </div>
             <div>
-              <label className="label" htmlFor="cp-uses">Max Uses (optional)</label>
+              <label className="label" htmlFor="cp-uses">{t('admin.coupons.maxUses')}</label>
               <input id="cp-uses" type="number" min="1" className="input" value={form.max_uses} onChange={e => setForm({ ...form, max_uses: e.target.value })} />
             </div>
           </div>
           <div>
-            <label className="label" htmlFor="cp-exp">Expiry Date (optional)</label>
+            <label className="label" htmlFor="cp-exp">{t('admin.coupons.expiry')}</label>
             <input id="cp-exp" type="date" className="input" value={form.expires_at} onChange={e => setForm({ ...form, expires_at: e.target.value })} />
           </div>
           <label className="flex items-center gap-3 text-sm text-saif-text cursor-pointer">

@@ -5,6 +5,7 @@ import { useAdminCustomers, useAdminOrders } from '@/hooks/admin/useAdminData'
 import { useApp } from '@/context/AppContext'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePageMeta } from '@/hooks/usePageMeta'
+import { useI18n } from '@/i18n'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { PageHeader, SearchInput, DataList, type Cell } from '@/components/admin/ui'
 import Modal from '@/components/ui/Modal'
@@ -12,6 +13,7 @@ import Loading from '@/components/Loading'
 import { OrderStatusBadge, PaymentStatusBadge } from '@/components/ui/StatusBadge'
 
 export default function AdminCustomers() {
+  const { t } = useI18n()
   const { customers, loading } = useAdminCustomers()
   const { orders } = useAdminOrders()
   const { settings } = useApp()
@@ -38,7 +40,7 @@ export default function AdminCustomers() {
   if (loading) {
     return (
       <div>
-        <PageHeader title="Customers" />
+        <PageHeader title={t('admin.customers.title')} />
         <Loading />
       </div>
     )
@@ -84,10 +86,10 @@ export default function AdminCustomers() {
 
   return (
     <div className="animate-[pageIn_0.4s_ease]">
-      <PageHeader title="Customers" description={`${customers.length} registered customers`} />
+      <PageHeader title={t('admin.customers.title')} description={`${customers.length} registered customers`} />
 
       <div className="mb-6">
-        <SearchInput value={search} onChange={setSearch} placeholder="Search name, email, phone…" className="max-w-sm" />
+        <SearchInput value={search} onChange={setSearch} placeholder={t('admin.customers.searchPlaceholder')} className="max-w-sm" />
       </div>
 
       <DataList
@@ -108,19 +110,19 @@ export default function AdminCustomers() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="border border-saif-border rounded-sm p-3">
                 <p className="text-lg font-bold text-saif-text">{selected.orders_count}</p>
-                <p className="text-[10px] uppercase tracking-wider text-saif-dim">Orders</p>
+                <p className="text-[10px] uppercase tracking-wider text-saif-dim">{t('admin.customers.orders')}</p>
               </div>
               <div className="border border-saif-border rounded-sm p-3">
                 <p className="text-lg font-bold text-saif-text">{formatPrice(selected.total_spent, currency)}</p>
-                <p className="text-[10px] uppercase tracking-wider text-saif-dim">Spent (paid)</p>
+                <p className="text-[10px] uppercase tracking-wider text-saif-dim">{t('admin.customers.spent')}</p>
               </div>
               <div className="border border-saif-border rounded-sm p-3">
                 <p className="text-sm font-bold text-saif-text mt-1">{formatDate(selected.last_order_at)}</p>
-                <p className="text-[10px] uppercase tracking-wider text-saif-dim">Last order</p>
+                <p className="text-[10px] uppercase tracking-wider text-saif-dim">{t('admin.customers.lastOrder')}</p>
               </div>
               <div className="border border-saif-border rounded-sm p-3">
                 <p className="text-sm font-bold text-saif-text mt-1">{formatDate(selected.created_at)}</p>
-                <p className="text-[10px] uppercase tracking-wider text-saif-dim">Joined</p>
+                <p className="text-[10px] uppercase tracking-wider text-saif-dim">{t('admin.customers.joined')}</p>
               </div>
             </div>
 

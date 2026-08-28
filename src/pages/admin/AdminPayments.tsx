@@ -16,6 +16,7 @@ import { useApp } from '@/context/AppContext'
 import { useToast } from '@/context/ToastContext'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePageMeta } from '@/hooks/usePageMeta'
+import { useI18n } from '@/i18n'
 import { reviewPayment } from '@/lib/api'
 import { createScreenshotSignedUrl, paymentMethodLabel } from '@/lib/payments'
 import { formatPrice, formatDate, cn, copyToClipboard } from '@/lib/utils'
@@ -27,6 +28,7 @@ import Loading from '@/components/Loading'
 import type { Payment } from '@/types'
 
 export default function AdminPayments() {
+  const { t } = useI18n()
   const [searchParams, setSearchParams] = useSearchParams()
   const focusId = searchParams.get('focus')
   const { settings } = useApp()
@@ -124,7 +126,7 @@ export default function AdminPayments() {
   return (
     <div className="animate-[pageIn_0.4s_ease]">
       <PageHeader
-        title="Payment Verification"
+        title={t('admin.payments.title')}
         description="Review InstaPay / Vodafone Cash transfers before confirming orders."
         actions={
           <button className="btn btn-sm" onClick={refetch}>
@@ -147,12 +149,12 @@ export default function AdminPayments() {
           value={statusFilter}
           onChange={setStatusFilter}
           options={[
-            { value: 'under_review', label: 'Under Review', count: counts.under_review ?? 0 },
-            { value: 'awaiting_payment', label: 'Awaiting Customer', count: counts.awaiting_payment ?? 0 },
-            { value: 'rejected', label: 'Rejected', count: counts.rejected ?? 0 },
-            { value: 'approved', label: 'Approved', count: counts.approved ?? 0 },
-            { value: 'cancelled', label: 'Cancelled', count: counts.cancelled ?? 0 },
-            { value: 'all', label: 'All', count: counts.all ?? 0 },
+            { value: 'under_review', label: t('admin.payments.queue.under_review'), count: counts.under_review ?? 0 },
+            { value: 'awaiting_payment', label: t('admin.payments.queue.awaiting_payment'), count: counts.awaiting_payment ?? 0 },
+            { value: 'rejected', label: t('admin.payments.queue.rejected'), count: counts.rejected ?? 0 },
+            { value: 'approved', label: t('admin.payments.queue.approved'), count: counts.approved ?? 0 },
+            { value: 'cancelled', label: t('admin.payments.queue.cancelled'), count: counts.cancelled ?? 0 },
+            { value: 'all', label: t('admin.common.all'), count: counts.all ?? 0 },
           ]}
           ariaLabel="Payment status filter"
         />
@@ -167,7 +169,7 @@ export default function AdminPayments() {
             {filtered.length === 0 ? (
               <EmptyPanel
                 title="Nothing in this queue"
-                description={statusFilter === 'under_review' ? 'No payments are waiting for review.' : undefined}
+                description={statusFilter === 'under_review' ? t('admin.payments.emptyQueueDesc') : undefined}
               />
             ) : (
               filtered.map(p => (
@@ -217,7 +219,7 @@ export default function AdminPayments() {
                           <dd className="text-saif-text font-semibold">{paymentMethodLabel(selected.payment_method)}</dd>
                         </div>
                         <div className="flex justify-between gap-3">
-                          <dt className="text-saif-dim">Expected amount</dt>
+                          <dt className="text-saif-dim">{t('admin.payments.expected')}</dt>
                           <dd className="text-saif-text font-semibold">{formatPrice(selected.expected_amount, currency)}</dd>
                         </div>
                         <div className="flex justify-between gap-3">
@@ -301,7 +303,7 @@ export default function AdminPayments() {
                         <button
                           onClick={() => setZoomOpen(true)}
                           className="block w-full border border-saif-border rounded-sm overflow-hidden group hover:border-saif-text transition-colors"
-                          aria-label="Enlarge screenshot"
+                          aria-label={t('admin.payments.enlarge')}
                         >
                           <img
                             src={screenshotUrl}
@@ -385,10 +387,10 @@ export default function AdminPayments() {
           className="fixed inset-0 z-[250] bg-black/95 flex items-center justify-center p-4 md:p-10"
           role="dialog"
           aria-modal="true"
-          aria-label="Payment screenshot"
+          aria-label={t('payment.yourScreenshot')}
           onClick={() => setZoomOpen(false)}
         >
-          <button className="absolute top-5 right-5 text-saif-dim hover:text-saif-text p-2" aria-label="Close">
+          <button className="absolute top-5 right-5 text-saif-dim hover:text-saif-text p-2" aria-label={t('common.close')}>
             <X size={26} />
           </button>
           <img src={screenshotUrl} alt="Payment screenshot (full size)" className="max-w-full max-h-full object-contain" />

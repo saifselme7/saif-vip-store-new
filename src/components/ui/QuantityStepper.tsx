@@ -1,5 +1,6 @@
 import { Minus, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/i18n'
 
 interface Props {
   value: number
@@ -12,6 +13,7 @@ interface Props {
 
 /** Quantity stepper — 44×44px touch targets on both sizes. */
 export default function QuantityStepper({ value, onChange, max = 99, min = 1, small, ariaLabel }: Props) {
+  const { t } = useI18n()
   const clamp = (n: number) => Math.max(min, Math.min(n, max))
 
   return (
@@ -24,7 +26,7 @@ export default function QuantityStepper({ value, onChange, max = 99, min = 1, sm
           small && 'w-9 h-9',
         )}
         disabled={value <= min}
-        aria-label="Decrease quantity"
+        aria-label={t('a11y.decreaseQuantity')}
       >
         <Minus size={small ? 12 : 14} />
       </button>
@@ -45,7 +47,7 @@ export default function QuantityStepper({ value, onChange, max = 99, min = 1, sm
           small && 'w-9 h-9',
         )}
         disabled={value >= max}
-        aria-label="Increase quantity"
+        aria-label={t('a11y.increaseQuantity')}
       >
         <Plus size={small ? 12 : 14} />
       </button>

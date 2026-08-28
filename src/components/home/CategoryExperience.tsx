@@ -72,7 +72,7 @@ export default function CategoryExperience({ categories, products, title, descri
             <div
               className="flex gap-2.5 overflow-x-auto pb-2 -mx-5 px-5 lg:mx-0 lg:px-0 [scrollbar-width:thin]"
               role="list"
-              aria-label="Product categories"
+              aria-label={t('a11y.productCategories')}
             >
               {categories.map(cat => (
                 <Link

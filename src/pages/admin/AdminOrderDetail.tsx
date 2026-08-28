@@ -5,6 +5,7 @@ import { useAdminOrder } from '@/hooks/admin/useAdminData'
 import { useApp } from '@/context/AppContext'
 import { useToast } from '@/context/ToastContext'
 import { usePageMeta } from '@/hooks/usePageMeta'
+import { useI18n } from '@/i18n'
 import { adminUpdateOrderStatus, adminAddOrderNote, adminSetFulfillment, reviewPayment } from '@/lib/api'
 import { createScreenshotSignedUrl, paymentMethodLabel } from '@/lib/payments'
 import { formatPrice, formatDate, cn } from '@/lib/utils'
@@ -17,6 +18,7 @@ import { useEffect } from 'react'
 import type { OrderItem } from '@/types'
 
 export default function AdminOrderDetail() {
+  const { t } = useI18n()
   const { id } = useParams<{ id: string }>()
   const { order, loading, refetch } = useAdminOrder(id)
   const { settings } = useApp()
@@ -74,7 +76,7 @@ export default function AdminOrderDetail() {
   async function handleStatusUpdate() {
     if (!order || !statusValue) return
     if (statusValue === order.status) {
-      addToast('Status unchanged', 'info')
+      addToast(t('admin.orders.notFound'), 'info')
       return
     }
     setUpdating(true)
@@ -82,7 +84,7 @@ export default function AdminOrderDetail() {
     setUpdating(false)
     if (error) addToast(error, 'error')
     else {
-      addToast('Order status updated')
+      addToast(t('admin.orders.statusUpdated'))
       setStatusMessage('')
       refetch()
     }
@@ -95,7 +97,7 @@ export default function AdminOrderDetail() {
     setSavingNote(false)
     if (error) addToast(error, 'error')
     else {
-      addToast('Internal note saved')
+      addToast(t('admin.orders.noteSaved'))
       refetch()
     }
   }
@@ -107,14 +109,14 @@ export default function AdminOrderDetail() {
     setUpdating(false)
     if (error) addToast(error, 'error')
     else {
-      addToast('Payment approved — order confirmed')
+      addToast(t('admin.orders.paymentApproved'))
       refetch()
     }
   }
 
   async function handleReject() {
     if (!payment || !rejectionReason.trim()) {
-      addToast('A rejection reason is required', 'error')
+      addToast(t('admin.orders.rejectReasonLabel'), 'error')
       return
     }
     setRejecting(true)
@@ -122,7 +124,7 @@ export default function AdminOrderDetail() {
     setRejecting(false)
     if (error) addToast(error, 'error')
     else {
-      addToast('Payment rejected')
+      addToast(t('admin.orders.paymentRejected'))
       setRejectOpen(false)
       setRejectionReason('')
       refetch()
@@ -131,7 +133,7 @@ export default function AdminOrderDetail() {
 
   async function handleFulfill() {
     if (!fulfillItem || !fulfillNote.trim()) {
-      addToast('Enter the delivery details', 'error')
+      addToast(t('errors.generic'), 'error')
       return
     }
     setFulfilling(true)
@@ -139,7 +141,7 @@ export default function AdminOrderDetail() {
     setFulfilling(false)
     if (error) addToast(error, 'error')
     else {
-      addToast('Digital item fulfilled')
+      addToast(t('admin.orders.fulfillSaved'))
       setFulfillItem(null)
       setFulfillNote('')
       refetch()
@@ -167,7 +169,7 @@ export default function AdminOrderDetail() {
         <div className="space-y-6">
           {/* Items */}
           <section className="card p-5">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-4">Items</h2>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-4">{t('orders.items')}</h2>
             <div className="space-y-4">
               {order.items?.map(item => (
                 <div key={item.id} className="flex gap-3">
@@ -299,7 +301,7 @@ export default function AdminOrderDetail() {
                 )}
                 {payment.customer_note && (
                   <div>
-                    <dt className="text-saif-dim mb-1">Customer note</dt>
+                    <dt className="text-saif-dim mb-1">{t('payment.customerNote')}</dt>
                     <dd className="text-saif-text bg-white/5 p-2 rounded-sm">{payment.customer_note}</dd>
                   </div>
                 )}
@@ -319,7 +321,7 @@ export default function AdminOrderDetail() {
                     <button
                       onClick={() => setZoomOpen(true)}
                       className="block w-full group"
-                      aria-label="Zoom screenshot"
+                      aria-label={t('admin.payments.enlarge')}
                     >
                       <img
                         src={screenshotUrl}
@@ -363,8 +365,8 @@ export default function AdminOrderDetail() {
 
           {/* Status update */}
           <section className="card p-5">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-saif-text mb-4">Update Status</h2>
-            <label className="sr-only" htmlFor="st-select">New status</label>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-saif-text mb-4">{t('admin.orders.updateStatus')}</h2>
+            <label className="sr-only" htmlFor="st-select">{t('common.status')}</label>
             <select id="st-select" className="input text-xs mb-2" value={statusValue} onChange={e => setStatusValue(e.target.value)}>
               {ORDER_STATUSES.map(s => (
                 <option key={s} value={s} className="bg-black">
@@ -372,11 +374,11 @@ export default function AdminOrderDetail() {
                 </option>
               ))}
             </select>
-            <label className="sr-only" htmlFor="st-msg">Status message for the timeline</label>
+            <label className="sr-only" htmlFor="st-msg">{t('admin.orders.statusMessage')}</label>
             <input
               id="st-msg"
               className="input text-xs mb-3"
-              placeholder="Timeline message (optional)"
+              placeholder={t('admin.orders.statusMessage')}
               value={statusMessage}
               onChange={e => setStatusMessage(e.target.value)}
             />
@@ -416,13 +418,13 @@ export default function AdminOrderDetail() {
 
           {/* Internal note */}
           <section className="card p-5">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-saif-text mb-3">Internal Note</h2>
-            <label className="sr-only" htmlFor="in-note">Internal note</label>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-saif-text mb-3">{t('admin.orders.internalNote')}</h2>
+            <label className="sr-only" htmlFor="in-note">{t('admin.orders.internalNote')}</label>
             <textarea
               id="in-note"
               className="input text-xs resize-none"
               rows={3}
-              placeholder="Visible to admins only"
+              placeholder={t('admin.orders.internalNotePlaceholder')}
               value={noteValue}
               onChange={e => setNoteValue(e.target.value)}
             />
@@ -439,10 +441,10 @@ export default function AdminOrderDetail() {
           className="fixed inset-0 z-[250] bg-black/95 flex items-center justify-center p-4 md:p-10"
           role="dialog"
           aria-modal="true"
-          aria-label="Payment screenshot"
+          aria-label={t('payment.yourScreenshot')}
           onClick={() => setZoomOpen(false)}
         >
-          <button className="absolute top-5 right-5 text-saif-dim hover:text-saif-text p-2" aria-label="Close">
+          <button className="absolute top-5 right-5 text-saif-dim hover:text-saif-text p-2" aria-label={t('common.close')}>
             <X size={26} />
           </button>
           <img src={screenshotUrl} alt="Payment screenshot (full size)" className="max-w-full max-h-full object-contain" />

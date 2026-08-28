@@ -9,6 +9,7 @@ import Footer from '@/components/Footer'
 import EmptyState from '@/components/EmptyState'
 import { ProductGridSkeleton } from '@/components/ui/Skeletons'
 import { usePageMeta } from '@/hooks/usePageMeta'
+import { useI18n } from '@/i18n'
 import { cn, formatPrice } from '@/lib/utils'
 import type { Product } from '@/types'
 
@@ -69,6 +70,7 @@ function filtersFromParams(params: URLSearchParams): LocalFilters {
 }
 
 export default function ProductsPage() {
+  const { t } = useI18n()
   const [searchParams, setSearchParams] = useSearchParams()
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [localFilters, setLocalFilters] = useState<LocalFilters>(() => filtersFromParams(searchParams))
@@ -174,9 +176,9 @@ export default function ProductsPage() {
           value={localFilters.category}
           onChange={e => applyFilter('category', e.target.value)}
           className="input"
-          aria-label="Filter by category"
+          aria-label={t('filters.category')}
         >
-          <option value="">All Categories</option>
+          <option value="">{t('filters.allCategories')}</option>
           {categories.map(c => (
             <option key={c.id} value={c.id} className="bg-black">
               {c.name}
@@ -186,11 +188,11 @@ export default function ProductsPage() {
       </FilterGroup>
 
       <FilterGroup title="Product Type">
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Product type">
+        <div className="flex flex-wrap gap-2" role="group" aria-label={t('filters.type')}>
           {[
-            { value: '', label: 'All' },
-            { value: 'physical', label: 'Physical' },
-            { value: 'digital', label: 'Digital' },
+            { value: '', label: t('filters.all') },
+            { value: 'physical', label: t('filters.physical') },
+            { value: 'digital', label: t('filters.digital') },
           ].map(opt => (
             <button
               key={opt.value}
@@ -216,9 +218,9 @@ export default function ProductsPage() {
             min={0}
             value={localFilters.minPrice}
             onChange={e => applyFilter('minPrice', e.target.value)}
-            placeholder="Min"
+            placeholder={t('filters.min')}
             className="input"
-            aria-label="Minimum price"
+            aria-label={t('filters.min')}
           />
           <span className="text-saif-dim">—</span>
           <input
@@ -226,16 +228,16 @@ export default function ProductsPage() {
             min={0}
             value={localFilters.maxPrice}
             onChange={e => applyFilter('maxPrice', e.target.value)}
-            placeholder="Max"
+            placeholder={t('filters.max')}
             className="input"
-            aria-label="Maximum price"
+            aria-label={t('filters.max')}
           />
         </div>
       </FilterGroup>
 
       {availableSizes.length > 0 && (
         <FilterGroup title="Size">
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Size">
+          <div className="flex flex-wrap gap-2" role="group" aria-label={t('filters.size')}>
             {availableSizes.map(size => (
               <button
                 key={size}
@@ -257,7 +259,7 @@ export default function ProductsPage() {
 
       {availableColors.length > 0 && (
         <FilterGroup title="Color">
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Color">
+          <div className="flex flex-wrap gap-2" role="group" aria-label={t('filters.color')}>
             {availableColors.map(color => (
               <button
                 key={color}
@@ -313,7 +315,7 @@ export default function ProductsPage() {
               {activeCategory ? activeCategory.name : 'Shop'}
             </h1>
             <p className="mt-3 text-sm text-saif-dim" aria-live="polite">
-              {loading ? 'Loading…' : `${displayProducts.length} ${displayProducts.length === 1 ? 'item' : 'items'}`}
+              {loading ? t('common.loading') : `${displayProducts.length} ${displayProducts.length === 1 ? 'item' : 'items'}`}
             </p>
           </div>
 
@@ -349,18 +351,18 @@ export default function ProductsPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-10">
           {/* Desktop filters */}
-          <aside className="hidden lg:block" aria-label="Product filters">
+          <aside className="hidden lg:block" aria-label={t('filters.title')}>
             <div className="sticky top-28 max-h-[calc(100vh-8rem)] overflow-y-auto pr-2">{filterPanel}</div>
           </aside>
 
           {/* Mobile filter drawer */}
           {filtersOpen && (
-            <div className="fixed inset-0 z-[150] lg:hidden" role="dialog" aria-modal="true" aria-label="Filters">
+            <div className="fixed inset-0 z-[150] lg:hidden" role="dialog" aria-modal="true" aria-label={t('filters.title')}>
               <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setFiltersOpen(false)} />
               <div className="absolute bottom-0 left-0 right-0 max-h-[85vh] overflow-y-auto bg-black border-t border-saif-border p-6 rounded-t-xl animate-scaleIn">
                 <div className="flex items-center justify-between mb-6 sticky top-0 bg-black pb-2">
                   <h2 className="text-base font-bold text-saif-text">Filters</h2>
-                  <button onClick={() => setFiltersOpen(false)} aria-label="Close filters" className="p-1 text-saif-dim hover:text-saif-text">
+                  <button onClick={() => setFiltersOpen(false)} aria-label={t('common.close')} className="p-1 text-saif-dim hover:text-saif-text">
                     <X size={20} />
                   </button>
                 </div>
@@ -388,8 +390,8 @@ export default function ProductsPage() {
               />
             ) : displayProducts.length === 0 ? (
               <EmptyState
-                title="No products found"
-                description="Try adjusting your filters or search query."
+                title={t('filters.noProducts')}
+                description={t('filters.noProductsDesc')}
                 action={
                   <button className="btn btn-sm" onClick={clearFilters}>
                     Clear Filters

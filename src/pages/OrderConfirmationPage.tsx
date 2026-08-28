@@ -12,8 +12,10 @@ import Footer from '@/components/Footer'
 import Loading from '@/components/Loading'
 import EmptyState from '@/components/EmptyState'
 import type { Order } from '@/types'
+import { useI18n } from '@/i18n'
 
 export default function OrderConfirmationPage() {
+  const { t, lang, formatPrice } = useI18n()
   const { id } = useParams<{ id: string }>()
   const { settings } = useApp()
   const { addToast } = useToast()
@@ -41,7 +43,7 @@ export default function OrderConfirmationPage() {
   async function handleCopy() {
     if (!order) return
     const ok = await copyToClipboard(order.order_number)
-    addToast(ok ? 'Order number copied' : 'Copy failed — select it manually', ok ? 'success' : 'error')
+    addToast(ok ? t('orders.copied') : t('errors.generic'), ok ? 'success' : 'error')
   }
 
   if (loading) {
@@ -57,7 +59,7 @@ export default function OrderConfirmationPage() {
     return (
       <div className="pt-28 px-5">
         <EmptyState
-          title="Order not found"
+          title={t('orders.notFound')}
           description="This order does not exist or belongs to another account."
           action={
             <Link to="/orders" className="btn btn-sm">
@@ -80,11 +82,11 @@ export default function OrderConfirmationPage() {
             <CheckCircle2 size={30} className="text-green-400" />
           </div>
           <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-saif-text mb-3">
-            Order Placed
+            {t('orders.confirmation.title')}
           </h1>
           <p className="text-sm text-saif-dim max-w-md mx-auto leading-relaxed">
             {underReview
-              ? 'Your order has been received and your payment is being verified by our team. This usually takes a few hours.'
+              ? t('orders.confirmation.desc')
               : 'Your order has been received.'}
           </p>
         </div>
@@ -94,7 +96,7 @@ export default function OrderConfirmationPage() {
             <button
               onClick={handleCopy}
               className="flex items-center gap-2 text-sm font-bold text-saif-text hover:text-saif-accent transition-colors"
-              title="Click to copy"
+              title={t('common.copy')}
             >
               {order.order_number}
               <Copy size={13} className="text-saif-dim" />
@@ -107,20 +109,20 @@ export default function OrderConfirmationPage() {
 
           <dl className="space-y-3 text-sm">
             <div className="flex justify-between gap-4">
-              <dt className="text-saif-dim">Date</dt>
+              <dt className="text-saif-dim">{t('common.date')}</dt>
               <dd className="text-saif-text">{formatDate(order.created_at, true)}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-saif-dim">Payment Method</dt>
+              <dt className="text-saif-dim">{t('orders.confirmation.paymentMethod')}</dt>
               <dd className="text-saif-text">{PAYMENT_METHOD_LABELS[order.payment_method!] ?? '—'}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-saif-dim">Deliver To</dt>
+              <dt className="text-saif-dim">{t('orders.confirmation.deliverTo')}</dt>
               <dd className="text-saif-text text-right">
                 {order.customer_name}
                 {order.shipping_address && (order.shipping_address as { city?: string }).city
                   ? `, ${(order.shipping_address as { city?: string }).city}`
-                  : ' (digital order)'}
+                  : ` (${t('orders.confirmation.digitalNote')})`}
               </dd>
             </div>
           </dl>
@@ -132,31 +134,31 @@ export default function OrderConfirmationPage() {
                   {item.product_name}
                   {item.variant_name ? ` · ${item.variant_name}` : ''} × {item.quantity}
                 </span>
-                <span className="text-saif-text flex-shrink-0">{formatPrice(item.total, currency)}</span>
+                <span className="text-saif-text flex-shrink-0">{formatPrice(item.total)}</span>
               </div>
             ))}
           </div>
 
           <div className="border-t border-saif-border mt-5 pt-5 space-y-2 text-sm">
             <div className="flex justify-between text-saif-dim">
-              <span>Subtotal</span>
-              <span className="text-saif-text">{formatPrice(order.subtotal, currency)}</span>
+              <span>{t('common.subtotal')}</span>
+              <span className="text-saif-text">{formatPrice(order.subtotal)}</span>
             </div>
             {order.discount > 0 && (
               <div className="flex justify-between text-saif-dim">
                 <span>Discount {order.coupon_code ? <span className="font-mono text-green-400 text-xs">({order.coupon_code})</span> : null}</span>
-                <span className="text-green-400">−{formatPrice(order.discount, currency)}</span>
+                <span className="text-green-400">−{formatPrice(order.discount)}</span>
               </div>
             )}
             <div className="flex justify-between text-saif-dim">
-              <span>Shipping</span>
+              <span>{t('common.shipping')}</span>
               <span className="text-saif-text">
-                {order.shipping_fee === 0 ? 'Free' : formatPrice(order.shipping_fee, currency)}
+                {order.shipping_fee === 0 ? 'Free' : formatPrice(order.shipping_fee)}
               </span>
             </div>
             <div className="flex justify-between text-base font-bold text-saif-text pt-2 border-t border-saif-border">
-              <span>Total</span>
-              <span>{formatPrice(order.total, currency)}</span>
+              <span>{t('common.total')}</span>
+              <span>{formatPrice(order.total)}</span>
             </div>
           </div>
         </div>
@@ -168,9 +170,9 @@ export default function OrderConfirmationPage() {
             What happens next
           </h2>
           <ol className="space-y-2.5 text-sm text-saif-dim">
-            <li>1. Our team verifies your {PAYMENT_METHOD_LABELS[order.payment_method!] ?? ''} transfer manually.</li>
+            <li>1. {t('orders.confirmation.next1', { method: PAYMENT_METHOD_LABELS[order.payment_method!] ?? '' })}</li>
             <li>2. Once approved, your order moves to <span className="text-saif-text">Confirmed</span> and we start preparing it.</li>
-            <li>3. You can follow the status any time from your orders page.</li>
+            <li>3. {t('orders.confirmation.next3')}</li>
           </ol>
           <p className="text-xs text-saif-faint mt-4">
             Your payment has <span className="text-saif-text font-semibold">not</span> been approved yet — this page will

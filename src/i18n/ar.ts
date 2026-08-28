@@ -62,6 +62,18 @@ export const ar: Dictionary = {
     ratingStars: 'التقييم: {value} من 5',
     breadcrumb: 'مسار التنقل',
     dismissNotification: 'تجاهل التنبيه',
+    productImages: 'صور المنتج',
+    productCategories: 'أقسام المنتجات',
+    storeHighlights: 'مميزات المتجر',
+    shopLinks: 'لينكات المتجر',
+    supportLinks: 'لينكات الدعم',
+    accountSections: 'أقسام الحساب',
+    errorDetails: 'تفاصيل الخطأ',
+    orderPreview: 'معاينة الصورة',
+    rating: 'التقييم',
+    quantityGroup: 'الكمية',
+    productInfo: 'معلومات المنتج',
+    dailyRevenueChart: 'الإيرادات المدفوعة اليومية لآخر 14 يوم',
   },
   nav: {
     home: 'الرئيسية',
@@ -154,8 +166,14 @@ export const ar: Dictionary = {
     verifiedPaymentsDesc: 'ادفع بانستا باي أو فودافون كاش. تحويلك بيراجعه فريقنا قبل ما الطلب يتشحن.',
     secureCheckout: 'دفع آمن',
     variants: 'الخيارات',
+    quantityGroup: 'الكمية',
+    enterTitleBody: 'اكتب عنوان وتقييم الأول',
+    enterValidAmount: 'اكتب رقم صحيح مش بالسالب',
+    chooseOptions: 'اختار المقاس',
   },
   cart: {
+    orderSummary: 'ملخص الطلب',
+    viewFullBag: 'شوف السلة كاملة',
     title: 'السلة بتاعتك',
     items_one: '(منتج واحد)',
     items_two: '(منتجين)',
@@ -377,6 +395,7 @@ export const ar: Dictionary = {
     },
   },
   account: {
+    notSet: 'مش متسجل',
     title: 'حسابي',
     tabs: {
       overview: 'نظرة عامة',
@@ -517,6 +536,11 @@ export const ar: Dictionary = {
     saveFailed: 'فشل الحفظ. جرب تاني.',
     network: 'مشكلة في الاتصال — راجع الإنترنت وجرب تاني.',
   },
+  contact: {
+    name: 'الاسم',
+    email: 'البريد الإلكتروني',
+    message: 'الرسالة',
+  },
   pages: {
     about: {
       title: 'عن المتجر',
@@ -638,6 +662,15 @@ export const ar: Dictionary = {
     description: 'مراجعات معتمدة من طلبات حقيقية — بمراجعة فريقنا.',
   },
   meta: { description: 'ستريت وير ومنتجات رقمية بريميوم، مختارة بعناية في مصر. الدفع يدويًا عن طريق انستا باي وفودافون كاش.' },
+  wishlist: {
+    signInTitle: 'سجّل دخول عشان تشوف مفضلتك',
+    emptyTitle: 'مفضلتك فاضية',
+    emptyDesc: 'دوس على القلب في أي منتج عشان تحفظه هنا.',
+  },
+  notFound: {
+    title: 'الصفحة مش موجودة.',
+    back: 'ارجع للرئيسية',
+  },
   lang: { name: 'العربية', short: 'ع' },
   admin: {
     nav: {

@@ -60,6 +60,18 @@ export const en = {
     ratingStars: 'Rating: {value} out of 5',
     breadcrumb: 'Breadcrumb',
     dismissNotification: 'Dismiss notification',
+    productImages: 'Product images',
+    productCategories: 'Product categories',
+    storeHighlights: 'Store highlights',
+    shopLinks: 'Shop links',
+    supportLinks: 'Support links',
+    accountSections: 'Account sections',
+    errorDetails: 'Error details',
+    orderPreview: 'Image preview',
+    rating: 'Rating',
+    quantityGroup: 'Quantity',
+    productInfo: 'Product information',
+    dailyRevenueChart: 'Daily paid revenue for the last 14 days',
   },
   nav: {
     home: 'Home',
@@ -152,8 +164,14 @@ export const en = {
     verifiedPaymentsDesc: 'Pay with InstaPay or Vodafone Cash. Your transfer is verified by our team before the order ships.',
     secureCheckout: 'Secure checkout',
     variants: 'Options',
+    quantityGroup: 'Quantity',
+    enterTitleBody: 'Please add a title and review text',
+    enterValidAmount: 'Enter a valid non-negative number',
+    chooseOptions: 'Choose Options',
   },
   cart: {
+    orderSummary: 'Order Summary',
+    viewFullBag: 'View Full Bag',
     title: 'Your Bag',
     items_one: '({count} item)',
     items_two: '({count} items)',
@@ -375,6 +393,7 @@ export const en = {
     },
   },
   account: {
+    notSet: 'Not set',
     title: 'Account',
     tabs: {
       overview: 'Overview',
@@ -515,6 +534,11 @@ export const en = {
     saveFailed: 'Failed to save. Please try again.',
     network: 'Connection problem — please check your internet and try again.',
   },
+  contact: {
+    name: 'Name',
+    email: 'Email',
+    message: 'Message',
+  },
   pages: {
     about: {
       title: 'About',
@@ -636,6 +660,15 @@ export const en = {
     description: 'Approved reviews from verified orders — moderated by our team.',
   },
   meta: { description: 'Premium streetwear and digital products, curated in Egypt. Manual payment via InstaPay & Vodafone Cash.' },
+  wishlist: {
+    signInTitle: 'Sign in to view your wishlist',
+    emptyTitle: 'Your wishlist is empty',
+    emptyDesc: 'Tap the heart on any product to save it for later.',
+  },
+  notFound: {
+    title: 'Page not found.',
+    back: 'Back Home',
+  },
   lang: { name: 'English', short: 'EN' },
   admin: {
     nav: {

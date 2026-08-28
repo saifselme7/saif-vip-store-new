@@ -4,6 +4,7 @@ import { useAdminCategories } from '@/hooks/admin/useAdminData'
 import { useAdminProducts } from '@/hooks/admin/useAdminData'
 import { useToast } from '@/context/ToastContext'
 import { usePageMeta } from '@/hooks/usePageMeta'
+import { useI18n } from '@/i18n'
 import { generateSlug } from '@/lib/utils'
 import { PageHeader, DataList, type Cell } from '@/components/admin/ui'
 import Modal from '@/components/ui/Modal'
@@ -24,6 +25,7 @@ interface CategoryForm {
 const EMPTY: CategoryForm = { name: '', name_ar: '', slug: '', description: '', description_ar: '', image: '', sort_order: '0', is_active: true }
 
 export default function AdminCategories() {
+  const { t } = useI18n()
   const { categories, loading, create, update, remove } = useAdminCategories()
   const { products } = useAdminProducts()
   const { addToast } = useToast()
@@ -55,7 +57,7 @@ export default function AdminCategories() {
 
   async function handleSave() {
     if (!form.name.trim()) {
-      addToast('Category name is required', 'error')
+      addToast(t('errors.generic'), 'error')
       return
     }
     const payload = {
@@ -85,14 +87,14 @@ export default function AdminCategories() {
     const { error } = await remove(deleteTarget.id)
     setDeleting(false)
     setDeleteTarget(null)
-    if (error) addToast('Failed to delete category', 'error')
-    else addToast('Category deleted — its products are now uncategorised')
+    if (error) addToast(t('errors.saveFailed'), 'error')
+    else addToast(t('admin.common.saved'))
   }
 
   if (loading) {
     return (
       <div>
-        <PageHeader title="Categories" />
+        <PageHeader title={t('admin.categories.title')} />
         <Loading />
       </div>
     )
@@ -155,7 +157,7 @@ export default function AdminCategories() {
   return (
     <div className="animate-[pageIn_0.4s_ease]">
       <PageHeader
-        title="Categories"
+        title={t('admin.categories.title')}
         description={`${categories.length} categories`}
         actions={
           <button className="btn btn-primary btn-sm" onClick={openCreate}>
@@ -205,7 +207,7 @@ export default function AdminCategories() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label" htmlFor="ct-order">Sort Order</label>
+              <label className="label" htmlFor="ct-order">{t('admin.categories.sortOrder')}</label>
               <input id="ct-order" type="number" className="input" value={form.sort_order} onChange={e => setForm({ ...form, sort_order: e.target.value })} />
             </div>
             <label className="flex items-center gap-3 text-sm text-saif-text cursor-pointer pb-1">

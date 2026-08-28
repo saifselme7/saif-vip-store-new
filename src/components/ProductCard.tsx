@@ -116,7 +116,7 @@ function ProductCard({ product, priorityImage }: Props) {
               <span className="badge bg-saif-accent text-black border-saif-accent">−{discount}%</span>
             )}
             {product.bestseller && <span className="badge bg-saif-text text-black border-saif-text">Bestseller</span>}
-            {soldOut && <span className="badge bg-black/85 backdrop-blur-sm text-saif-text border-saif-text/40">Sold out</span>}
+            {soldOut && <span className="badge bg-black/85 backdrop-blur-sm text-saif-text border-saif-text/40">{t('product.soldOut')}</span>}
             {lowStock && (
               <span className="badge bg-black/80 backdrop-blur-sm text-yellow-400 border-yellow-500/40">
                 {t('product.onlyLeft', { count: product.stock })}

@@ -184,7 +184,7 @@ export default function ProductDetailPage() {
     <div className="animate-[pageIn_0.6s_ease]">
       <div className="pt-24 md:pt-28 px-5 lg:px-10 pb-20 max-w-7xl mx-auto">
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-xs text-saif-dim mb-8" aria-label="Breadcrumb">
+        <nav className="flex items-center gap-1.5 text-xs text-saif-dim mb-8" aria-label={t('a11y.breadcrumb')}>
           <Link to="/" className="hover:text-saif-text transition-colors">Home</Link>
           <ChevronRight size={11} />
           <Link to="/products" className="hover:text-saif-text transition-colors">Shop</Link>
@@ -316,7 +316,7 @@ export default function ProductDetailPage() {
 
             {/* Meta tabs */}
             <div className="mt-12 border-t border-saif-border">
-              <div className="flex gap-6 border-b border-saif-border" role="tablist" aria-label="Product information">
+              <div className="flex gap-6 border-b border-saif-border" role="tablist" aria-label={t('a11y.productInfo')}>
                 <TabButton active={tab === 'description'} onClick={() => setTab('description')}>
                   {t('product.description')}
                 </TabButton>
@@ -359,7 +359,7 @@ export default function ProductDetailPage() {
                         <div className="flex items-start gap-3">
                           <Zap size={16} className="text-saif-accent mt-0.5 flex-shrink-0" />
                           <div>
-                            <p className="text-saif-text font-medium">Digital delivery</p>
+                            <p className="text-saif-text font-medium">{t('product.digitalDelivery')}</p>
                             <p>
                               {product.delivery_info ||
                                 'This item is delivered digitally after your payment is verified. You will be contacted using the details provided at checkout.'}
@@ -386,7 +386,7 @@ export default function ProductDetailPage() {
                         <div className="flex items-start gap-3">
                           <Shield size={16} className="text-saif-text mt-0.5 flex-shrink-0" />
                           <div>
-                            <p className="text-saif-text font-medium">Verified manual payments</p>
+                            <p className="text-saif-text font-medium">{t('product.verifiedPayments')}</p>
                             <p>
                               Pay with InstaPay or Vodafone Cash. Your transfer is verified by our team before the order ships.
                             </p>

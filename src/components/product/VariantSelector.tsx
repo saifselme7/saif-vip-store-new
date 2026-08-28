@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
 import type { ProductVariant } from '@/types'
+import { useI18n } from '@/i18n'
 
 interface Props {
   variants: ProductVariant[]
@@ -15,6 +16,7 @@ interface Props {
  * valid in-stock combinations.
  */
 export default function VariantSelector({ variants, sizes, colors, selectedId, onSelect, className }: Props) {
+  const { t } = useI18n()
   const selected = variants.find(v => v.id === selectedId) ?? null
 
   function stockFor(size: string | null, color: string | null) {
@@ -75,7 +77,7 @@ export default function VariantSelector({ variants, sizes, colors, selectedId, o
           })}
         </div>
         {selected && selected.stock > 0 && selected.stock <= 5 && (
-          <p className="text-xs text-yellow-400">Only {selected.stock} left</p>
+          <p className="text-xs text-yellow-400">{t('product.onlyLeft', { count: selected.stock })}</p>
         )}
       </div>
     )
@@ -88,7 +90,7 @@ export default function VariantSelector({ variants, sizes, colors, selectedId, o
           <span className="label mb-0">
             Size {selected?.size ? <span className="text-saif-text">· {selected.size}</span> : null}
           </span>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Size">
+          <div className="flex flex-wrap gap-2" role="group" aria-label={t('product.chooseSize')}>
             {sizes.map(size => {
               const disabled = !availableSizes.includes(size)
               const isSelected = selected?.size === size
@@ -119,7 +121,7 @@ export default function VariantSelector({ variants, sizes, colors, selectedId, o
           <span className="label mb-0">
             Color {selected?.color ? <span className="text-saif-text">· {selected.color}</span> : null}
           </span>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Color">
+          <div className="flex flex-wrap gap-2" role="group" aria-label={t('product.chooseColor')}>
             {colors.map(color => {
               const disabled = !availableColors.includes(color)
               const isSelected = selected?.color === color
@@ -146,10 +148,10 @@ export default function VariantSelector({ variants, sizes, colors, selectedId, o
         </div>
       )}
       {selected && selected.stock > 0 && selected.stock <= 5 && (
-        <p className="text-xs text-yellow-400">Only {selected.stock} left</p>
+        <p className="text-xs text-yellow-400">{t('product.onlyLeft', { count: selected.stock })}</p>
       )}
       {!selected && (
-        <p className="text-xs text-saif-dim">Select size and color to see availability</p>
+        <p className="text-xs text-saif-dim">{t('product.selectSizeColor')}</p>
       )}
     </div>
   )

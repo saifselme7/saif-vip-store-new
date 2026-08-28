@@ -4,6 +4,7 @@ import { Minus, Plus, X, ShoppingBag, Trash2 } from 'lucide-react'
 import { useCart } from '@/context/CartContext'
 import { useToast } from '@/context/ToastContext'
 import { useApp } from '@/context/AppContext'
+import { useI18n } from '@/i18n'
 import { usePageMeta } from '@/hooks/usePageMeta'
 import { formatPrice, cn } from '@/lib/utils'
 import { effectiveStock } from '@/lib/pricing'
@@ -13,6 +14,7 @@ import EmptyState, { ShopAction } from '@/components/EmptyState'
 import type { CartItem } from '@/types'
 
 export default function CartPage() {
+  const { t, formatPrice } = useI18n()
   const {
     items,
     count,
@@ -44,7 +46,7 @@ export default function CartPage() {
       <div className="animate-[pageIn_0.6s_ease] pt-28 px-5 min-h-[60vh]">
         <EmptyState
           icon={ShoppingBag}
-          title="Your bag is empty"
+          title={t('cart.empty')}
           description="Items you add will stay here — even after you close the browser."
           action={<ShopAction />}
         />
@@ -58,7 +60,7 @@ export default function CartPage() {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between gap-4 mb-10">
           <h1 className="text-[clamp(34px,6vw,72px)] font-black tracking-tighter text-saif-text">
-            Your Bag <span className="text-saif-dim font-normal text-2xl md:text-4xl">({count})</span>
+            {t('cart.title')} <span className="text-saif-dim font-normal text-2xl md:text-4xl">({count})</span>
           </h1>
           <button
             onClick={() => setClearOpen(true)}
@@ -74,7 +76,7 @@ export default function CartPage() {
             {freeShippingRemaining !== null && freeShippingRemaining > 0 && (
               <div className="border border-saif-border p-4 rounded-sm">
                 <p className="text-xs text-saif-accent mb-2">
-                  Add {formatPrice(freeShippingRemaining, currency)} more for free shipping
+                  {t('cart.freeShippingProgress', { amount: formatPrice(freeShippingRemaining) })}
                 </p>
                 <div className="h-1 bg-white/10 rounded-full overflow-hidden">
                   <div
@@ -116,24 +118,24 @@ export default function CartPage() {
                           <p className="text-[10px] text-saif-accent uppercase tracking-wider mt-0.5">Digital</p>
                         )}
                         {item.product.product_type === 'physical' && item.quantity >= stock && (
-                          <p className="text-[10px] text-yellow-400 mt-0.5">Max available stock ({stock})</p>
+                          <p className="text-[10px] text-yellow-400 mt-0.5">{t('cart.maxStock', { count: stock })}</p>
                         )}
                       </div>
                       <button
                         onClick={() => removeItem(item.id)}
                         className="w-11 h-11 -mr-2 flex items-center justify-center text-saif-dim hover:text-saif-accent transition-colors"
-                        aria-label={`Remove ${item.product.name} from bag`}
+                        aria-label={t('a11y.removeItem', { name: item.product.name })}
                       >
                         <X size={16} />
                       </button>
                     </div>
                     <div className="flex items-center justify-between mt-4 gap-4 flex-wrap">
-                      <div className="inline-flex items-center border border-saif-border rounded-sm" role="group" aria-label="Quantity">
+                      <div className="inline-flex items-center border border-saif-border rounded-sm" role="group" aria-label={t('a11y.quantityGroup')}>
                         <button
                           onClick={() => updateQty(item.id, item.quantity - 1)}
                           className="w-11 h-11 flex items-center justify-center text-saif-text hover:bg-white/5 active:bg-white/10 transition-colors disabled:opacity-30 disabled:pointer-events-none"
                           disabled={item.quantity <= 1}
-                          aria-label="Decrease quantity"
+                          aria-label={t('a11y.decreaseQuantity')}
                         >
                           <Minus size={12} />
                         </button>
@@ -144,16 +146,16 @@ export default function CartPage() {
                           onClick={() => updateQty(item.id, item.quantity + 1)}
                           className="w-11 h-11 flex items-center justify-center text-saif-text hover:bg-white/5 active:bg-white/10 transition-colors disabled:opacity-30 disabled:pointer-events-none"
                           disabled={item.quantity >= maxQty}
-                          aria-label="Increase quantity"
+                          aria-label={t('a11y.increaseQuantity')}
                         >
                           <Plus size={12} />
                         </button>
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-semibold text-saif-text">
-                          {formatPrice(price * item.quantity, currency)}
+                          {formatPrice(price * item.quantity)}
                         </p>
-                        <p className="text-xs text-saif-dim">{formatPrice(price, currency)} each</p>
+                        <p className="text-xs text-saif-dim">{formatPrice(price)} each</p>
                       </div>
                     </div>
                   </div>
@@ -165,7 +167,7 @@ export default function CartPage() {
           {/* Summary */}
           <div className="lg:sticky lg:top-28 lg:self-start">
             <div className="border border-saif-border p-6 rounded-sm">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-6">Order Summary</h2>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-6">{t('cart.orderSummary')}</h2>
 
               {/* Coupon */}
               {coupon ? (
@@ -175,10 +177,10 @@ export default function CartPage() {
                     <p className="text-[11px] text-saif-dim mt-0.5">
                       {coupon.coupon.type === 'percentage'
                         ? `${coupon.coupon.value}% off`
-                        : `${formatPrice(coupon.coupon.value, currency)} off`}
+                        : `${formatPrice(coupon.coupon.value)} off`}
                     </p>
                   </div>
-                  <button onClick={removeCoupon} className="text-saif-dim hover:text-saif-accent transition-colors" aria-label="Remove coupon">
+                  <button onClick={removeCoupon} className="text-saif-dim hover:text-saif-accent transition-colors" aria-label={t('cart.removeCoupon')}>
                     <X size={13} />
                   </button>
                 </div>
@@ -188,10 +190,10 @@ export default function CartPage() {
                     <input
                       type="text"
                       className="input text-xs font-mono uppercase"
-                      placeholder="Coupon code"
+                      placeholder={t('cart.coupon')}
                       value={couponCode}
                       onChange={e => setCouponCode(e.target.value.toUpperCase())}
-                      aria-label="Coupon code"
+                      aria-label={t('cart.coupon')}
                     />
                     <button
                       className="btn btn-sm"
@@ -213,24 +215,24 @@ export default function CartPage() {
 
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between text-saif-dim">
-                  <span>Subtotal</span>
-                  <span className="text-saif-text">{formatPrice(subtotal, currency)}</span>
+                  <span>{t('common.subtotal')}</span>
+                  <span className="text-saif-text">{formatPrice(subtotal)}</span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between text-saif-dim">
-                    <span>Discount</span>
-                    <span className="text-green-400">−{formatPrice(discount, currency)}</span>
+                    <span>{t('common.discount')}</span>
+                    <span className="text-green-400">−{formatPrice(discount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-saif-dim">
-                  <span>Shipping</span>
+                  <span>{t('common.shipping')}</span>
                   <span className={cn(!hasPhysical || shipping === 0 ? 'text-green-400' : 'text-saif-text')}>
-                    {!hasPhysical ? '—' : shipping === 0 ? 'Free' : formatPrice(shipping, currency)}
+                    {!hasPhysical ? '—' : shipping === 0 ? 'Free' : formatPrice(shipping)}
                   </span>
                 </div>
                 <div className="flex justify-between text-base font-bold text-saif-text pt-3 border-t border-saif-border">
-                  <span>Total</span>
-                  <span>{formatPrice(total, currency)}</span>
+                  <span>{t('common.total')}</span>
+                  <span>{formatPrice(total)}</span>
                 </div>
               </div>
 
@@ -241,7 +243,7 @@ export default function CartPage() {
                 Continue Shopping
               </Link>
               <p className="text-[11px] text-saif-faint mt-4 leading-relaxed text-center">
-                Pay with InstaPay or Vodafone Cash — verified manually.
+                {t('cart.payNote')}
               </p>
             </div>
           </div>
@@ -254,10 +256,10 @@ export default function CartPage() {
         onConfirm={() => {
           clearCart()
           setClearOpen(false)
-          addToast('Bag cleared')
+          addToast(t('cart.empty'))
         }}
-        title="Clear your bag?"
-        message="All items and the applied coupon will be removed."
+        title={t('cart.clearConfirmTitle')}
+        message="{t('cart.clearConfirmDesc')}"
         confirmLabel="Clear Bag"
         danger
       />
