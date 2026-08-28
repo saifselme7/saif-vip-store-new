@@ -1,110 +1,183 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { Minus, Plus, X, ShoppingBag } from 'lucide-react'
+import { useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
+import { X, ShoppingBag, Trash2 } from 'lucide-react'
 import { useCart } from '@/context/CartContext'
-import Price from './ui/Price'
+import { useI18n } from '@/i18n'
+import { useApp } from '@/context/AppContext'
+import { formatPrice, cn } from '@/lib/utils'
+import { effectiveStock } from '@/lib/pricing'
+import QuantityStepper from './ui/QuantityStepper'
 
 export default function CartDrawer() {
-  const { items, isOpen, setIsOpen, updateQty, removeItem, subtotal, count } = useCart()
-  const navigate = useNavigate()
+  const { t } = useI18n()
+  const closeRef = useRef<HTMLButtonElement>(null)
+  const {
+    items,
+    count,
+    subtotal,
+    discount,
+    shipping,
+    total,
+    coupon,
+    freeShippingRemaining,
+    isOpen,
+    setIsOpen,
+    updateQty,
+    removeItem,
+  } = useCart()
+  const { settings } = useApp()
+  const currency = settings?.currency ?? 'EGP'
+
+  // Esc closes; focus lands on the close button when opened
+  useEffect(() => {
+    if (!isOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    const t = setTimeout(() => closeRef.current?.focus(), 80)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      clearTimeout(t)
+    }
+  }, [isOpen, setIsOpen])
+
+  if (!isOpen) return null
 
   return (
-    <>
-      {/* Backdrop */}
-      <button
-        tabIndex={-1}
-        aria-label="Close cart"
-        onClick={() => setIsOpen(false)}
-        className={`fixed inset-0 bg-black/70 z-[110] transition-opacity duration-300 cursor-default ${
-          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
-      />
-
-      {/* Panel */}
-      <aside
-        className={`fixed top-0 right-0 h-full w-full max-w-md bg-[#0A0A0A] border-l border-saif-border z-[115] flex flex-col transition-transform duration-300 ease-saif ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
-        role="dialog"
-        aria-label="Shopping bag"
-        aria-hidden={!isOpen}
-      >
-        <div className="flex items-center justify-between p-5 border-b border-saif-border">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-saif-text">
-            Your Bag {count > 0 && `(${count})`}
+    <div className="fixed inset-0 z-[150]" role="dialog" aria-modal="true" aria-label={t('a11y.shoppingBag', { count })}>
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsOpen(false)} aria-hidden="true" />
+      <aside className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-black border-l border-saif-border flex flex-col animate-drawerIn shadow-2xl">
+        <header className="flex items-center justify-between px-6 py-5 border-b border-saif-border">
+          <h2 className="text-base font-bold tracking-tight text-saif-text flex items-center gap-2.5">
+            <ShoppingBag size={16} />
+            {t('cart.title')} {count > 0 && <span className="text-saif-dim font-normal">({count})</span>}
           </h2>
-          <button onClick={() => setIsOpen(false)} className="text-saif-dim hover:text-saif-text transition-colors" aria-label="Close">
+          <button
+            ref={closeRef}
+            onClick={() => setIsOpen(false)}
+            className="w-11 h-11 flex items-center justify-center text-saif-dim hover:text-saif-text transition-colors -mr-2"
+            aria-label={t('a11y.closeCart')}
+          >
             <X size={20} />
           </button>
-        </div>
+        </header>
 
         {items.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8 text-center">
-            <ShoppingBag size={36} className="text-saif-dim" />
-            <p className="text-sm text-saif-dim">Your bag is empty.</p>
-            <button onClick={() => { setIsOpen(false); navigate('/products') }} className="btn text-xs">
-              Start Shopping
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6 text-center">
+            <ShoppingBag size={40} className="text-saif-faint" />
+            <p className="text-sm text-saif-dim">{t('cart.empty')}</p>
+            <button className="btn btn-sm" onClick={() => setIsOpen(false)}>
+              Continue Shopping
             </button>
           </div>
         ) : (
           <>
-            <div className="flex-1 overflow-y-auto p-5 space-y-5">
-              {items.map(item => (
-                <div key={item.id} className="flex gap-4">
-                  <Link to={`/products/${item.product.slug}`} onClick={() => setIsOpen(false)} className="w-16 h-20 bg-[#111] flex-shrink-0 overflow-hidden">
-                    <img
-                      src={item.product.thumbnail || item.product.images?.[0]}
-                      alt={item.product.name}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  </Link>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-saif-text truncate">{item.product.name}</p>
-                        {item.variant && <p className="text-xs text-saif-dim mt-0.5">{item.variant.name}</p>}
-                      </div>
-                      <button
-                        onClick={() => removeItem(item.id)}
-                        className="text-saif-dim hover:text-saif-accent transition-colors"
-                        aria-label={`Remove ${item.product.name}`}
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                    <div className="flex items-center justify-between mt-3">
-                      <div className="flex items-center border border-saif-border">
-                        <button onClick={() => updateQty(item.id, item.quantity - 1)} className="px-2 py-1 text-saif-text hover:bg-white/5" aria-label="Decrease">
-                          <Minus size={11} />
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+              {freeShippingRemaining !== null && freeShippingRemaining > 0 && (
+                <p className="text-xs text-saif-accent">
+                  {t('cart.freeShippingProgress', { amount: formatPrice(freeShippingRemaining) })}
+                </p>
+              )}
+              {items.map(item => {
+                const stock = effectiveStock(item)
+                const price = item.variant?.price ?? item.product.price
+                return (
+                  <div key={item.id} className="flex gap-4 pb-5 border-b border-saif-border last:border-0">
+                    <Link
+                      to={`/products/${item.product.slug}`}
+                      onClick={() => setIsOpen(false)}
+                      className="w-20 h-24 bg-saif-panel flex-shrink-0 overflow-hidden rounded-sm"
+                    >
+                      <img
+                        src={item.variant?.image || item.product.thumbnail || item.product.images?.[0] || ''}
+                        alt={item.product.name}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    </Link>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <Link
+                            to={`/products/${item.product.slug}`}
+                            onClick={() => setIsOpen(false)}
+                            className="text-sm font-semibold text-saif-text hover:text-saif-accent transition-colors line-clamp-1"
+                          >
+                            {item.product.name}
+                          </Link>
+                          {item.variant && <p className="text-xs text-saif-dim mt-0.5">{item.variant.name}</p>}
+                          {item.product.product_type === 'digital' && (
+                            <p className="text-[10px] text-saif-accent uppercase tracking-wider mt-0.5">{t('product.digital')}</p>
+                          )}
+                          {item.quantity >= stock && stock > 0 && (
+                            <p className="text-[10px] text-yellow-400 mt-0.5">{t('cart.maxStock', { count: stock })}</p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => removeItem(item.id)}
+                          className="w-9 h-9 flex items-center justify-center text-saif-dim hover:text-saif-accent transition-colors"
+                          aria-label={`Remove ${item.product.name} from bag`}
+                        >
+                          <Trash2 size={14} />
                         </button>
-                        <span className="px-2 text-xs text-saif-text min-w-[1.75rem] text-center">{item.quantity}</span>
-                        <button onClick={() => updateQty(item.id, item.quantity + 1)} className="px-2 py-1 text-saif-text hover:bg-white/5" aria-label="Increase">
-                          <Plus size={11} />
-                        </button>
                       </div>
-                      <Price value={(item.variant?.price ?? item.product.price) * item.quantity} className="text-sm font-semibold text-saif-text" />
+                      <div className="flex items-center justify-between mt-3">
+                        <QuantityStepper
+                          value={item.quantity}
+                          onChange={qty => updateQty(item.id, qty)}
+                          max={Math.max(1, item.product.product_type === 'digital' ? 99 : stock)}
+                          ariaLabel={`Quantity for ${item.product.name}`}
+                        />
+                        <span className="text-sm font-semibold text-saif-text">
+                          {formatPrice(price * item.quantity)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
 
-            <div className="border-t border-saif-border p-5 space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-saif-dim">Subtotal</span>
-                <Price value={subtotal} className="font-semibold text-saif-text" />
+            <footer className="border-t border-saif-border px-6 py-5 space-y-3">
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between text-saif-dim">
+                  <span>{t('common.subtotal')}</span>
+                  <span className="text-saif-text">{formatPrice(subtotal)}</span>
+                </div>
+                {discount > 0 && coupon && (
+                  <div className="flex justify-between text-saif-dim">
+                    <span>
+                      Discount <span className="text-green-400 font-mono text-xs">{coupon.code}</span>
+                    </span>
+                    <span className="text-green-400">−{formatPrice(discount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-saif-dim">
+                  <span>{t('common.shipping')}</span>
+                  <span className={cn(shipping === 0 && 'text-green-400')}>
+                    {shipping === 0 ? 'Free' : formatPrice(shipping)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-base font-bold text-saif-text pt-2 border-t border-saif-border">
+                  <span>{t('common.total')}</span>
+                  <span>{formatPrice(total)}</span>
+                </div>
               </div>
-              <p className="text-xs text-saif-dim">Shipping and discounts are calculated at checkout.</p>
-              <button onClick={() => { setIsOpen(false); navigate('/checkout') }} className="btn btn-primary w-full text-xs">
+              <Link
+                to="/checkout"
+                onClick={() => setIsOpen(false)}
+                className="btn btn-primary w-full"
+              >
                 Checkout
-              </button>
-              <Link to="/cart" onClick={() => setIsOpen(false)} className="btn w-full text-xs">
-                View Bag
               </Link>
-            </div>
+              <Link to="/cart" onClick={() => setIsOpen(false)} className="btn btn-sm w-full">
+                View Full Bag
+              </Link>
+            </footer>
           </>
         )}
       </aside>
-    </>
+    </div>
   )
 }

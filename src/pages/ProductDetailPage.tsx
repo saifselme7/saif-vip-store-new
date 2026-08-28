@@ -1,499 +1,441 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { Heart, Minus, Plus, Truck, ShieldCheck, Zap, ChevronRight, Share2, X } from 'lucide-react'
+import { Heart, Truck, Shield, Zap, Share2, Package, ChevronRight } from 'lucide-react'
 import { useProduct, useRelatedProducts } from '@/hooks/useProducts'
-import { useReviews } from '@/hooks/useReviews'
 import { useCart } from '@/context/CartContext'
 import { useAuth } from '@/context/AuthContext'
-import { useWishlist } from '@/context/WishlistContext'
+import { useWishlist } from '@/hooks/useWishlist'
+import { useToast } from '@/context/ToastContext'
 import { useApp } from '@/context/AppContext'
 import { usePageMeta } from '@/hooks/usePageMeta'
-import { supabase } from '@/lib/supabase'
-import { availableStock, discountPercent, isOutOfStock } from '@/lib/checkout'
-import { formatDate, formatPrice, copyToClipboard } from '@/lib/utils'
-import type { Product, ProductVariant } from '@/types'
+import { formatPrice, discountPercent, copyToClipboard, cn } from '@/lib/utils'
+import ProductGallery from '@/components/product/ProductGallery'
+import VariantSelector from '@/components/product/VariantSelector'
+import ProductReviews from '@/components/product/ProductReviews'
 import ProductCard from '@/components/ProductCard'
-import SectionHeading from '@/components/SectionHeading'
-import Price from '@/components/ui/Price'
-import RatingStars from '@/components/ui/RatingStars'
-import Modal from '@/components/ui/Modal'
+import QuantityStepper from '@/components/ui/QuantityStepper'
+import Footer from '@/components/Footer'
 import Loading from '@/components/Loading'
 import EmptyState from '@/components/EmptyState'
+import Reveal from '@/components/motion/Reveal'
+import { useI18n } from '@/i18n'
+import { localizeProduct } from '@/lib/bilingual'
 
-const RECENT_KEY = 'saif-recent-products'
+type Tab = 'description' | 'specifications' | 'shipping'
 
 export default function ProductDetailPage() {
+  const { t, lang, formatPrice, isRTL } = useI18n()
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
-  const { product, loading, error } = useProduct(slug || '')
-  const { addItem } = useCart()
+  const { product, loading } = useProduct(slug || '')
+  const { addItem, setIsOpen } = useCart()
   const { user } = useAuth()
-  const { has, toggle } = useWishlist()
-  const { addToast, settings } = useApp()
-  const { reviews } = useReviews(product?.id)
+  const { add, remove, isInWishlist } = useWishlist()
+  const { addToast } = useToast()
+  const { settings } = useApp()
   const { products: related } = useRelatedProducts(product)
-
-  const [selectedImage, setSelectedImage] = useState(0)
-  const [selectedSize, setSelectedSize] = useState<string | null>(null)
-  const [selectedColor, setSelectedColor] = useState<string | null>(null)
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null)
   const [quantity, setQuantity] = useState(1)
-  const [zoomOpen, setZoomOpen] = useState(false)
+  const [tab, setTab] = useState<Tab>('description')
 
-  usePageMeta(product?.name, product?.short_description || product?.description)
-
-  // Reset selections when navigating between products.
-  useEffect(() => {
-    setSelectedImage(0)
-    setSelectedSize(null)
-    setSelectedColor(null)
-    setSelectedVariantId(null)
-    setQuantity(1)
-  }, [slug])
-
-  // Recently viewed (localStorage, most recent first).
-  useEffect(() => {
-    if (!product) return
-    try {
-      const raw = localStorage.getItem(RECENT_KEY)
-      const list: string[] = raw ? JSON.parse(raw) : []
-      const next = [product.id, ...list.filter(id => id !== product.id)].slice(0, 8)
-      localStorage.setItem(RECENT_KEY, JSON.stringify(next))
-    } catch { /* ignore */ }
-  }, [product?.id]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const variants = useMemo(() => product?.variants ?? [], [product])
+  // All hooks run unconditionally BEFORE any early return (Rules of Hooks).
+  // `variants` and the size/color facets are safe to derive from a nullable
+  // product — the guards below still short-circuit the actual rendering.
+  const variants = product?.variants ?? []
   const sizes = useMemo(() => [...new Set(variants.map(v => v.size).filter(Boolean))] as string[], [variants])
   const colors = useMemo(() => [...new Set(variants.map(v => v.color).filter(Boolean))] as string[], [variants])
-  const hasOptions = variants.length > 0 && (sizes.length > 0 || colors.length > 0)
 
-  // The variant matching the current size+color selection.
-  const matchedVariant: ProductVariant | null = useMemo(() => {
-    if (!hasOptions) return variants[0] ?? null
-    return (
-      variants.find(v =>
-        (!sizes.length || v.size === selectedSize) &&
-        (!colors.length || v.color === selectedColor),
-      ) ?? null
-    )
-  }, [variants, sizes, colors, selectedSize, selectedColor, hasOptions])
+  const currency = settings?.currency ?? 'EGP'
+  const loc = localizeProduct(product, lang)
 
   useEffect(() => {
-    setSelectedVariantId(matchedVariant?.id ?? null)
-  }, [matchedVariant])
+    setSelectedVariantId(null)
+    setQuantity(1)
+    setTab('description')
+  }, [slug])
 
-  if (loading) return <div className="pt-16"><Loading /></div>
-  if (error || !product) return (
-    <div className="pt-16 px-6">
-      <EmptyState title="Product not found" description="This product may have been removed or is unavailable." />
-      <div className="text-center"><Link to="/products" className="btn text-xs">Back to Shop</Link></div>
-    </div>
-  )
+  usePageMeta({
+    title: loc.seoTitle || (product ? loc.name : t('product.notFound')),
+    description: loc.seoDescription || loc.shortDescription || loc.description?.slice(0, 150) || undefined,
+    image: product?.thumbnail ?? undefined,
+    type: 'product',
+  })
 
-  const outOfStock = isOutOfStock(product)
-  const isDigital = product.product_type === 'digital'
-  const percent = discountPercent(product)
-  const inWishlist = has(product.id)
-  const currency = settings?.currency || 'EGP'
-  const maxQty = availableStock(product, hasOptions ? matchedVariant?.id : null)
-  const currentStock = hasOptions ? (matchedVariant?.stock ?? 0) : product.stock
-  const images = product.images?.length ? product.images : product.thumbnail ? [product.thumbnail] : []
-  const categoryName = Array.isArray(product.categories) ? product.categories[0]?.name : product.categories?.name
-  const needsOption = hasOptions && !matchedVariant
+  // Structured data for the current product (SEO)
+  useEffect(() => {
+    if (!product) return
+    const script = document.createElement('script')
+    script.type = 'application/ld+json'
+    script.id = 'product-jsonld'
+    script.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: loc.name,
+      description: loc.shortDescription || loc.description,
+      image: product.images,
+      sku: product.sku,
+      brand: { '@type': 'Brand', name: 'SAIF STORE' },
+      offers: {
+        '@type': 'Offer',
+        price: product.price,
+        priceCurrency: currency,
+        availability: product.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      },
+    })
+    document.head.appendChild(script)
+    return () => {
+      document.getElementById('product-jsonld')?.remove()
+    }
+  }, [product, currency])
 
-  const effectivePrice = hasOptions && matchedVariant?.price != null ? matchedVariant.price : product.price
-
-  function optionDisabled(kind: 'size' | 'color', value: string) {
-    return !variants.some(v =>
-      v.stock > 0 &&
-      (kind === 'size' ? v.size === value : v.color === value) &&
-      (kind === 'size' ? !selectedColor || v.color === selectedColor : !selectedSize || v.size === selectedSize)
+  if (loading) {
+    return (
+      <div className="pt-28">
+        <Loading />
+      </div>
     )
   }
 
-  async function handleAdd(goToCheckout = false) {
-    if (outOfStock) return
-    if (needsOption) {
-      addToast('Please select your size/color first', 'info')
+  if (!product) {
+    return (
+      <div className="pt-28 px-5">
+        <EmptyState
+          title={t('product.notFound')}
+          description={t('product.notFoundDesc')}
+          action={
+            <Link to="/products" className="btn btn-sm">
+              {t('product.backToShop')}
+            </Link>
+          }
+        />
+        <Footer />
+      </div>
+    )
+  }
+
+  const selectedVariant = variants.find(v => v.id === selectedVariantId) ?? null
+  const isDigital = product.product_type === 'digital'
+  const inWishlist = isInWishlist(product.id)
+  const availableStock = selectedVariant ? selectedVariant.stock : product.stock
+  const unitPrice = selectedVariant?.price ?? product.price
+  const discount = discountPercent(product.price, product.compare_at_price)
+  const soldOut = !isDigital && availableStock <= 0
+  const specs = loc.specifications
+
+  function handleAddToCart(openDrawer = true) {
+    if (!product) return
+    if (!isDigital && variants.length > 0 && !selectedVariant) {
+      addToast(t('product.selectOptionFirst'), 'error')
       return
     }
-    const variant = hasOptions ? matchedVariant : null
-    if (addItem(product!, variant, quantity)) {
-      addToast(`${product!.name} added to bag`)
-      if (goToCheckout) navigate('/checkout')
+    const result = addItem(product, selectedVariant, quantity)
+    if (result.ok) {
+      addToast(`${product.name} added to bag`)
+      if (openDrawer) setIsOpen(true)
+    } else {
+      addToast(result.message || 'Could not add to bag', 'error')
+    }
+  }
+
+  function handleBuyNow() {
+    if (!product) return
+    if (!isDigital && variants.length > 0 && !selectedVariant) {
+      addToast(t('product.selectOptionFirst'), 'error')
+      return
+    }
+    const result = addItem(product, selectedVariant, quantity)
+    if (result.ok) {
+      navigate('/checkout')
+    } else {
+      addToast(result.message || 'Could not add to bag', 'error')
+    }
+  }
+
+  async function toggleWishlist() {
+    if (!user || !product) {
+      addToast(t('product.signInForWishlist'), 'info')
+      return
+    }
+    if (inWishlist) {
+      const ok = await remove(product.id)
+      if (ok) addToast(t('product.removedFromWishlist'))
+    } else {
+      const ok = await add(product.id)
+      if (ok) addToast(t('product.addedToWishlist'))
     }
   }
 
   async function handleShare() {
-    const ok = await copyToClipboard(window.location.href)
-    addToast(ok ? 'Link copied to clipboard' : 'Could not copy link', ok ? 'success' : 'error')
+    if (!product) return
+    const url = window.location.href
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: product.name, url })
+        return
+      } catch {
+        /* user cancelled */
+      }
+    }
+    const copied = await copyToClipboard(url)
+    addToast(copied ? 'Product link copied' : 'Could not copy link', copied ? 'success' : 'error')
   }
 
-  const specs = Object.entries((product.metadata || {}) as Record<string, unknown>)
-
   return (
-    <div className="animate-[pageIn_0.5s_ease]">
-      <div className="px-4 sm:px-6 lg:px-10 pt-8 pb-20 max-w-7xl mx-auto">
+    <div className="animate-[pageIn_0.6s_ease]">
+      <div className="pt-24 md:pt-28 px-5 lg:px-10 pb-20 max-w-7xl mx-auto">
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-xs text-saif-dim mb-8" aria-label="Breadcrumb">
+        <nav className="flex items-center gap-1.5 text-xs text-saif-dim mb-8" aria-label={t('a11y.breadcrumb')}>
           <Link to="/" className="hover:text-saif-text transition-colors">Home</Link>
-          <ChevronRight size={12} />
+          <ChevronRight size={11} />
           <Link to="/products" className="hover:text-saif-text transition-colors">Shop</Link>
-          {categoryName && (
+          {product.categories && (
             <>
-              <ChevronRight size={12} />
-              <Link to={`/products?category=${product.category_id}`} className="hover:text-saif-text transition-colors">{categoryName}</Link>
+              <ChevronRight size={11} />
+              <Link to={`/products?category=${product.categories.id}`} className="hover:text-saif-text transition-colors">
+                {product.categories.name}
+              </Link>
             </>
           )}
-          <ChevronRight size={12} />
-          <span className="text-saif-text truncate max-w-[160px]">{product.name}</span>
+          <ChevronRight size={11} />
+          <span className="text-saif-text truncate max-w-[140px] sm:max-w-none">{product.name}</span>
         </nav>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16">
-          {/* ---------- Gallery ---------- */}
-          <div className="lg:sticky lg:top-24 lg:self-start">
-            <button
-              className="w-full aspect-[3/4] bg-[#111] overflow-hidden block cursor-zoom-in group relative"
-              onClick={() => images.length > 0 && setZoomOpen(true)}
-              aria-label="Zoom image"
-            >
-              {images[selectedImage] ? (
-                <img
-                  src={images[selectedImage]}
-                  alt={`${product.name} — image ${selectedImage + 1}`}
-                  className="w-full h-full object-cover transition-transform duration-700 ease-saif group-hover:scale-105"
-                />
-              ) : (
-                <span className="w-full h-full flex items-center justify-center text-saif-dim text-sm">No image</span>
-              )}
-              {percent !== null && (
-                <span className="absolute top-4 left-4 bg-saif-accent text-white text-xs font-bold px-2.5 py-1 uppercase tracking-wider">
-                  −{percent}%
-                </span>
-              )}
-            </button>
-            {images.length > 1 && (
-              <div className="flex gap-2 mt-3" role="tablist" aria-label="Product images">
-                {images.map((img, i) => (
-                  <button
-                    key={i}
-                    role="tab"
-                    aria-selected={selectedImage === i}
-                    onClick={() => setSelectedImage(i)}
-                    className={`w-16 h-20 overflow-hidden border-2 transition-colors ${
-                      selectedImage === i ? 'border-saif-text' : 'border-transparent opacity-60 hover:opacity-100'
-                    }`}
-                  >
-                    <img src={img} alt="" className="w-full h-full object-cover" loading="lazy" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Gallery */}
+          <Reveal variant="mask" duration={1100} className="lg:sticky lg:top-28 lg:self-start">
+            <ProductGallery images={product.images || []} alt={product.name} />
+          </Reveal>
 
-          {/* ---------- Info ---------- */}
-          <div>
+          {/* Info */}
+          <div className="pt-2">
+            <Reveal variant="up" delay={150} duration={900}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                {categoryName && <p className="text-[10px] uppercase tracking-[0.25em] text-saif-dim mb-2">{categoryName}</p>}
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-[1.02] text-saif-text">
+                {product.categories?.name && (
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-saif-dim mb-3">
+                    {product.categories.name}
+                  </p>
+                )}
+                <h1 className="text-[clamp(30px,4.5vw,52px)] font-black tracking-tighter leading-[1.02] text-saif-text">
                   {product.name}
                 </h1>
               </div>
-              <div className="flex gap-2 pt-1">
-                <button onClick={handleShare} aria-label="Copy product link" className="p-2 border border-saif-border text-saif-dim hover:text-saif-text hover:border-saif-text transition-colors">
-                  <Share2 size={16} />
+              <div className="flex gap-1.5 mt-2 flex-shrink-0">
+                <button
+                  onClick={toggleWishlist}
+                  className="w-10 h-10 border border-saif-border flex items-center justify-center hover:border-saif-text transition-colors rounded-sm"
+                  aria-label={inWishlist ? t('product.removedFromWishlist') : t('product.addedToWishlist')}
+                  aria-pressed={inWishlist}
+                >
+                  <Heart size={17} className={inWishlist ? 'fill-saif-accent text-saif-accent' : 'text-saif-text'} />
                 </button>
-                <button onClick={() => toggle(product)} aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'} className="p-2 border border-saif-border transition-colors hover:border-saif-text">
-                  <Heart size={16} className={inWishlist ? 'fill-saif-accent text-saif-accent' : 'text-saif-dim hover:text-saif-text'} />
+                <button
+                  onClick={handleShare}
+                  className="w-10 h-10 border border-saif-border flex items-center justify-center hover:border-saif-text transition-colors rounded-sm"
+                  aria-label={t('product.share')}
+                >
+                  <Share2 size={16} className="text-saif-text" />
                 </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 mt-4">
-              <Price value={effectivePrice} compareAt={product.compare_at_price} className="text-2xl font-bold text-saif-text" compareClassName="text-base" />
-              {reviews.length > 0 && (
-                <a href="#reviews" className="flex items-center gap-1.5 text-xs text-saif-dim hover:text-saif-text transition-colors">
-                  <RatingStars rating={reviews.reduce((s, r) => s + r.rating, 0) / reviews.length} size={12} />
-                  ({reviews.length})
-                </a>
+            <div className="flex items-center flex-wrap gap-3 mt-5">
+              <span className="text-2xl font-bold text-saif-text ltr-iso">{formatPrice(unitPrice)}</span>
+              {product.compare_at_price && product.compare_at_price > unitPrice && (
+                <>
+                  <span className="text-base text-saif-dim line-through">
+                    {formatPrice(product.compare_at_price, currency)}
+                  </span>
+                  <span className="badge bg-saif-accent text-black border-saif-accent">-{discount}%</span>
+                </>
               )}
             </div>
 
-            {/* Stock state */}
-            <p className={`mt-3 text-xs font-semibold uppercase tracking-wider ${outOfStock ? 'text-red-400' : isDigital ? 'text-green-400' : currentStock <= (product.low_stock_threshold ?? 5) ? 'text-saif-accent' : 'text-green-400'}`} aria-live="polite">
-              {outOfStock ? 'Out of stock' : isDigital ? 'Available instantly after approval' : currentStock <= (product.low_stock_threshold ?? 5) ? `Low stock — ${currentStock} left` : 'In stock'}
+            <p className="mt-6 text-sm md:text-base text-saif-dim leading-relaxed">
+              {product.short_description || product.description}
             </p>
 
-            <p className="mt-6 text-sm sm:text-base text-saif-dim leading-relaxed whitespace-pre-line">{product.description}</p>
+            {/* Stock status */}
+            <div className="mt-6 flex items-center gap-3 text-sm">
+              {isDigital ? (
+                <span className="flex items-center gap-2 text-saif-accent">
+                  <Zap size={15} /> {t('product.digitalBadge')}
+                </span>
+              ) : soldOut ? (
+                <span className="flex items-center gap-2 text-red-400">
+                  <Package size={15} /> {t('product.soldOut')}
+                </span>
+              ) : availableStock <= product.low_stock_threshold ? (
+                <span className="flex items-center gap-2 text-yellow-400">
+                  <Package size={15} /> {t('product.lowStock', { count: availableStock })}
+                </span>
+              ) : (
+                <span className="flex items-center gap-2 text-green-400">
+                  <Package size={15} /> {t('product.inStock')}
+                </span>
+              )}
+            </div>
 
-            {/* Size options */}
-            {sizes.length > 0 && (
-              <div className="mt-8">
-                <p className="label">Size{selectedSize && <span className="text-saif-text ml-2 normal-case">— {selectedSize}</span>}</p>
-                <div className="flex flex-wrap gap-2">
-                  {sizes.map(s => (
-                    <button
-                      key={s}
-                      onClick={() => setSelectedSize(selectedSize === s ? null : s)}
-                      disabled={optionDisabled('size', s)}
-                      aria-pressed={selectedSize === s}
-                      className={`min-w-[3rem] px-4 py-2.5 text-sm font-medium border transition-all ${
-                        selectedSize === s
-                          ? 'border-saif-text bg-saif-text text-black'
-                          : optionDisabled('size', s)
-                            ? 'border-saif-border text-saif-dim/30 line-through cursor-not-allowed'
-                            : 'border-saif-border text-saif-text hover:border-saif-text'
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Color options */}
-            {colors.length > 0 && (
-              <div className="mt-6">
-                <p className="label">Color{selectedColor && <span className="text-saif-text ml-2 normal-case">— {selectedColor}</span>}</p>
-                <div className="flex flex-wrap gap-2">
-                  {colors.map(c => (
-                    <button
-                      key={c}
-                      onClick={() => setSelectedColor(selectedColor === c ? null : c)}
-                      disabled={optionDisabled('color', c)}
-                      aria-pressed={selectedColor === c}
-                      className={`px-4 py-2.5 text-sm font-medium border transition-all ${
-                        selectedColor === c
-                          ? 'border-saif-text bg-saif-text text-black'
-                          : optionDisabled('color', c)
-                            ? 'border-saif-border text-saif-dim/30 line-through cursor-not-allowed'
-                            : 'border-saif-border text-saif-text hover:border-saif-text'
-                      }`}
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Variant list fallback (variants without size/color) */}
-            {variants.length > 0 && !hasOptions && (
-              <div className="mt-8">
-                <p className="label">Option</p>
-                <div className="flex flex-wrap gap-2">
-                  {variants.map(v => (
-                    <button
-                      key={v.id}
-                      onClick={() => setSelectedVariantId(selectedVariantId === v.id ? null : v.id)}
-                      disabled={v.stock <= 0}
-                      aria-pressed={selectedVariantId === v.id}
-                      className={`px-4 py-2.5 text-sm border transition-all ${
-                        selectedVariantId === v.id
-                          ? 'border-saif-text bg-saif-text text-black'
-                          : v.stock <= 0
-                            ? 'border-saif-border text-saif-dim/30 line-through cursor-not-allowed'
-                            : 'border-saif-border text-saif-text hover:border-saif-text'
-                      }`}
-                    >
-                      {v.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {/* Variants */}
+            {!isDigital && variants.length > 0 && (
+              <VariantSelector
+                variants={variants}
+                sizes={sizes}
+                colors={colors}
+                selectedId={selectedVariantId}
+                onSelect={id => {
+                  setSelectedVariantId(id)
+                  setQuantity(1)
+                }}
+                className="mt-8"
+              />
             )}
 
             {/* Quantity */}
-            {!isDigital && !outOfStock && (
+            {!soldOut && (
               <div className="mt-8">
-                <p className="label">Quantity</p>
-                <div className="flex items-center border border-saif-border w-fit">
-                  <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="px-4 py-2.5 text-saif-text hover:bg-white/5" aria-label="Decrease quantity">
-                    <Minus size={14} />
-                  </button>
-                  <span className="px-5 text-sm font-medium text-saif-text min-w-[3rem] text-center" aria-live="polite">{quantity}</span>
-                  <button onClick={() => setQuantity(Math.min(maxQty === Number.MAX_SAFE_INTEGER ? quantity + 1 : maxQty, quantity + 1))} className="px-4 py-2.5 text-saif-text hover:bg-white/5" aria-label="Increase quantity">
-                    <Plus size={14} />
-                  </button>
-                </div>
+                <span className="label">{t('product.quantity')}</span>
+                <QuantityStepper
+                  value={quantity}
+                  onChange={setQuantity}
+                  max={Math.max(1, isDigital ? 99 : availableStock)}
+                  ariaLabel="Quantity"
+                />
               </div>
             )}
 
             {/* Actions */}
-            <div className="mt-9 flex flex-col sm:flex-row gap-3">
-              <button onClick={() => handleAdd(false)} disabled={outOfStock} className="btn btn-primary flex-1">
-                {outOfStock ? 'Sold Out' : needsOption ? 'Select Options' : 'Add to Bag'}
+            <div className="mt-10 flex flex-col sm:flex-row gap-3">
+              <button onClick={() => handleAddToCart()} disabled={soldOut} className="btn btn-primary flex-1">
+                {soldOut ? 'Sold Out' : 'Add to Bag'}
               </button>
-              <button onClick={() => handleAdd(true)} disabled={outOfStock || needsOption} className="btn flex-1">
-                Buy Now
+              <button onClick={handleBuyNow} disabled={soldOut} className="btn flex-1">
+                {t('product.buyNow')}
               </button>
             </div>
 
-            {/* Meta & policies */}
-            <div className="mt-10 pt-7 border-t border-saif-border space-y-3.5">
-              <div className="flex items-start gap-3 text-sm text-saif-dim">
-                {isDigital ? <Zap size={16} className="mt-0.5 shrink-0" /> : <Truck size={16} className="mt-0.5 shrink-0" />}
-                <span>
-                  {isDigital
-                    ? <>Fulfilled by our team after your payment is approved{product.metadata?.delivery_time ? <> · {String(product.metadata.delivery_time)}</> : null}.</>
-                    : <>Ships across Egypt{settings?.free_shipping_threshold ? <> · free over {formatPrice(settings.free_shipping_threshold, currency)}</> : null}.</>}
-                </span>
+            {/* Meta tabs */}
+            <div className="mt-12 border-t border-saif-border">
+              <div className="flex gap-6 border-b border-saif-border" role="tablist" aria-label={t('a11y.productInfo')}>
+                <TabButton active={tab === 'description'} onClick={() => setTab('description')}>
+                  {t('product.description')}
+                </TabButton>
+                {Object.keys(specs).length > 0 && (
+                  <TabButton active={tab === 'specifications'} onClick={() => setTab('specifications')}>
+                    Specifications
+                  </TabButton>
+                )}
+                <TabButton active={tab === 'shipping'} onClick={() => setTab('shipping')}>
+                  {isDigital ? t('product.digitalDelivery') : t('product.shippingTab')}
+                </TabButton>
               </div>
-              <div className="flex items-start gap-3 text-sm text-saif-dim">
-                <ShieldCheck size={16} className="mt-0.5 shrink-0" />
-                <span>Pay via InstaPay or Vodafone Cash — every transfer manually verified.</span>
-              </div>
-              {product.sku && <p className="text-xs text-saif-dim">SKU: {product.sku}</p>}
-            </div>
 
-            {/* Specifications */}
-            {specs.length > 0 && (
-              <div className="mt-8 pt-7 border-t border-saif-border">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-saif-text mb-4">Details</h3>
-                <dl className="space-y-2">
-                  {specs.map(([k, v]) => (
-                    <div key={k} className="flex gap-4 text-sm">
-                      <dt className="text-saif-dim w-36 flex-shrink-0 capitalize">{k.replace(/_/g, ' ')}</dt>
-                      <dd className="text-saif-text">{String(v)}</dd>
-                    </div>
-                  ))}
-                </dl>
+              <div className="py-6">
+                {tab === 'description' && (
+                  <div className="text-sm text-saif-dim leading-relaxed whitespace-pre-line">
+                    {loc.description || loc.shortDescription}
+                  </div>
+                )}
+                {tab === 'specifications' && (
+                  <dl className="divide-y divide-saif-border">
+                    {Object.entries(specs).map(([key, value]) => (
+                      <div key={key} className="flex justify-between gap-6 py-3 text-sm">
+                        <dt className="text-saif-dim">{key}</dt>
+                        <dd className="text-saif-text text-right">{String(value)}</dd>
+                      </div>
+                    ))}
+                    {product.sku && (
+                      <div className="flex justify-between gap-6 py-3 text-sm">
+                        <dt className="text-saif-dim">SKU</dt>
+                        <dd className="text-saif-text font-mono">{product.sku}</dd>
+                      </div>
+                    )}
+                  </dl>
+                )}
+                {tab === 'shipping' && (
+                  <div className="space-y-4 text-sm text-saif-dim leading-relaxed">
+                    {isDigital ? (
+                      <>
+                        <div className="flex items-start gap-3">
+                          <Zap size={16} className="text-saif-accent mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-saif-text font-medium">{t('product.digitalDelivery')}</p>
+                            <p>
+                              {product.delivery_info ||
+                                'This item is delivered digitally after your payment is verified. You will be contacted using the details provided at checkout.'}
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-start gap-3">
+                          <Truck size={16} className="text-saif-text mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-saif-text font-medium">{t('product.shippingTab')}</p>
+                            <p>
+                              {settings?.shipping_fee
+                                ? `Flat shipping fee of ${formatPrice(settings.shipping_fee, currency)} across Egypt.`
+                                : 'Free shipping across Egypt.'}{' '}
+                              {settings?.free_shipping_threshold
+                                ? `Orders over ${formatPrice(settings.free_shipping_threshold, currency)} ship free.`
+                                : ''}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <Shield size={16} className="text-saif-text mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-saif-text font-medium">{t('product.verifiedPayments')}</p>
+                            <p>
+                              Pay with InstaPay or Vodafone Cash. Your transfer is verified by our team before the order ships.
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+            </Reveal>
           </div>
         </div>
 
-        {/* ---------- Reviews ---------- */}
-        <section id="reviews" className="mt-20 pt-12 border-t border-saif-border">
-          <SectionHeading title={`Reviews${reviews.length ? ` (${reviews.length})` : ''}`} subtitle="Approved reviews from customers." />
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-            <div className="lg:col-span-2 space-y-6">
-              {reviews.length === 0 ? (
-                <p className="text-sm text-saif-dim">No reviews yet. Be the first to review this product after your order.</p>
-              ) : (
-                reviews.map(r => (
-                  <article key={r.id} className="border-b border-saif-border pb-6">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-saif-text">{r.user?.full_name || 'Customer'}</p>
-                      <span className="text-xs text-saif-dim">{formatDate(r.created_at)}</span>
-                    </div>
-                    <RatingStars rating={r.rating} className="mt-1.5" />
-                    <p className="mt-2 text-sm font-semibold text-saif-text">{r.title}</p>
-                    <p className="mt-1 text-sm text-saif-dim leading-relaxed">{r.body}</p>
-                  </article>
-                ))
-              )}
-            </div>
-            <ReviewForm productId={product.id} />
-          </div>
-        </section>
-
-        {/* ---------- Related ---------- */}
+        {/* Related products */}
         {related.length > 0 && (
-          <section className="mt-20 pt-12 border-t border-saif-border">
-            <SectionHeading title="You May Also Like" viewAllTo="/products" />
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-6">
-              {related.map(p => <ProductCard key={p.id} product={p} />)}
+          <section className="mt-20 pt-12 border-t border-saif-border" aria-labelledby="related-heading">
+            <h2 id="related-heading" className="text-xl font-bold tracking-tight text-saif-text mb-8">
+              {t('product.relatedProducts')}
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {related.map(p => (
+                <ProductCard key={p.id} product={p} />
+              ))}
             </div>
           </section>
         )}
-      </div>
 
-      {/* Zoom modal */}
-      <Modal open={zoomOpen} onClose={() => setZoomOpen(false)} title={product.name} wide>
-        {images[selectedImage] && (
-          <img src={images[selectedImage]} alt={product.name} className="w-full max-h-[75vh] object-contain bg-[#111]" />
-        )}
-        {images.length > 1 && (
-          <div className="flex gap-2 mt-4 justify-center">
-            {images.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setSelectedImage(i)}
-                aria-label={`Image ${i + 1}`}
-                className={`w-2.5 h-2.5 rounded-full ${selectedImage === i ? 'bg-saif-accent' : 'bg-saif-border'}`}
-              />
-            ))}
-          </div>
-        )}
-      </Modal>
+        {/* Reviews */}
+        <ProductReviews product={product} />
+      </div>
+      <Footer />
     </div>
   )
 }
 
-function ReviewForm({ productId }: { productId: string }) {
-  const { user } = useAuth()
-  const { addToast } = useApp()
-  const [rating, setRating] = useState(0)
-  const [title, setTitle] = useState('')
-  const [body, setBody] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!user) return
-    if (rating === 0) { addToast('Please choose a star rating', 'error'); return }
-    if (title.trim().length < 3 || body.trim().length < 10) {
-      addToast('Please write a short title and review', 'error')
-      return
-    }
-    setSubmitting(true)
-    const { error } = await supabase.from('reviews').insert({
-      product_id: productId,
-      user_id: user.id,
-      rating,
-      title: title.trim(),
-      body: body.trim(),
-    })
-    setSubmitting(false)
-    if (error) {
-      addToast(`Could not submit review: ${error.message}`, 'error')
-    } else {
-      setSubmitted(true)
-      addToast('Review submitted — it will appear after moderation.')
-    }
-  }
-
-  if (submitted) {
-    return (
-      <div className="border border-saif-border p-6 h-fit">
-        <p className="text-sm font-semibold text-saif-text">Thank you!</p>
-        <p className="mt-2 text-sm text-saif-dim">Your review is pending moderation and will appear once approved.</p>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return (
-      <div className="border border-saif-border p-6 h-fit">
-        <p className="text-sm text-saif-dim">
-          <Link to="/login" className="text-saif-text underline">Sign in</Link> to write a review.
-        </p>
-      </div>
-    )
-  }
-
+function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <form onSubmit={handleSubmit} className="border border-saif-border p-6 h-fit space-y-4">
-      <h3 className="text-sm font-bold uppercase tracking-widest text-saif-text">Write a Review</h3>
-      <div>
-        <p className="label">Rating</p>
-        <RatingStars rating={rating} size={22} interactive onChange={setRating} />
-      </div>
-      <div>
-        <label htmlFor="review-title" className="label">Title</label>
-        <input id="review-title" value={title} onChange={e => setTitle(e.target.value)} className="input" placeholder="Sum it up" maxLength={80} />
-      </div>
-      <div>
-        <label htmlFor="review-body" className="label">Review</label>
-        <textarea id="review-body" rows={4} value={body} onChange={e => setBody(e.target.value)} className="input resize-none" placeholder="What did you think?" maxLength={1000} />
-      </div>
-      <button type="submit" disabled={submitting} className="btn btn-primary w-full text-xs">
-        {submitting ? 'Submitting…' : 'Submit Review'}
-      </button>
-    </form>
+    <button
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={cn(
+        'py-4 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px',
+        active ? 'text-saif-text border-saif-accent' : 'text-saif-dim border-transparent hover:text-saif-text',
+      )}
+    >
+      {children}
+    </button>
   )
 }

@@ -1,76 +1,93 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
-import type { Order } from '@/types'
+import type { Order, Payment } from '@/types'
 
-const ORDER_SELECT = '*, order_items(*, product:products(id, slug, name, thumbnail, images, product_type)), payments(*)'
-
-/** Current customer's orders (with items + payment history). */
 export function useOrders() {
   const { user } = useAuth()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
 
-  const fetch = useCallback(async () => {
-    if (!user) { setLoading(false); return }
-    const { data } = await supabase
+  useEffect(() => {
+    if (!user) {
+      setOrders([])
+      setLoading(false)
+      return
+    }
+    let cancelled = false
+    setLoading(true)
+
+    supabase
       .from('orders')
-      .select(ORDER_SELECT)
+      .select('*, order_items(*), payments(*)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-    setOrders((data || []) as unknown as Order[])
-    setLoading(false)
+      .then(({ data }) => {
+        if (cancelled) return
+        setOrders((data || []) as unknown as Order[])
+        setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [user])
 
-  useEffect(() => { fetch() }, [fetch])
-
-  return { orders, loading, refetch: fetch }
+  return { orders, loading }
 }
 
-/** Single order for the current customer. */
-export function useOrder(id: string | undefined) {
+export function useOrder(orderId: string | undefined) {
+  const { user } = useAuth()
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const fetch = useCallback(async () => {
-    if (!id) return
+  const refetch = useCallback(async () => {
+    if (!orderId || !user) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     const { data } = await supabase
       .from('orders')
-      .select(ORDER_SELECT)
-      .eq('id', id)
+      .select('*, order_items(*), payments(*), order_events(*)')
+      .eq('id', orderId)
+      .order('created_at', { ascending: true, referencedTable: 'order_events' })
       .maybeSingle()
-    setOrder((data as unknown as Order) || null)
+    if (data) {
+      const d = data as unknown as Order & { payments?: Payment[] }
+      setOrder({ ...d, payment: (d.payments ?? [])[0] ?? null })
+    } else {
+      setOrder(null)
+    }
     setLoading(false)
-  }, [id])
+  }, [orderId, user])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => {
+    refetch()
+  }, [refetch])
 
-  return { order, loading, refetch: fetch }
+  return { order, loading, refetch }
 }
 
-/** All orders (admin — protected route + RLS enforce admin-only). */
-export function useAllOrders() {
-  const [orders, setOrders] = useState<Order[]>([])
+export function useOrderPayment(orderId: string | undefined) {
+  const [payment, setPayment] = useState<Payment | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const fetch = useCallback(async () => {
-    const { data } = await supabase
-      .from('orders')
-      .select(ORDER_SELECT)
-      .order('created_at', { ascending: false })
-      .limit(200)
-    setOrders((data || []) as unknown as Order[])
-    setLoading(false)
-  }, [])
+  useEffect(() => {
+    if (!orderId) {
+      setLoading(false)
+      return
+    }
+    supabase
+      .from('payments')
+      .select('*')
+      .eq('order_id', orderId)
+      .maybeSingle()
+      .then(({ data }) => {
+        setPayment((data as Payment) ?? null)
+        setLoading(false)
+      })
+  }, [orderId])
 
-  useEffect(() => { fetch() }, [fetch])
-
-  return { orders, loading, refetch: fetch }
-}
-
-/** The latest payment record attached to an order, if any. */
-export function latestPayment(order: Order | null) {
-  if (!order?.payments?.length) return null
-  return [...order.payments].sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0]
+  return { payment, loading }
 }

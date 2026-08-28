@@ -1,212 +1,328 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Minus, Plus, RefreshCw } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { useMemo, useState } from 'react'
+import { Boxes, History, Plus, Minus, Equal } from 'lucide-react'
+import { useAdminProducts } from '@/hooks/admin/useAdminData'
+import { useInventoryLogs } from '@/hooks/admin/useAdminData'
+import { useToast } from '@/context/ToastContext'
 import { useApp } from '@/context/AppContext'
 import { usePageMeta } from '@/hooks/usePageMeta'
-import { formatDate } from '@/lib/utils'
+import { useI18n } from '@/i18n'
+import { adminAdjustStock } from '@/lib/api'
+import { formatPrice, formatDate, cn } from '@/lib/utils'
+import { PageHeader, SearchInput, FilterTabs, DataList, type Cell } from '@/components/admin/ui'
+import Modal from '@/components/ui/Modal'
 import Loading from '@/components/Loading'
-import EmptyState from '@/components/EmptyState'
-import type { Product, ProductVariant } from '@/types'
 
-type Row = {
-  key: string
-  product: Product
-  variant: ProductVariant | null
-  stock: number
-  sku: string | null
-}
+type Filter = '' | 'low' | 'out' | 'variants'
 
 export default function AdminInventory() {
-  const { addToast } = useApp()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const [rows, setRows] = useState<Row[]>([])
-  const [loading, setLoading] = useState(true)
-  const [log, setLog] = useState<Array<{ id: string; change: number; stock_after: number; created_at: string; products?: { name: string } | null }>>([])
-  const [busyKey, setBusyKey] = useState<string | null>(null)
+  const { t } = useI18n()
+  const { products, loading, refetch } = useAdminProducts()
+  const { settings } = useApp()
+  const { addToast } = useToast()
+  const currency = settings?.currency ?? 'EGP'
+  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState<Filter>('')
 
-  usePageMeta('Inventory', 'Stock levels and audit trail.')
-  const filter = searchParams.get('filter') || ''
+  const [adjustTarget, setAdjustTarget] = useState<{ productId: string; variantId: string | null; name: string; current: number } | null>(null)
+  const [adjustAction, setAdjustAction] = useState<'set' | 'increase' | 'decrease'>('set')
+  const [adjustValue, setAdjustValue] = useState('0')
+  const [adjustNote, setAdjustNote] = useState('')
+  const [adjusting, setAdjusting] = useState(false)
 
-  async function load() {
-    setLoading(true)
-    const { data } = await supabase
-      .from('products')
-      .select('*, product_variants(*)')
-      .eq('product_type', 'physical')
-      .order('name')
-    const products = (data || []) as unknown as Product[]
-    const out: Row[] = []
-    for (const p of products) {
-      if (p.variants && p.variants.length > 0) {
-        for (const v of p.variants) {
-          out.push({ key: `v-${v.id}`, product: p, variant: v, stock: v.stock, sku: v.sku })
-        }
-      } else {
-        out.push({ key: `p-${p.id}`, product: p, variant: null, stock: p.stock, sku: p.sku })
-      }
-    }
-    setRows(out)
-    setLoading(false)
+  const [historyTarget, setHistoryTarget] = useState<string | null>(null)
+  const { logs: historyLogs, loading: historyLoading } = useInventoryLogs(historyTarget ?? undefined)
+  const historyProduct = products.find(p => p.id === historyTarget)
 
-    const { data: logData } = await supabase
-      .from('inventory_log')
-      .select('*, products(name)')
-      .order('created_at', { ascending: false })
-      .limit(15)
-    setLog((logData || []) as never[])
+  usePageMeta({ title: 'Admin — Inventory' })
+
+  const filtered = useMemo(() => {
+    let list = [...products]
+    const q = search.trim().toLowerCase()
+    if (q) list = list.filter(p => p.name.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q))
+    if (filter === 'low') list = list.filter(p => p.product_type === 'physical' && p.stock > 0 && p.stock <= p.low_stock_threshold)
+    if (filter === 'out') list = list.filter(p => p.stock === 0)
+    if (filter === 'variants') list = list.filter(p => (p.variants?.length ?? 0) > 0)
+    return list.sort((a, b) => a.stock - b.stock)
+  }, [products, search, filter])
+
+  if (loading) {
+    return (
+      <div>
+        <PageHeader title={t('admin.inventory.title')} />
+        <Loading />
+      </div>
+    )
   }
 
-  useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  function openAdjust(productId: string, variantId: string | null, name: string, current: number) {
+    setAdjustTarget({ productId, variantId, name, current })
+    setAdjustAction('set')
+    setAdjustValue(String(current))
+    setAdjustNote('')
+  }
 
-  const filtered = useMemo(() => rows.filter(r => {
-    if (filter === 'low') return r.stock > 0 && r.stock <= r.product.low_stock_threshold
-    if (filter === 'out') return r.stock <= 0
-    return true
-  }), [rows, filter])
-
-  async function adjust(row: Row, delta: number) {
-    const next = Math.max(0, row.stock + delta)
-    if (next === row.stock) return
-    setBusyKey(row.key)
-    const { error } = row.variant
-      ? await supabase.from('product_variants').update({ stock: next }).eq('id', row.variant.id)
-      : await supabase.from('products').update({ stock: next }).eq('id', row.product.id)
-    setBusyKey(null)
+  async function handleAdjust() {
+    if (!adjustTarget) return
+    const value = Number(adjustValue)
+    if (Number.isNaN(value) || value < 0) {
+      addToast(t('product.enterValidAmount'), 'error')
+      return
+    }
+    setAdjusting(true)
+    const { error } = await adminAdjustStock(
+      adjustTarget.productId,
+      adjustTarget.variantId,
+      adjustAction,
+      value,
+      adjustNote.trim() || null,
+    )
+    setAdjusting(false)
     if (error) {
-      addToast(error.message || 'Failed to update stock', 'error')
-    } else {
-      // Also keep the aggregate product stock in sync when a variant moves.
-      if (row.variant) {
-        const siblings = rows.filter(r => r.product.id === row.product.id && r.variant)
-        const aggregate = siblings.reduce((s, r) => s + (r.key === row.key ? next : r.stock), 0)
-        await supabase.from('products').update({ stock: aggregate }).eq('id', row.product.id)
-      }
-      setRows(prev => prev.map(r => (r.key === row.key ? { ...r, stock: next } : r)))
-      load()
+      addToast(error, 'error')
+      return
     }
+    addToast(t('admin.inventory.updated'))
+    setAdjustTarget(null)
+    refetch()
   }
+
+  const rows: Cell[][] = filtered.map(p => [
+    {
+      label: 'Product',
+      primary: true,
+      content: (
+        <div className="min-w-0">
+          <p className="font-medium text-saif-text truncate">{p.name}</p>
+          <p className="text-xs text-saif-dim">{p.sku || 'No SKU'}</p>
+        </div>
+      ),
+    },
+    {
+      label: 'Price',
+      hideOnMobile: true,
+      content: <span className="text-saif-dim">{formatPrice(p.price, currency)}</span>,
+    },
+    {
+      label: 'Stock',
+      content: (
+        <span
+          className={cn(
+            'font-bold tabular-nums',
+            p.stock === 0 ? 'text-red-400' : p.stock <= p.low_stock_threshold ? 'text-yellow-400' : 'text-saif-text',
+          )}
+        >
+          {p.product_type === 'digital' ? '∞' : p.stock}
+          {p.product_type === 'physical' && p.stock <= p.low_stock_threshold && p.stock > 0 && (
+            <span className="text-[10px] text-saif-dim ml-1">≤ {p.low_stock_threshold}</span>
+          )}
+        </span>
+      ),
+    },
+    {
+      label: 'Variants',
+      hideOnMobile: true,
+      content: p.variants?.length ? (
+        <div className="flex flex-wrap gap-1">
+          {p.variants.slice(0, 4).map(v => (
+            <button
+              key={v.id}
+              onClick={() => openAdjust(p.id, v.id, `${p.name} — ${v.name}`, v.stock)}
+              className={cn(
+                'text-[10px] px-1.5 py-0.5 border rounded-sm hover:border-saif-text transition-colors',
+                v.stock === 0 ? 'border-red-500/40 text-red-400' : 'border-saif-border text-saif-dim',
+              )}
+              title={`${v.name}: ${v.stock} in stock — click to adjust`}
+            >
+              {v.size || v.color || v.name}: {v.stock}
+            </button>
+          ))}
+          {p.variants.length > 4 && <span className="text-[10px] text-saif-dim">+{p.variants.length - 4}</span>}
+        </div>
+      ) : (
+        <span className="text-xs text-saif-faint">—</span>
+      ),
+    },
+    {
+      label: 'Status',
+      content: (
+        <span
+          className={cn(
+            'badge',
+            p.stock === 0
+              ? 'border-red-500/30 text-red-400'
+              : p.stock <= p.low_stock_threshold
+                ? 'border-yellow-500/30 text-yellow-400'
+                : 'border-green-500/30 text-green-400',
+          )}
+        >
+          {p.product_type === 'digital' ? 'digital' : p.stock === 0 ? 'out of stock' : p.stock <= p.low_stock_threshold ? 'low' : 'in stock'}
+        </span>
+      ),
+    },
+    {
+      label: 'Actions',
+      content: (
+        <div className="flex gap-1">
+          {p.product_type === 'physical' && (
+            <button
+              className="btn btn-sm"
+              onClick={() => openAdjust(p.id, null, p.name, p.stock)}
+            >
+              <Equal size={11} /> Adjust
+            </button>
+          )}
+          <button
+            className="btn btn-sm btn-ghost"
+            onClick={() => setHistoryTarget(p.id)}
+            aria-label={`Stock history for ${p.name}`}
+          >
+            <History size={13} />
+          </button>
+        </div>
+      ),
+    },
+  ])
 
   return (
     <div className="animate-[pageIn_0.4s_ease]">
-      <div className="flex items-center justify-between gap-3 mb-6">
-        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-saif-text">Inventory</h1>
-        <button onClick={load} className="text-xs text-saif-dim hover:text-saif-text flex items-center gap-1.5">
-          <RefreshCw size={12} /> Refresh
-        </button>
+      <PageHeader
+        title={t('admin.inventory.title')}
+        description="Stock levels update automatically when orders are placed and cancelled."
+      />
+
+      <div className="mb-4">
+        <SearchInput value={search} onChange={setSearch} placeholder={t('admin.inventory.searchPlaceholder')} className="max-w-sm" />
       </div>
 
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
-        {[
-          { id: '', label: 'All' },
-          { id: 'low', label: 'Low Stock' },
-          { id: 'out', label: 'Out of Stock' },
-        ].map(f => (
-          <button
-            key={f.id}
-            onClick={() => {
-              const next = new URLSearchParams(searchParams)
-              if (f.id) next.set('filter', f.id); else next.delete('filter')
-              setSearchParams(next, { replace: true })
-            }}
-            aria-pressed={filter === f.id}
-            className={`px-3.5 py-2 text-xs border whitespace-nowrap transition-colors ${
-              filter === f.id ? 'border-saif-text text-saif-text font-semibold' : 'border-saif-border text-saif-dim hover:text-saif-text'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+      <div className="mb-6">
+        <FilterTabs
+          value={filter}
+          onChange={v => setFilter(v as Filter)}
+          options={[
+            { value: '', label: t('admin.common.all'), count: products.length },
+            { value: 'low', label: t('admin.inventory.low'), count: products.filter(p => p.product_type === 'physical' && p.stock > 0 && p.stock <= p.low_stock_threshold).length },
+            { value: 'out', label: t('admin.inventory.out'), count: products.filter(p => p.stock === 0).length },
+            { value: 'variants', label: t('admin.inventory.hasVariants'), count: products.filter(p => (p.variants?.length ?? 0) > 0).length },
+          ]}
+        />
       </div>
 
-      {loading ? <Loading /> : filtered.length === 0 ? (
-        <EmptyState title="Nothing here" description="No physical products match this filter." />
-      ) : (
-        <div className="border border-saif-border overflow-x-auto">
-          <table className="w-full text-sm min-w-[640px]">
-            <thead>
-              <tr className="border-b border-saif-border text-left">
-                {['Product', 'Variant', 'SKU', 'Status', 'Stock', 'Adjust'].map(h => (
-                  <th key={h} className="p-4 text-[10px] uppercase tracking-wider text-saif-dim font-semibold">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(row => {
-                const threshold = row.product.low_stock_threshold ?? 5
-                const status = row.stock <= 0 ? 'Out' : row.stock <= threshold ? 'Low' : 'OK'
-                return (
-                  <tr key={row.key} className="border-b border-saif-border hover:bg-white/[0.03] transition-colors">
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        {row.product.thumbnail && <img src={row.product.thumbnail} alt="" className="w-8 h-10 object-cover bg-[#111]" loading="lazy" />}
-                        <span className="text-saif-text font-medium">{row.product.name}</span>
-                      </div>
-                    </td>
-                    <td className="p-4 text-saif-dim">{row.variant ? row.variant.name : '—'}</td>
-                    <td className="p-4 text-saif-dim text-xs">{row.sku || '—'}</td>
-                    <td className="p-4">
-                      <span className={`text-xs font-semibold uppercase ${status === 'Out' ? 'text-red-400' : status === 'Low' ? 'text-saif-accent' : 'text-green-400'}`}>
-                        {status}
-                      </span>
-                    </td>
-                    <td className="p-4 font-bold text-saif-text">{row.stock}</td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => adjust(row, -1)}
-                          disabled={busyKey === row.key || row.stock <= 0}
-                          className="p-1.5 border border-saif-border text-saif-dim hover:text-saif-text disabled:opacity-30 transition-colors"
-                          aria-label={`Decrease stock of ${row.product.name}`}
-                        >
-                          <Minus size={12} />
-                        </button>
-                        <button
-                          onClick={() => adjust(row, 1)}
-                          disabled={busyKey === row.key}
-                          className="p-1.5 border border-saif-border text-saif-dim hover:text-saif-text disabled:opacity-30 transition-colors"
-                          aria-label={`Increase stock of ${row.product.name}`}
-                        >
-                          <Plus size={12} />
-                        </button>
-                        <button
-                          onClick={() => adjust(row, 10)}
-                          disabled={busyKey === row.key}
-                          className="px-2 py-1.5 border border-saif-border text-[10px] text-saif-dim hover:text-saif-text disabled:opacity-30 transition-colors"
-                        >
-                          +10
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+      <DataList
+        columns={['Product', 'Price', 'Stock', 'Variants', 'Status', 'Actions']}
+        rows={rows}
+        empty={filtered.length === 0}
+      />
+
+      {/* Adjust modal */}
+      <Modal
+        open={!!adjustTarget}
+        onClose={() => setAdjustTarget(null)}
+        title={`Adjust Stock — ${adjustTarget?.name ?? ''}`}
+      >
+        <div className="space-y-5">
+          <p className="text-sm text-saif-dim">
+            Current stock: <span className="text-saif-text font-bold">{adjustTarget?.current ?? 0}</span>
+          </p>
+          <div>
+            <span className="label">{t('admin.inventory.action')}</span>
+            <div className="grid grid-cols-3 gap-2" role="group" aria-label={t('admin.inventory.action')}>
+              {[
+                { value: 'set' as const, label: 'Set to', icon: Equal },
+                { value: 'increase' as const, label: 'Increase by', icon: Plus },
+                { value: 'decrease' as const, label: 'Decrease by', icon: Minus },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => {
+                    setAdjustAction(opt.value)
+                    setAdjustValue(opt.value === 'set' ? String(adjustTarget?.current ?? 0) : '1')
+                  }}
+                  aria-pressed={adjustAction === opt.value}
+                  className={cn(
+                    'flex flex-col items-center gap-1.5 p-3 border text-xs transition-colors rounded-sm',
+                    adjustAction === opt.value
+                      ? 'border-saif-text bg-saif-text text-black font-semibold'
+                      : 'border-saif-border text-saif-dim hover:border-saif-dim',
+                  )}
+                >
+                  <opt.icon size={14} />
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="label" htmlFor="adj-value">
+              Value
+            </label>
+            <input
+              id="adj-value"
+              type="number"
+              min="0"
+              className="input"
+              value={adjustValue}
+              onChange={e => setAdjustValue(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="label" htmlFor="adj-note">
+              Note (optional, audited)
+            </label>
+            <input
+              id="adj-note"
+              className="input"
+              placeholder={t('admin.inventory.notePlaceholder')}
+              value={adjustNote}
+              onChange={e => setAdjustNote(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-3 justify-end">
+            <button className="btn btn-sm" onClick={() => setAdjustTarget(null)} disabled={adjusting}>
+              Cancel
+            </button>
+            <button className="btn btn-sm btn-primary" onClick={handleAdjust} disabled={adjusting}>
+              {adjusting ? 'Updating…' : 'Update Stock'}
+            </button>
+          </div>
         </div>
-      )}
+      </Modal>
 
-      {/* Audit trail */}
-      <section className="mt-8 border border-saif-border">
-        <header className="p-4 border-b border-saif-border">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-saif-text">Recent Stock Changes</h2>
-        </header>
-        {log.length === 0 ? (
-          <p className="p-4 text-sm text-saif-dim">No stock changes recorded yet.</p>
+      {/* History modal */}
+      <Modal
+        open={!!historyTarget}
+        onClose={() => setHistoryTarget(null)}
+        title={`Stock History — ${historyProduct?.name ?? ''}`}
+        wide
+      >
+        {historyLoading ? (
+          <Loading />
+        ) : historyLogs.length === 0 ? (
+          <p className="text-sm text-saif-dim py-6 text-center">{t('admin.inventory.noHistory')}</p>
         ) : (
-          <div className="divide-y divide-[rgba(245,240,232,0.08)]">
-            {log.map(entry => (
-              <div key={entry.id} className="flex items-center justify-between gap-3 p-3.5 text-sm">
-                <span className="text-saif-dim truncate">{entry.products?.name || 'Product'}</span>
-                <span className={`font-semibold flex-shrink-0 ${entry.change > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {entry.change > 0 ? '+' : ''}{entry.change} → {entry.stock_after}
-                </span>
-                <span className="text-xs text-saif-dim flex-shrink-0">{formatDate(entry.created_at)}</span>
+          <div className="divide-y divide-saif-border max-h-[60vh] overflow-y-auto">
+            {historyLogs.map(log => (
+              <div key={log.id} className="flex items-center justify-between gap-3 py-3 text-xs">
+                <div className="min-w-0">
+                  <p className="text-saif-text">
+                    <span className={cn('font-bold', log.delta > 0 ? 'text-green-400' : log.delta < 0 ? 'text-red-400' : 'text-saif-dim')}>
+                      {log.delta > 0 ? '+' : ''}
+                      {log.delta}
+                    </span>{' '}
+                    <span className="text-saif-dim">
+                      ({log.previous_value} → {log.new_value})
+                    </span>
+                  </p>
+                  <p className="text-saif-faint mt-0.5">
+                    {formatDate(log.created_at, true)} · {log.change_type}
+                    {log.note ? ` · ${log.note}` : ''}
+                  </p>
+                </div>
+                <span className="badge border-saif-border text-saif-dim flex-shrink-0">{log.change_type}</span>
               </div>
             ))}
           </div>
         )}
-      </section>
+      </Modal>
     </div>
   )
 }

@@ -2,31 +2,28 @@ import { Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props {
-  rating: number
+  value: number
   size?: number
   className?: string
-  interactive?: boolean
-  onChange?: (rating: number) => void
+  showValue?: boolean
+  count?: number
 }
 
-export default function RatingStars({ rating, size = 14, className, interactive, onChange }: Props) {
+export default function RatingStars({ value, size = 14, className, showValue = false, count }: Props) {
   return (
-    <div className={cn('flex items-center gap-0.5', className)} role={interactive ? 'radiogroup' : undefined} aria-label={`Rating ${rating} out of 5`}>
-      {[1, 2, 3, 4, 5].map(n => (
-        <button
-          key={n}
-          type="button"
-          disabled={!interactive}
-          onClick={() => onChange?.(n)}
-          aria-label={`${n} star${n > 1 ? 's' : ''}`}
-          className={interactive ? 'cursor-pointer hover:scale-110 transition-transform' : 'cursor-default'}
-        >
+    <span className={cn('inline-flex items-center gap-1', className)} aria-label={`Rating: ${value} out of 5`}>
+      <span className="inline-flex" role="img">
+        {Array.from({ length: 5 }).map((_, i) => (
           <Star
+            key={i}
             size={size}
-            className={n <= Math.round(rating) ? 'fill-saif-accent text-saif-accent' : 'text-saif-dim/40'}
+            className={i < Math.round(value) ? 'fill-saif-accent text-saif-accent' : 'text-saif-faint'}
+            aria-hidden="true"
           />
-        </button>
-      ))}
-    </div>
+        ))}
+      </span>
+      {showValue && <span className="text-xs text-saif-dim ml-1">{value.toFixed(1)}</span>}
+      {count !== undefined && <span className="text-xs text-saif-dim">({count})</span>}
+    </span>
   )
 }

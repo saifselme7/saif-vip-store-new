@@ -1,156 +1,249 @@
 import { useState } from 'react'
-import { Pencil, Trash2, Plus, ArrowUp, ArrowDown } from 'lucide-react'
-import { useAdminCategories } from '@/hooks/useAdmin'
-import { useApp } from '@/context/AppContext'
+import { Plus, Pencil, Trash2, Layers } from 'lucide-react'
+import { useAdminCategories } from '@/hooks/admin/useAdminData'
+import { useAdminProducts } from '@/hooks/admin/useAdminData'
+import { useToast } from '@/context/ToastContext'
 import { usePageMeta } from '@/hooks/usePageMeta'
+import { useI18n } from '@/i18n'
 import { generateSlug } from '@/lib/utils'
-import type { Category } from '@/types'
-import Loading from '@/components/Loading'
+import { PageHeader, DataList, type Cell } from '@/components/admin/ui'
 import Modal from '@/components/ui/Modal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import Loading from '@/components/Loading'
 
-interface CatDraft {
-  id?: string
+interface CategoryForm {
   name: string
+  name_ar: string
   slug: string
   description: string
+  description_ar: string
   image: string
-  sort_order: number
+  sort_order: string
   is_active: boolean
 }
 
-const EMPTY: CatDraft = { name: '', slug: '', description: '', image: '', sort_order: 0, is_active: true }
+const EMPTY: CategoryForm = { name: '', name_ar: '', slug: '', description: '', description_ar: '', image: '', sort_order: '0', is_active: true }
 
 export default function AdminCategories() {
-  const { categories, loading, save, remove } = useAdminCategories()
-  const { addToast } = useApp()
-  const [draft, setDraft] = useState<CatDraft | null>(null)
-  const [deleting, setDeleting] = useState<Category | null>(null)
+  const { t } = useI18n()
+  const { categories, loading, create, update, remove } = useAdminCategories()
+  const { products } = useAdminProducts()
+  const { addToast } = useToast()
+  const [editing, setEditing] = useState<string | null | undefined>(undefined)
+  const [form, setForm] = useState<CategoryForm>(EMPTY)
   const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string; productCount: number } | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  usePageMeta({ title: 'Admin — Categories' })
 
-  usePageMeta('Categories', 'Manage catalog categories.')
+  function openCreate() {
+    setEditing(null)
+    setForm(EMPTY)
+  }
+
+  function openEdit(c: typeof categories[number]) {
+    setEditing(c.id)
+    setForm({
+      name: c.name,
+      name_ar: (c as { name_ar?: string | null }).name_ar ?? '',
+      slug: c.slug,
+      description: c.description || '',
+      description_ar: (c as { description_ar?: string | null }).description_ar ?? '',
+      image: c.image || '',
+      sort_order: String(c.sort_order),
+      is_active: c.is_active,
+    })
+  }
 
   async function handleSave() {
-    if (!draft) return
-    if (!draft.name.trim()) { addToast('Name is required', 'error'); return }
+    if (!form.name.trim()) {
+      addToast(t('errors.generic'), 'error')
+      return
+    }
+    const payload = {
+      name: form.name.trim(),
+      name_ar: form.name_ar.trim() || null,
+      slug: (form.slug.trim() || generateSlug(form.name)).toLowerCase(),
+      description: form.description.trim() || null,
+      description_ar: form.description_ar.trim() || null,
+      image: form.image.trim() || null,
+      sort_order: Number(form.sort_order || 0),
+      is_active: form.is_active,
+    }
     setSaving(true)
-    const { error } = await save({
-      id: draft.id,
-      name: draft.name.trim(),
-      slug: draft.slug.trim() || generateSlug(draft.name),
-      description: draft.description.trim() || null,
-      image: draft.image.trim() || null,
-      sort_order: draft.sort_order,
-      is_active: draft.is_active,
-    })
+    const { error } = editing ? await update(editing, payload) : await create(payload)
     setSaving(false)
-    if (error) addToast(error.message || 'Failed to save category', 'error')
-    else { addToast(draft.id ? 'Category updated' : 'Category created'); setDraft(null) }
+    if (error) {
+      addToast(error.message?.includes('duplicate') ? 'A category with this slug already exists' : 'Failed to save category', 'error')
+      return
+    }
+    addToast(editing ? 'Category updated' : 'Category created')
+    setEditing(undefined)
   }
 
   async function handleDelete() {
-    if (!deleting) return
-    const { error } = await remove(deleting.id)
-    if (error) addToast(error.message || 'Failed to delete', 'error')
-    else addToast('Category deleted')
-    setDeleting(null)
+    if (!deleteTarget) return
+    setDeleting(true)
+    const { error } = await remove(deleteTarget.id)
+    setDeleting(false)
+    setDeleteTarget(null)
+    if (error) addToast(t('errors.saveFailed'), 'error')
+    else addToast(t('admin.common.saved'))
   }
 
-  async function move(cat: Category, dir: -1 | 1) {
-    const { error } = await save({ id: cat.id, name: cat.name, sort_order: cat.sort_order + dir })
-    if (error) addToast('Could not reorder', 'error')
+  if (loading) {
+    return (
+      <div>
+        <PageHeader title={t('admin.categories.title')} />
+        <Loading />
+      </div>
+    )
   }
+
+  const productCount = (categoryId: string) => products.filter(p => p.category_id === categoryId).length
+
+  const rows: Cell[][] = categories.map(c => [
+    {
+      label: 'Category',
+      primary: true,
+      content: (
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-saif-panel rounded-sm overflow-hidden flex-shrink-0">
+            {c.image ? (
+              <img src={c.image} alt="" className="w-full h-full object-cover" loading="lazy" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <Layers size={14} className="text-saif-faint" />
+              </div>
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="font-medium text-saif-text truncate">{c.name}</p>
+            <p className="text-xs text-saif-dim font-mono">{c.slug}</p>
+          </div>
+        </div>
+      ),
+    },
+    { label: 'Description', hideOnMobile: true, content: <span className="text-xs text-saif-dim line-clamp-1">{c.description || '—'}</span> },
+    { label: 'Products', content: <span className="text-saif-text font-semibold tabular-nums">{productCount(c.id)}</span> },
+    { label: 'Order', hideOnMobile: true, content: <span className="text-saif-dim tabular-nums">{c.sort_order}</span> },
+    {
+      label: 'Status',
+      content: (
+        <span className={`badge ${c.is_active ? 'border-green-500/30 text-green-400' : 'border-saif-border text-saif-dim'}`}>
+          {c.is_active ? 'active' : 'hidden'}
+        </span>
+      ),
+    },
+    {
+      label: 'Actions',
+      content: (
+        <div className="flex gap-1">
+          <button onClick={() => openEdit(c)} className="p-1.5 text-saif-dim hover:text-saif-text transition-colors" aria-label={`Edit ${c.name}`}>
+            <Pencil size={14} />
+          </button>
+          <button
+            onClick={() => setDeleteTarget({ id: c.id, name: c.name, productCount: productCount(c.id) })}
+            className="p-1.5 text-saif-dim hover:text-saif-accent transition-colors"
+            aria-label={`Delete ${c.name}`}
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      ),
+    },
+  ])
 
   return (
     <div className="animate-[pageIn_0.4s_ease]">
-      <div className="flex items-center justify-between gap-3 mb-6">
-        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-saif-text">Categories</h1>
-        <button onClick={() => setDraft({ ...EMPTY })} className="btn btn-primary btn-sm"><Plus size={14} className="mr-1" /> Add</button>
-      </div>
+      <PageHeader
+        title={t('admin.categories.title')}
+        description={`${categories.length} categories`}
+        actions={
+          <button className="btn btn-primary btn-sm" onClick={openCreate}>
+            <Plus size={14} /> Add Category
+          </button>
+        }
+      />
 
-      {loading ? <Loading /> : (
-        <div className="border border-saif-border overflow-x-auto">
-          <table className="w-full text-sm min-w-[560px]">
-            <thead>
-              <tr className="border-b border-saif-border text-left">
-                {['Order', 'Name', 'Slug', 'Active', 'Actions'].map(h => (
-                  <th key={h} className="p-4 text-[10px] uppercase tracking-wider text-saif-dim font-semibold">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {categories.map(cat => (
-                <tr key={cat.id} className="border-b border-saif-border hover:bg-white/[0.03] transition-colors">
-                  <td className="p-4">
-                    <div className="flex items-center gap-1">
-                      <span className="text-saif-dim w-6">{cat.sort_order}</span>
-                      <button onClick={() => move(cat, -1)} className="p-1 text-saif-dim hover:text-saif-text" aria-label="Move up"><ArrowUp size={12} /></button>
-                      <button onClick={() => move(cat, 1)} className="p-1 text-saif-dim hover:text-saif-text" aria-label="Move down"><ArrowDown size={12} /></button>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      {cat.image && <img src={cat.image} alt="" className="w-9 h-9 object-cover bg-[#111]" loading="lazy" />}
-                      <span className="font-medium text-saif-text">{cat.name}</span>
-                    </div>
-                  </td>
-                  <td className="p-4 text-saif-dim text-xs">{cat.slug}</td>
-                  <td className="p-4"><span className={`text-xs ${cat.is_active ? 'text-green-400' : 'text-saif-dim'}`}>{cat.is_active ? 'Yes' : 'No'}</span></td>
-                  <td className="p-4">
-                    <div className="flex gap-2">
-                      <button onClick={() => setDraft({ id: cat.id, name: cat.name, slug: cat.slug, description: cat.description || '', image: cat.image || '', sort_order: cat.sort_order, is_active: cat.is_active })} className="p-1.5 text-saif-dim hover:text-saif-text transition-colors" aria-label="Edit"><Pencil size={14} /></button>
-                      <button onClick={() => setDeleting(cat)} className="p-1.5 text-saif-dim hover:text-saif-accent transition-colors" aria-label="Delete"><Trash2 size={14} /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataList columns={['Category', 'Description', 'Products', 'Order', 'Status', 'Actions']} rows={rows} empty={categories.length === 0} />
 
-      <Modal open={!!draft} onClose={() => setDraft(null)} title={draft?.id ? 'Edit Category' : 'New Category'}>
-        {draft && (
-          <div className="space-y-3">
-            <div>
-              <label className="label">Name *</label>
-              <input value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} className="input" onBlur={() => { if (!draft.slug) setDraft(d => d ? { ...d, slug: generateSlug(d.name) } : d) }} />
-            </div>
-            <div>
-              <label className="label">Slug</label>
-              <input value={draft.slug} onChange={e => setDraft({ ...draft, slug: e.target.value })} className="input" placeholder="auto-generated" />
-            </div>
-            <div>
-              <label className="label">Description</label>
-              <input value={draft.description} onChange={e => setDraft({ ...draft, description: e.target.value })} className="input" />
-            </div>
-            <div>
-              <label className="label">Image URL</label>
-              <input value={draft.image} onChange={e => setDraft({ ...draft, image: e.target.value })} className="input" />
-            </div>
-            <div>
-              <label className="label">Sort Order</label>
-              <input type="number" value={draft.sort_order} onChange={e => setDraft({ ...draft, sort_order: Number(e.target.value) })} className="input" />
-            </div>
-            <label className="flex items-center gap-2 text-sm text-saif-text">
-              <input type="checkbox" checked={draft.is_active} onChange={e => setDraft({ ...draft, is_active: e.target.checked })} /> Active (visible in store)
-            </label>
-            <div className="flex gap-3 pt-2">
-              <button onClick={handleSave} disabled={saving} className="btn btn-primary flex-1 text-xs">{saving ? 'Saving…' : 'Save'}</button>
-              <button onClick={() => setDraft(null)} className="btn flex-1 text-xs">Cancel</button>
-            </div>
+      <Modal open={editing !== undefined} onClose={() => setEditing(undefined)} title={editing ? 'Edit Category' : 'New Category'}>
+        <div className="space-y-4">
+          <div>
+            <label className="label" htmlFor="ct-name">Name (English) *</label>
+            <input
+              id="ct-name"
+              className="input"
+              value={form.name}
+              onChange={e => setForm({ ...form, name: e.target.value, slug: editing ? form.slug : generateSlug(e.target.value) })}
+            />
           </div>
-        )}
+          <div>
+            <label className="label" htmlFor="ct-name-ar" dir="rtl">Name (Arabic)</label>
+            <input
+              id="ct-name-ar"
+              className="input"
+              dir="rtl"
+              value={form.name_ar}
+              onChange={e => setForm({ ...form, name_ar: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label" htmlFor="ct-slug">Slug</label>
+            <input id="ct-slug" className="input font-mono text-xs" value={form.slug} onChange={e => setForm({ ...form, slug: e.target.value })} />
+          </div>
+          <div>
+            <label className="label" htmlFor="ct-desc">Description (English)</label>
+            <textarea id="ct-desc" className="input resize-none" rows={2} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+          </div>
+          <div>
+            <label className="label" htmlFor="ct-desc-ar" dir="rtl">Description (Arabic)</label>
+            <textarea id="ct-desc-ar" className="input resize-none" dir="rtl" rows={2} value={form.description_ar} onChange={e => setForm({ ...form, description_ar: e.target.value })} />
+          </div>
+          <div>
+            <label className="label" htmlFor="ct-img">Image URL</label>
+            <input id="ct-img" className="input text-xs" value={form.image} onChange={e => setForm({ ...form, image: e.target.value })} placeholder="https://…" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label" htmlFor="ct-order">{t('admin.categories.sortOrder')}</label>
+              <input id="ct-order" type="number" className="input" value={form.sort_order} onChange={e => setForm({ ...form, sort_order: e.target.value })} />
+            </div>
+            <label className="flex items-center gap-3 text-sm text-saif-text cursor-pointer pb-1">
+              <input
+                type="checkbox"
+                checked={form.is_active}
+                onChange={e => setForm({ ...form, is_active: e.target.checked })}
+                className="w-4 h-4 accent-[#E63946]"
+              />
+              Visible in store
+            </label>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button className="btn btn-primary flex-1" onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving…' : editing ? 'Save Changes' : 'Create Category'}
+            </button>
+            <button className="btn" onClick={() => setEditing(undefined)} disabled={saving}>
+              Cancel
+            </button>
+          </div>
+        </div>
       </Modal>
 
       <ConfirmDialog
-        open={!!deleting}
-        title="Delete category?"
-        message={`“${deleting?.name}” will be removed. Products in it become uncategorized.`}
-        confirmLabel="Delete"
-        danger
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        onCancel={() => setDeleting(null)}
+        title={`Delete "${deleteTarget?.name}"?`}
+        message={
+          deleteTarget?.productCount
+            ? `${deleteTarget.productCount} product(s) will become uncategorised but are not deleted.`
+            : 'No products use this category.'
+        }
+        confirmLabel="Delete Category"
+        danger
+        busy={deleting}
       />
     </div>
   )

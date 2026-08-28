@@ -1,145 +1,171 @@
-import { useState } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
+import { useState } from 'react'
 import {
-  LayoutDashboard, Package, Layers, Boxes, ShoppingCart, Clock, BadgeCheck,
-  CheckCircle2, XCircle, Users, Ticket, Star, Settings, BarChart3, UserCog,
-  ArrowLeft, Menu, X,
+  LayoutDashboard,
+  Package,
+  Tags,
+  Boxes,
+  ShoppingCart,
+  CreditCard,
+  Users,
+  Ticket,
+  Star,
+  BarChart3,
+  Settings,
+  ArrowLeft,
+  X,
+  Menu,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { useAuth } from '@/context/AuthContext'
+import { useI18n } from '@/i18n'
 
-interface NavItem { path: string; label: string; icon: React.ComponentType<{ size?: number | string }> }
-interface NavGroup { title: string; items: NavItem[] }
-
-const groups: NavGroup[] = [
+const NAV_GROUPS = [
   {
-    title: 'Overview',
+    titleKey: 'admin.nav.overview',
+    items: [{ path: '/admin', labelKey: 'admin.nav.dashboard', icon: LayoutDashboard }],
+  },
+  {
+    titleKey: 'admin.nav.storefront',
+    items: [{ path: '/admin/site', labelKey: 'admin.nav.siteBuilder', icon: LayoutDashboard }],
+  },
+  {
+    titleKey: 'admin.nav.catalog',
     items: [
-      { path: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-      { path: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
+      { path: '/admin/products', labelKey: 'admin.nav.products', icon: Package },
+      { path: '/admin/categories', labelKey: 'admin.nav.categories', icon: Tags },
+      { path: '/admin/inventory', labelKey: 'admin.nav.inventory', icon: Boxes },
     ],
   },
   {
-    title: 'Catalog',
+    titleKey: 'admin.nav.orders',
     items: [
-      { path: '/admin/products', label: 'Products', icon: Package },
-      { path: '/admin/categories', label: 'Categories', icon: Layers },
-      { path: '/admin/inventory', label: 'Inventory', icon: Boxes },
+      { path: '/admin/orders', labelKey: 'admin.nav.allOrders', icon: ShoppingCart },
+      { path: '/admin/payments', labelKey: 'admin.nav.paymentVerification', icon: CreditCard },
     ],
   },
   {
-    title: 'Orders',
+    titleKey: 'admin.nav.customers',
+    items: [{ path: '/admin/customers', labelKey: 'admin.nav.customers', icon: Users }],
+  },
+  {
+    titleKey: 'admin.nav.marketing',
     items: [
-      { path: '/admin/orders', label: 'All Orders', icon: ShoppingCart },
-      { path: '/admin/orders?status=pending', label: 'Pending', icon: Clock },
-      { path: '/admin/payments', label: 'Payment Verification', icon: BadgeCheck },
-      { path: '/admin/orders?status=completed', label: 'Completed', icon: CheckCircle2 },
-      { path: '/admin/orders?status=cancelled', label: 'Cancelled', icon: XCircle },
+      { path: '/admin/coupons', labelKey: 'admin.nav.coupons', icon: Ticket },
+      { path: '/admin/reviews', labelKey: 'admin.nav.reviews', icon: Star },
     ],
   },
   {
-    title: 'Customers',
-    items: [{ path: '/admin/customers', label: 'Customers', icon: Users }],
+    titleKey: 'admin.nav.analytics',
+    items: [{ path: '/admin/analytics', labelKey: 'admin.nav.salesAnalytics', icon: BarChart3 }],
   },
   {
-    title: 'Marketing',
-    items: [
-      { path: '/admin/coupons', label: 'Coupons', icon: Ticket },
-      { path: '/admin/reviews', label: 'Reviews', icon: Star },
-    ],
-  },
-  {
-    title: 'System',
-    items: [
-      { path: '/admin/users', label: 'Admin Users', icon: UserCog },
-      { path: '/admin/settings', label: 'Settings', icon: Settings },
-    ],
+    titleKey: 'admin.nav.system',
+    items: [{ path: '/admin/settings', labelKey: 'admin.nav.settings', icon: Settings }],
   },
 ]
 
 export default function AdminLayout() {
   const location = useLocation()
+  const { profile } = useAuth()
+  const { t, isRTL } = useI18n()
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  function isActive(path: string) {
-    const [p, q] = path.split('?')
-    if (location.pathname !== p) return false
-    if (!q) return !location.search
-    const current = new URLSearchParams(location.search)
-    const wanted = new URLSearchParams(q)
-    for (const [k, v] of wanted) {
-      if (current.get(k) !== v) return false
-    }
-    return true
-  }
+  const isActive = (path: string) =>
+    path === '/admin' ? location.pathname === '/admin' : location.pathname.startsWith(path)
 
   const sidebar = (
-    <>
-      <div className="px-4 py-4 border-b border-saif-border flex items-center justify-between">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-saif-dim">SAIF Admin</p>
-        <button className="md:hidden text-saif-dim" onClick={() => setMobileOpen(false)} aria-label="Close admin menu">
-          <X size={18} />
-        </button>
+    <div className="flex flex-col h-full">
+      <div className="px-5 py-6 border-b border-saif-border">
+        <p className="text-sm font-bold tracking-tight text-saif-text">
+          SAIF STORE <span className="text-saif-accent">{t('admin.nav.admin')}</span>
+        </p>
+        <p className="text-xs text-saif-dim mt-1 truncate">{profile?.full_name || t('admin.nav.admin')}</p>
       </div>
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
-        {groups.map(group => (
-          <div key={group.title}>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-saif-dim/60 px-3 mb-1.5">{group.title}</p>
-            {group.items.map(item => {
-              const active = isActive(item.path)
-              return (
+
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5" aria-label="Admin navigation">
+        {NAV_GROUPS.map(group => (
+          <div key={group.titleKey}>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-saif-faint px-2 mb-1.5">
+              {t(group.titleKey)}
+            </p>
+            <div className="space-y-0.5">
+              {group.items.map(item => (
                 <Link
                   key={item.path}
                   to={item.path}
                   onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded transition-colors ${
-                    active ? 'bg-white/10 text-saif-text font-medium' : 'text-saif-dim hover:text-saif-text hover:bg-white/5'
-                  }`}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2 text-sm rounded-sm transition-colors',
+                    isActive(item.path)
+                      ? 'bg-saif-accent/15 text-saif-text border border-saif-accent/30'
+                      : 'text-saif-dim hover:text-saif-text hover:bg-white/5 border border-transparent',
+                  )}
+                  aria-current={isActive(item.path) ? 'page' : undefined}
                 >
-                  <item.icon size={15} />
-                  {item.label}
+                  <item.icon size={15} className={isActive(item.path) ? 'text-saif-accent' : ''} />
+                  {t(item.labelKey)}
                 </Link>
-              )
-            })}
+              ))}
+            </div>
           </div>
         ))}
       </nav>
-      <div className="p-3 border-t border-saif-border">
-        <Link to="/" className="flex items-center gap-2 px-3 py-2 text-xs text-saif-dim hover:text-saif-text transition-colors">
-          <ArrowLeft size={13} /> Back to Store
+
+      <div className="p-4 border-t border-saif-border">
+        <Link
+          to="/"
+          className="flex items-center gap-2 text-xs text-saif-dim hover:text-saif-text transition-colors"
+        >
+          <ArrowLeft size={14} className={isRTL ? 'rotate-180' : ''} /> {t('admin.nav.backToStore')}
         </Link>
       </div>
-    </>
+    </div>
   )
 
   return (
     <div className="min-h-screen bg-black flex">
       {/* Desktop sidebar */}
-      <aside className="w-60 border-r border-saif-border hidden md:flex flex-col fixed inset-y-0 left-0 bg-black z-30">
+      <aside className="w-60 border-r border-saif-border hidden md:flex flex-col fixed h-full top-0 left-0 bg-black z-30">
         {sidebar}
       </aside>
 
-      {/* Mobile top bar */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-30 bg-black border-b border-saif-border flex items-center justify-between px-4 h-14">
-        <p className="text-xs font-bold uppercase tracking-widest text-saif-dim">Admin</p>
-        <button onClick={() => setMobileOpen(true)} className="text-saif-text p-1" aria-label="Open admin menu">
-          <Menu size={20} />
-        </button>
-      </div>
-
-      {/* Mobile drawer */}
+      {/* Mobile sidebar */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-40 md:hidden">
-          <button className="absolute inset-0 bg-black/70" aria-label="Close admin menu" onClick={() => setMobileOpen(false)} />
-          <div className="absolute left-0 top-0 h-full w-64 bg-black border-r border-saif-border flex flex-col animate-[fadeUp_0.2s_ease]">
+        <div className="fixed inset-0 z-[120] md:hidden" role="dialog" aria-modal="true" aria-label="Admin navigation">
+          <div className="absolute inset-0 bg-black/80" onClick={() => setMobileOpen(false)} />
+          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-black border-r border-saif-border animate-scaleIn">
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="absolute top-4 right-3 text-saif-dim hover:text-saif-text p-1"
+              aria-label={t('a11y.closeMenu')}
+            >
+              <X size={20} />
+            </button>
             {sidebar}
-          </div>
+          </aside>
         </div>
       )}
 
-      <main className="flex-1 md:ml-60 pt-14 md:pt-0 min-w-0">
-        <div className="p-4 sm:p-6 lg:p-10 max-w-[1400px]">
-          <Outlet />
+      <div className="flex-1 md:ml-60 min-w-0">
+        {/* Mobile topbar */}
+        <div className="md:hidden sticky top-0 z-20 bg-black/95 backdrop-blur-md border-b border-saif-border px-4 py-3 flex items-center gap-3">
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="text-saif-text p-1"
+            aria-label={t('a11y.openMenu')}
+          >
+            <Menu size={20} />
+          </button>
+          <p className="text-sm font-bold tracking-tight text-saif-text">
+            SAIF STORE <span className="text-saif-accent">ADMIN</span>
+          </p>
         </div>
-      </main>
+
+        <main className="p-5 lg:p-8 max-w-[1400px]">
+          <Outlet />
+        </main>
+      </div>
     </div>
   )
 }

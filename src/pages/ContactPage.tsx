@@ -1,55 +1,126 @@
-import { Mail, Phone, ShieldCheck } from 'lucide-react'
+import { useState } from 'react'
 import { useApp } from '@/context/AppContext'
 import { usePageMeta } from '@/hooks/usePageMeta'
-import { DEFAULT_PAYMENT_NUMBER } from '@/lib/constants'
+import { validateFullName, validateEmail, type FieldErrors } from '@/lib/validation'
+import { cn } from '@/lib/utils'
+import { useI18n } from '@/i18n'
+import Footer from '@/components/Footer'
+import { Mail, Phone } from 'lucide-react'
 
 export default function ContactPage() {
+  const { t } = useI18n()
   const { settings } = useApp()
-  usePageMeta('Contact', 'Get in touch with SAIF STORE support.')
+  const [form, setForm] = useState({ name: '', email: '', message: '' })
+  const [errors, setErrors] = useState<FieldErrors>({})
+  const [sent, setSent] = useState(false)
+  usePageMeta({ title: 'Contact', description: 'Get in touch with the SAIF STORE team.' })
+
+  const contactEmail = settings?.contact_email || 'hello@saifstore.com'
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const errs: FieldErrors = {
+      name: validateFullName(form.name),
+      email: validateEmail(form.email),
+      message: form.message.trim().length < 10 ? 'Please write at least a short message' : undefined,
+    }
+    const next = Object.fromEntries(Object.entries(errs).filter(([, v]) => v)) as FieldErrors
+    setErrors(next)
+    if (Object.keys(next).length > 0) return
+
+    // No email backend is configured, so we open the customer's mail client
+    // with a pre-filled message — a real, working channel.
+    const subject = encodeURIComponent(`SAIF STORE contact — ${form.name}`)
+    const body = encodeURIComponent(`${form.message}\n\n— ${form.name} (${form.email})`)
+    window.location.href = `mailto:${contactEmail}?subject=${subject}&body=${body}`
+    setSent(true)
+  }
 
   return (
-    <div className="animate-[pageIn_0.5s_ease] px-6 lg:px-10 pt-14 pb-20">
+    <div className="animate-[pageIn_0.6s_ease] pt-24 md:pt-28 px-5 lg:px-10 pb-20">
       <div className="max-w-xl mx-auto">
-        <h1 className="text-4xl sm:text-6xl font-black tracking-tighter text-saif-text mb-4">Contact</h1>
-        <p className="text-sm text-saif-dim mb-10 leading-relaxed">
-          Questions about an order, a payment verification, or a digital delivery? Reach us through the
-          channels below — include your order number for the fastest response.
-        </p>
+        <h1 className="text-[clamp(36px,6vw,72px)] font-black tracking-tighter text-saif-text mb-10">Contact</h1>
 
-        <div className="space-y-4">
-          <ContactRow
-            icon={<Mail size={18} />}
-            label="Email"
-            value={settings?.contact_email || 'hello@saifstore.com'}
-            href={`mailto:${settings?.contact_email || 'hello@saifstore.com'}`}
-          />
-          <ContactRow
-            icon={<Phone size={18} />}
-            label="Phone / WhatsApp"
-            value={settings?.contact_phone || DEFAULT_PAYMENT_NUMBER}
-            href={`tel:${settings?.contact_phone || DEFAULT_PAYMENT_NUMBER}`}
-          />
-          <div className="border border-saif-border p-5 flex gap-4 items-start">
-            <span className="text-saif-accent mt-0.5"><ShieldCheck size={18} /></span>
+        <div className="space-y-3 mb-10">
+          <a
+            href={`mailto:${contactEmail}`}
+            className="flex items-center gap-3 border border-saif-border p-4 hover:border-saif-dim transition-colors rounded-sm"
+          >
+            <Mail size={16} className="text-saif-accent" />
+            <span className="text-sm text-saif-text">{contactEmail}</span>
+          </a>
+          {settings?.contact_phone && (
+            <a
+              href={`tel:${settings.contact_phone}`}
+              className="flex items-center gap-3 border border-saif-border p-4 hover:border-saif-dim transition-colors rounded-sm"
+            >
+              <Phone size={16} className="text-saif-accent" />
+              <span className="text-sm text-saif-text" dir="ltr">{settings.contact_phone}</span>
+            </a>
+          )}
+        </div>
+
+        {sent ? (
+          <div className="border border-saif-border p-6 rounded-sm">
+            <p className="text-sm text-saif-text font-semibold mb-2">Your email app should have opened.</p>
             <p className="text-sm text-saif-dim leading-relaxed">
-              Payment verifications are handled through your <span className="text-saif-text">order page</span> —
-              submit or re-submit your transfer receipt there and track the review status live.
+              If it didn&apos;t, send your message directly to{' '}
+              <a href={`mailto:${contactEmail}`} className="text-saif-accent underline">
+                {contactEmail}
+              </a>
+              . For order questions, include your order number (it starts with SAIF-).
             </p>
           </div>
-        </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            <div>
+              <label className="label" htmlFor="ct-name">{t('contact.name')}</label>
+              <input
+                id="ct-name"
+                required
+                type="text"
+                className={cn('input', errors.name && 'input-error')}
+                value={form.name}
+                onChange={e => setForm({ ...form, name: e.target.value })}
+                autoComplete="name"
+              />
+              {errors.name && <p className="field-error">{errors.name}</p>}
+            </div>
+            <div>
+              <label className="label" htmlFor="ct-email">{t('contact.email')}</label>
+              <input
+                id="ct-email"
+                required
+                type="email"
+                className={cn('input', errors.email && 'input-error')}
+                value={form.email}
+                onChange={e => setForm({ ...form, email: e.target.value })}
+                autoComplete="email"
+              />
+              {errors.email && <p className="field-error">{errors.email}</p>}
+            </div>
+            <div>
+              <label className="label" htmlFor="ct-message">{t('contact.message')}</label>
+              <textarea
+                id="ct-message"
+                required
+                rows={5}
+                className={cn('input resize-none', errors.message && 'input-error')}
+                value={form.message}
+                onChange={e => setForm({ ...form, message: e.target.value })}
+              />
+              {errors.message && <p className="field-error">{errors.message}</p>}
+            </div>
+            <button type="submit" className="btn btn-primary w-full">
+              Open Email App
+            </button>
+            <p className="text-xs text-saif-dim text-center">
+              This opens your email client with the message pre-filled — nothing is sent behind your back.
+            </p>
+          </form>
+        )}
       </div>
+      <Footer />
     </div>
-  )
-}
-
-function ContactRow({ icon, label, value, href }: { icon: React.ReactNode; label: string; value: string; href: string }) {
-  return (
-    <a href={href} className="border border-saif-border p-5 flex items-center gap-4 hover:border-saif-text/40 hover:bg-white/[0.02] transition-colors">
-      <span className="text-saif-accent">{icon}</span>
-      <span>
-        <span className="block text-[10px] uppercase tracking-widest text-saif-dim">{label}</span>
-        <span className="block text-sm font-semibold text-saif-text mt-0.5" dir="ltr">{value}</span>
-      </span>
-    </a>
   )
 }

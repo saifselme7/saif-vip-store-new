@@ -1,319 +1,349 @@
-import { Link } from 'react-router-dom'
-import { ArrowRight, Truck, ShieldCheck, Zap, CreditCard, BadgeCheck, Clock } from 'lucide-react'
-import { useProducts } from '@/hooks/useProducts'
-import { useCategories } from '@/hooks/useCategories'
-import { useReviews } from '@/hooks/useReviews'
+import { useEffect, useMemo, useState } from 'react'
+import { supabase } from '@/lib/supabase'
 import { useApp } from '@/context/AppContext'
 import { usePageMeta } from '@/hooks/usePageMeta'
+import { useI18n } from '@/i18n'
+import { useHomepageSections, sectionText, configText, type RailConfig, type SpotlightConfig } from '@/hooks/useHomepageSections'
 import ProductCard from '@/components/ProductCard'
-import SectionHeading from '@/components/SectionHeading'
-import RatingStars from '@/components/ui/RatingStars'
-import { ProductGridSkeleton } from '@/components/ui/Skeleton'
-import EmptyState from '@/components/EmptyState'
+import Footer from '@/components/Footer'
+import Reveal from '@/components/motion/Reveal'
+import HeroSection from '@/components/home/HeroSection'
+import MarqueeBand from '@/components/home/MarqueeBand'
+import BrandStatement from '@/components/home/BrandStatement'
+import CategoryExperience from '@/components/home/CategoryExperience'
+import EditorialMoment from '@/components/home/EditorialMoment'
+import ReviewsStrip from '@/components/home/ReviewsStrip'
+import HowItWorks from '@/components/home/HowItWorks'
+import FinalCTA from '@/components/home/FinalCTA'
+import { ProductGridSkeleton } from '@/components/ui/Skeletons'
+import { Zap, Timer, Package } from 'lucide-react'
+import type { Category, HomepageSection, Product, Review } from '@/types'
 
 export default function HomePage() {
   const { settings } = useApp()
-  const { products: featured, loading: fLoading } = useProducts({ featured: true, limit: 8 })
-  const { products: newArrivals, loading: nLoading } = useProducts({ sort: 'newest', limit: 8 })
-  const { products: bestsellers, loading: bLoading } = useProducts({ bestseller: true, limit: 8 })
-  const { products: offers, loading: oLoading } = useProducts({ onSale: true, limit: 4 })
-  const { products: digital, loading: dLoading } = useProducts({ type: 'digital', limit: 4 })
-  const { products: physical, loading: pLoading } = useProducts({ type: 'physical', limit: 4 })
-  const { categories } = useCategories()
-  const { reviews } = useReviews()
+  const { t, lang, formatPrice } = useI18n()
+  usePageMeta({
+    title: settings?.seo_title || 'SAIF STORE — Premium Streetwear & Digital Products',
+    description:
+      (lang === 'ar' && settings?.seo_description ? settings.seo_description : settings?.store_description) ||
+      t('meta.description'),
+    image: settings?.og_image ?? undefined,
+  })
 
-  usePageMeta(
-    settings?.store_name || 'SAIF STORE',
-    settings?.store_description || 'Premium streetwear and digital products.',
+  const { sections } = useHomepageSections()
+  const { products, loading } = useHomeProducts()
+  const { reviews } = useHomeReviews()
+  const { categories } = useHomeCategories()
+
+  // Rail product sources (computed once from live data)
+  const rails = useMemo(() => {
+    const manual = (ids: string[] | undefined) =>
+      ids ? ids.map(id => products.find(p => p.id === id)).filter((p): p is Product => !!p) : []
+    return {
+      auto: (rail: HomepageSection) => {
+        const cfg = (rail.config ?? {}) as RailConfig
+        if (cfg.source === 'manual') return manual(cfg.product_ids)
+        const list =
+          cfg.source === 'offers'
+            ? products.filter(p => p.compare_at_price && p.compare_at_price > p.price)
+            : cfg.source === 'digital'
+              ? products.filter(p => p.product_type === 'digital')
+              : cfg.source === 'bestsellers'
+                ? products.filter(p => p.bestseller)
+                : cfg.source === 'newest'
+                  ? products
+                  : products.filter(p => p.featured)
+        return list.slice(0, cfg.limit ?? 8)
+      },
+    }
+  }, [products])
+
+  const spotlight = useMemo(() => {
+    const section = sections.find(s => s.section_key === 'spotlight')
+    const cfg = ((section?.config ?? {}) as SpotlightConfig)
+    if (cfg.product_id) {
+      const found = products.find(p => p.id === cfg.product_id)
+      if (found) return found
+    }
+    return products.find(p => p.featured) ?? products.find(p => p.bestseller) ?? products[0] ?? null
+  }, [sections, products])
+
+  const heroImage = useMemo(
+    () => spotlight?.thumbnail || spotlight?.images?.[0] || null,
+    [spotlight],
   )
 
-  const heroProducts = featured.length > 0 ? featured : newArrivals
+  return (
+    <div className="animate-[pageIn_0.6s_ease]">
+      {/* Trust band — the hero's bottom boundary (always rendered after hero) */}
+      {sections.find(s => s.section_key === 'hero' && s.is_enabled) && <MarqueeBand />}
+
+      {sections
+        .filter(s => s.is_enabled && s.section_key !== 'announcement')
+        .map(section => {
+          const { title, subtitle } = sectionText(section, lang)
+          switch (section.section_key) {
+            case 'hero':
+              return (
+                <HeroSection
+                  key={section.id}
+                  heroTitle={lang === 'ar' && settings?.hero_title_ar ? settings.hero_title_ar : (settings?.hero_title || 'SAIF STORE')}
+                  heroSubtitle={lang === 'ar' && settings?.hero_subtitle_ar ? settings.hero_subtitle_ar : (settings?.hero_subtitle || t('hero.subtitle'))}
+                  heroImage={heroImage}
+                  config={section.config}
+                />
+              )
+            case 'brand':
+              return (
+                <BrandStatement
+                  key={section.id}
+                  heading={title}
+                  description={subtitle}
+                  config={section.config as Record<string, unknown>}
+                />
+              )
+            case 'categories':
+              return (
+                <CategoryExperience
+                  key={section.id}
+                  categories={categories}
+                  products={products}
+                  title={title}
+                  description={subtitle}
+                  config={section.config as Record<string, unknown>}
+                />
+              )
+            case 'spotlight':
+              return <EditorialMoment key={section.id} product={spotlight} config={section.config} />
+            case 'rail_featured':
+            case 'rail_new':
+            case 'rail_offers':
+            case 'rail_digital':
+            case 'rail_bestsellers':
+              return (
+                <ProductRailSection
+                  key={section.id}
+                  section={section}
+                  title={title}
+                  subtitle={subtitle}
+                  products={rails.auto(section)}
+                  loading={loading}
+                />
+              )
+            case 'reviews':
+              return <ReviewsStrip key={section.id} reviews={reviews} title={title} description={subtitle} config={section.config} />
+            case 'how_it_works':
+              return <HowItWorks key={section.id} title={title} description={subtitle} config={section.config} />
+            case 'final_cta':
+              return <FinalCTA key={section.id} heading={title} description={subtitle} config={section.config} />
+            default:
+              return null
+          }
+        })}
+
+      <Footer />
+    </div>
+  )
+}
+
+/** Product rail section (featured / new / offers / digital / bestsellers). */
+function ProductRailSection({
+  section,
+  title,
+  subtitle,
+  products,
+  loading,
+}: {
+  section: HomepageSection
+  title: string | null
+  subtitle: string | null
+  products: Product[]
+  loading: boolean
+}) {
+  const { t } = useI18n()
+  const railKey = section.section_key.replace('rail_', '')
+  const rail = t(`rails.${railKey}.eyebrow`)
+  const cfg = (section.config ?? {}) as RailConfig
+  const isDigital = section.section_key === 'rail_digital'
+  const isOffers = section.section_key === 'rail_offers'
 
   return (
-    <div className="animate-[pageIn_0.5s_ease]">
-      {/* ============ HERO ============ */}
-      <section className="relative overflow-hidden px-4 sm:px-6 lg:px-10 pt-16 sm:pt-24 pb-16">
-        {/* subtle red glow accent */}
-        <div
-          aria-hidden="true"
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full opacity-[0.07] pointer-events-none"
-          style={{ background: 'radial-gradient(circle, #E63946 0%, transparent 65%)' }}
-        />
-        <div className="max-w-7xl mx-auto relative">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-saif-accent mb-6 animate-[fadeUp_0.6s_0.1s_both]">
-            Streetwear · Digital · Curated
-          </p>
-          <h1 className="text-[clamp(56px,12vw,170px)] font-black tracking-tighter leading-[0.88] text-saif-text">
-            {settings?.hero_title || 'SAIF STORE'}<sup className="text-[0.14em] font-normal align-super ml-1">®</sup>
-          </h1>
-          <p className="mt-6 text-sm sm:text-base text-saif-dim max-w-xl leading-relaxed animate-[fadeUp_0.6s_0.25s_both]">
-            {settings?.hero_subtitle || 'Premium fashion and digital products. Carefully curated for the modern individual.'}
-          </p>
-          <div className="mt-9 flex flex-wrap gap-3 animate-[fadeUp_0.6s_0.4s_both]">
-            <Link to="/products" className="btn btn-primary">Shop Now</Link>
-            <Link to="/products?type=digital" className="btn">Digital Products</Link>
-          </div>
-
-          {/* Hero product strip */}
-          {heroProducts.length > 0 && (
-            <div className="mt-14 grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 animate-[fadeUp_0.6s_0.55s_both]">
-              {heroProducts.slice(0, 4).map(p => (
-                <Link key={p.id} to={`/products/${p.slug}`} className="group relative aspect-[3/4] overflow-hidden bg-[#111]">
-                  <img
-                    src={p.thumbnail || p.images?.[0]}
-                    alt={p.name}
-                    loading={p === heroProducts[0] ? 'eager' : 'lazy'}
-                    className="w-full h-full object-cover transition-transform duration-700 ease-saif group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <span className="absolute bottom-3 left-3 text-xs font-semibold uppercase tracking-wider text-saif-text opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
-                    {p.name}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ============ CATEGORIES ============ */}
-      {categories.length > 0 && (
-        <section className="px-4 sm:px-6 lg:px-10 py-14 border-t border-saif-border">
-          <div className="max-w-7xl mx-auto">
-            <SectionHeading title="Shop by Category" />
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 sm:gap-3">
-              {categories.map(cat => (
-                <Link
-                  key={cat.id}
-                  to={`/products?category=${cat.id}`}
-                  className="group relative aspect-square sm:aspect-[4/5] overflow-hidden bg-[#111] border border-saif-border"
-                >
-                  {cat.image && (
-                    <img
-                      src={cat.image}
-                      alt={cat.name}
-                      loading="lazy"
-                      className="w-full h-full object-cover transition-transform duration-700 ease-saif group-hover:scale-110 opacity-50 group-hover:opacity-70"
-                    />
-                  )}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-2 text-center">
-                    <span className="text-sm sm:text-base font-bold uppercase tracking-wider text-saif-text">{cat.name}</span>
-                    <span className="text-[10px] uppercase tracking-widest text-saif-accent opacity-0 group-hover:opacity-100 transition-opacity">
-                      Explore →
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
+    <section
+      className={cn2(
+        'px-5 lg:px-10 py-24 md:py-32',
+        section.section_key !== 'rail_featured' && 'border-t border-saif-border',
+        isDigital && 'relative border-y border-saif-border bg-saif-panel overflow-hidden',
       )}
-
-      {/* ============ FEATURED ============ */}
-      <section className="px-4 sm:px-6 lg:px-10 py-14 border-t border-saif-border">
-        <div className="max-w-7xl mx-auto">
-          <SectionHeading title="Featured" viewAllTo="/products?featured=true" />
-          {fLoading ? <ProductGridSkeleton /> : featured.length === 0 ? (
-            <EmptyState title="Nothing featured yet" description="New drops land here first." />
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-6">
-              {featured.map(p => <ProductCard key={p.id} product={p} />)}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ============ NEW ARRIVALS ============ */}
-      <section className="px-4 sm:px-6 lg:px-10 py-14 border-t border-saif-border">
-        <div className="max-w-7xl mx-auto">
-          <SectionHeading title="New Arrivals" subtitle="The latest additions to the catalog." viewAllTo="/products?sort=newest" />
-          {nLoading ? <ProductGridSkeleton /> : newArrivals.length === 0 ? (
-            <EmptyState title="No products yet" description="Check back soon." />
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-6">
-              {newArrivals.map(p => <ProductCard key={p.id} product={p} />)}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ============ LIMITED COLLECTION BANNER ============ */}
-      <section className="px-4 sm:px-6 lg:px-10 py-14 border-t border-saif-border">
-        <div className="max-w-7xl mx-auto relative overflow-hidden bg-saif-accent">
-          <div className="relative z-10 px-6 sm:px-12 py-14 sm:py-20 max-w-2xl">
-            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/70 mb-4">Limited Collection</p>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-[0.95] text-black">
-              Made to be worn.<br />Or judged. Or both.
-            </h2>
-            <p className="mt-5 text-sm sm:text-base text-black/70 leading-relaxed max-w-md">
-              Heavyweight fabrics, minimal prints, zero compromise. Small batches — once they're gone, they're gone.
-            </p>
-            <Link
-              to="/products?featured=true"
-              className="mt-8 inline-flex items-center gap-2 bg-black text-saif-text text-xs font-semibold uppercase tracking-wider px-8 py-4 hover:bg-[#111] transition-colors"
-            >
-              Shop the Collection <ArrowRight size={14} />
-            </Link>
-          </div>
-          <div aria-hidden="true" className="absolute -right-24 -top-24 w-96 h-96 rounded-full border-[40px] border-black/10" />
-        </div>
-      </section>
-
-      {/* ============ SPECIAL OFFERS ============ */}
-      {offers.length > 0 && (
-        <section className="px-4 sm:px-6 lg:px-10 py-14 border-t border-saif-border">
-          <div className="max-w-7xl mx-auto">
-            <SectionHeading title="Special Offers" subtitle="Discounted right now — no code needed." viewAllTo="/products?sale=1" />
-            {oLoading ? <ProductGridSkeleton count={4} /> : (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-6">
-                {offers.map(p => <ProductCard key={p.id} product={p} />)}
-              </div>
+      aria-labelledby={`${section.section_key}-heading`}
+    >
+      {isDigital && (
+        <>
+          <span className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-saif-accent/60 to-transparent" aria-hidden="true" />
+          <span
+            className="absolute -end-24 top-1/2 -translate-y-1/2 text-outline-faint text-[clamp(120px,20vw,300px)] font-black leading-none tracking-tighter select-none pointer-events-none hidden lg:block"
+            aria-hidden="true"
+          >
+            {lang2() === 'ar' ? 'رقمي' : 'DIGI'}
+          </span>
+        </>
+      )}
+      <div className={cn2('max-w-7xl mx-auto', isDigital && 'relative z-10')}>
+        <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4 mb-10 md:mb-14">
+          <div className="min-w-0">
+            <Reveal variant="fade" duration={700}>
+              <p className="eyebrow">
+                <span className="text-saif-accent tabular-nums">{String(section.position).padStart(2, '0')}</span>
+                <span className="w-3 h-px bg-saif-border" aria-hidden="true" />
+                {rail}
+              </p>
+            </Reveal>
+            <Reveal variant="up" delay={90}>
+              <h2
+                id={`${section.section_key}-heading`}
+                className="mt-4 text-[clamp(26px,4vw,46px)] font-bold leading-[1.02] tracking-tight text-saif-text text-balance"
+              >
+                {title ?? t(`rails.${railKey}.title`)}
+              </h2>
+            </Reveal>
+            {subtitle && (
+              <Reveal variant="fade" delay={200} duration={900}>
+                <p className="mt-4 text-sm md:text-[15px] text-saif-dim leading-relaxed max-w-lg text-balance">
+                  {subtitle}
+                </p>
+              </Reveal>
             )}
           </div>
-        </section>
-      )}
-
-      {/* ============ DIGITAL ============ */}
-      <section className="px-4 sm:px-6 lg:px-10 py-14 border-t border-saif-border">
-        <div className="max-w-7xl mx-auto">
-          <SectionHeading
-            title="Digital Products"
-            subtitle="Social media packages — fulfilled by our team after payment verification."
-            viewAllTo="/products?type=digital"
-          />
-          {dLoading ? <ProductGridSkeleton count={4} /> : digital.length === 0 ? (
-            <EmptyState title="No digital products yet" />
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-6">
-              {digital.map(p => <ProductCard key={p.id} product={p} />)}
-            </div>
+          {cfg.view_all && (
+            <Reveal variant="fade" delay={280} className="pb-2 flex-shrink-0">
+              <Link2 to={cfg.view_all} className="link-underline inline-flex items-center gap-2 py-2 -m-2 px-2">
+                {t('common.viewAll')}
+                <span className="text-saif-accent" aria-hidden="true">→</span>
+              </Link2>
+            </Reveal>
           )}
         </div>
-      </section>
 
-      {/* ============ PHYSICAL ============ */}
-      <section className="px-4 sm:px-6 lg:px-10 py-14 border-t border-saif-border">
-        <div className="max-w-7xl mx-auto">
-          <SectionHeading title="Streetwear" viewAllTo="/products?type=physical" />
-          {pLoading ? <ProductGridSkeleton count={4} /> : physical.length === 0 ? (
-            <EmptyState title="No physical products yet" />
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-6">
-              {physical.map(p => <ProductCard key={p.id} product={p} />)}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ============ BESTSELLERS ============ */}
-      {bestsellers.length > 0 && (
-        <section className="px-4 sm:px-6 lg:px-10 py-14 border-t border-saif-border">
-          <div className="max-w-7xl mx-auto">
-            <SectionHeading title="Best Sellers" viewAllTo="/products?bestseller=true" />
-            {bLoading ? <ProductGridSkeleton /> : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-6">
-                {bestsellers.map(p => <ProductCard key={p.id} product={p} />)}
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* ============ WHY SAIF STORE ============ */}
-      <section className="px-4 sm:px-6 lg:px-10 py-14 border-t border-saif-border bg-[#050505]">
-        <div className="max-w-7xl mx-auto">
-          <SectionHeading title="Why SAIF STORE" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <TrustCard
-              icon={<Truck size={22} />}
-              title="Fast Shipping"
-              text={settings?.free_shipping_threshold
-                ? `Free shipping on orders over ${settings.free_shipping_threshold} ${settings?.currency || 'EGP'}.`
-                : 'Reliable delivery across Egypt.'}
-            />
-            <TrustCard
-              icon={<CreditCard size={22} />}
-              title="Easy Manual Payments"
-              text="Pay with InstaPay or Vodafone Cash. Every transfer is verified by our team."
-            />
-            <TrustCard
-              icon={<ShieldCheck size={22} />}
-              title="Secure & Private"
-              text="Your payment proof and personal details are visible only to you and our verification team."
-            />
-            <TrustCard
-              icon={<Zap size={22} />}
-              title="Digital Fulfillment"
-              text="Digital orders are fulfilled by our team as soon as your payment is approved."
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* ============ REVIEWS ============ */}
-      {reviews.length > 0 && (
-        <section className="px-4 sm:px-6 lg:px-10 py-14 border-t border-saif-border">
-          <div className="max-w-7xl mx-auto">
-            <SectionHeading title="Customer Reviews" subtitle="What people say after their orders arrive." />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {reviews.slice(0, 3).map(r => (
-                <div key={r.id} className="border border-saif-border p-6 bg-[#0A0A0A]">
-                  <RatingStars rating={r.rating} />
-                  <p className="mt-3 text-sm font-semibold text-saif-text">{r.title}</p>
-                  <p className="mt-2 text-sm text-saif-dim leading-relaxed line-clamp-4">{r.body}</p>
-                  <p className="mt-4 text-xs text-saif-dim uppercase tracking-wider">— {r.user?.full_name || 'Verified Customer'}</p>
+        {isDigital && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-12">
+            {[
+              { icon: Zap, title: t('rails.digital.noShipping'), text: t('rails.digital.noShippingText') },
+              { icon: Package, title: t('rails.digital.clearWindows'), text: t('rails.digital.clearWindowsText') },
+              { icon: Timer, title: t('rails.digital.tracked'), text: t('rails.digital.trackedText') },
+            ].map((item, i) => (
+              <Reveal key={item.title} variant="fade" delay={i * 130} duration={900} className="flex gap-4 items-start">
+                <span className="w-10 h-10 rounded-full border border-saif-accent/40 flex items-center justify-center flex-shrink-0">
+                  <item.icon size={16} className="text-saif-accent" aria-hidden="true" />
+                </span>
+                <div>
+                  <h3 className="text-sm font-semibold text-saif-text">{item.title}</h3>
+                  <p className="mt-1 text-sm text-saif-dim leading-relaxed">{item.text}</p>
                 </div>
-              ))}
-            </div>
+              </Reveal>
+            ))}
           </div>
-        </section>
-      )}
+        )}
 
-      {/* ============ HOW IT WORKS ============ */}
-      <section className="px-4 sm:px-6 lg:px-10 py-14 border-t border-saif-border">
-        <div className="max-w-7xl mx-auto">
-          <SectionHeading title="Ordering Takes 3 Minutes" />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StepCard n="01" icon={<CreditCard size={20} />} title="Place your order" text="Pick your items, check out, and transfer the total via InstaPay or Vodafone Cash." />
-            <StepCard n="02" icon={<BadgeCheck size={20} />} title="Upload your receipt" text="Attach the transfer screenshot — our team manually verifies every payment." />
-            <StepCard n="03" icon={<Clock size={20} />} title="We confirm & ship" text="Once approved, physical orders ship out and digital orders get fulfilled." />
+        {loading ? (
+          <ProductGridSkeleton />
+        ) : products.length === 0 ? (
+          <p
+            className={cn2(
+              'text-sm text-saif-dim py-8 text-center',
+              isOffers ? '' : 'border border-dashed border-saif-border rounded-sm',
+            )}
+          >
+            {t('home.productsWillAppear')}
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-3 gap-y-10 md:gap-x-5 md:gap-y-14">
+            {products.map((p, i) => (
+              <Reveal key={p.id} variant="up" delay={Math.min(i, 7) * 90} duration={850} threshold={0.08}>
+                <ProductCard product={p} priorityImage={i < 4} />
+              </Reveal>
+            ))}
           </div>
-        </div>
-      </section>
-
-      {/* ============ FINAL CTA ============ */}
-      <section className="px-4 sm:px-6 lg:px-10 py-24 border-t border-saif-border text-center">
-        <h2 className="text-[clamp(32px,6vw,64px)] font-black tracking-tighter text-saif-text leading-none">
-          Ready when you are.
-        </h2>
-        <p className="mt-4 text-sm text-saif-dim">Browse the full catalog — streetwear, accessories and digital packages.</p>
-        <div className="mt-8 flex justify-center gap-3">
-          <Link to="/products" className="btn btn-primary">Browse Everything</Link>
-        </div>
-      </section>
-    </div>
-  )
-}
-
-function TrustCard({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
-  return (
-    <div className="border border-saif-border p-6 bg-[#0A0A0A]">
-      <div className="text-saif-accent mb-4">{icon}</div>
-      <h3 className="text-sm font-bold text-saif-text mb-2">{title}</h3>
-      <p className="text-sm text-saif-dim leading-relaxed">{text}</p>
-    </div>
-  )
-}
-
-function StepCard({ n, icon, title, text }: { n: string; icon: React.ReactNode; title: string; text: string }) {
-  return (
-    <div className="border border-saif-border p-6">
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-3xl font-black text-saif-accent/30">{n}</span>
-        <span className="text-saif-accent">{icon}</span>
+        )}
       </div>
-      <h3 className="text-sm font-bold text-saif-text mb-2">{title}</h3>
-      <p className="text-sm text-saif-dim leading-relaxed">{text}</p>
-    </div>
+    </section>
   )
+}
+
+// Small local helpers to avoid extra imports in this file's map callbacks
+import { Link as Link2 } from 'react-router-dom'
+function cn2(...parts: (string | false | undefined)[]) {
+  return parts.filter(Boolean).join(' ')
+}
+function lang2(): string {
+  return document.documentElement.lang || 'en'
+}
+
+/** Single query for all homepage product rails. */
+function useHomeProducts() {
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    supabase
+      .from('products')
+      .select('*, categories(*), variants:product_variants(*)')
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(40)
+      .then(({ data }) => {
+        if (cancelled) return
+        setProducts((data || []) as Product[])
+        setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  return { products, loading }
+}
+
+function useHomeReviews() {
+  const [reviews, setReviews] = useState<(Review & { products?: { name: string; name_ar?: string | null } | null })[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    supabase
+      .from('reviews')
+      .select('*, profiles(full_name, avatar_url), products(name, name_ar)')
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false })
+      .limit(6)
+      .then(({ data }) => {
+        if (cancelled) return
+        setReviews((data || []) as unknown as (Review & { products?: { name: string; name_ar?: string | null } | null })[])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  return { reviews }
+}
+
+function useHomeCategories() {
+  const [categories, setCategories] = useState<Category[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    supabase
+      .from('categories')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order')
+      .then(({ data }) => {
+        if (cancelled) return
+        setCategories((data || []) as Category[])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  return { categories }
 }

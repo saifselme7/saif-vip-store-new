@@ -1,22 +1,17 @@
+import Footer from '@/components/Footer'
 import { usePageMeta } from '@/hooks/usePageMeta'
 
 export default function TermsPage() {
-  usePageMeta('Terms', 'SAIF STORE terms of service.')
-
+  usePageMeta({ title: 'Terms of Service', description: 'SAIF STORE terms of service.' })
   return (
-    <div className="animate-[pageIn_0.5s_ease] px-6 lg:px-10 pt-14 pb-20">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <h1 className="text-4xl sm:text-6xl font-black tracking-tighter text-saif-text">Terms</h1>
+    <div className="animate-[pageIn_0.6s_ease] pt-28 px-6 lg:px-10 pb-20">
+      <div className="max-w-2xl mx-auto">
+        <h1 className="text-[clamp(36px,6vw,72px)] font-black tracking-tighter text-saif-text mb-10">Terms</h1>
         <p className="text-sm text-saif-dim leading-relaxed">
-          By using SAIF STORE you agree to these terms. Orders are confirmed only after manual payment
-          verification succeeds; until then an order remains in review. All sales are subject to availability.
-        </p>
-        <p className="text-sm text-saif-dim leading-relaxed">
-          Digital services are fulfilled for accounts and content you own. We reserve the right to refuse
-          or cancel orders that violate platform policies or applicable law, with a refund of any approved
-          payment where appropriate.
+          By using SAIF STORE, you agree to our terms of service. All sales are subject to availability. We reserve the right to refuse service to anyone.
         </p>
       </div>
+      <Footer />
     </div>
   )
 }

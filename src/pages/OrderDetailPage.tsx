@@ -1,268 +1,661 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { Copy, Zap, Lock } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
-import { useOrder, latestPayment } from '@/hooks/useOrders'
-import { useApp } from '@/context/AppContext'
-import { usePageMeta } from '@/hooks/usePageMeta'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
-  ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, ORDER_TIMELINE,
-  PAYMENT_METHODS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS,
-} from '@/lib/constants'
-import { formatPrice, formatDateTime, copyToClipboard } from '@/lib/utils'
-import type { Order } from '@/types'
+  Copy,
+  RotateCcw,
+  Upload,
+  X,
+  FileImage,
+  Clock,
+  Zap,
+  Truck,
+  CheckCircle2,
+  Package,
+  ShieldCheck,
+  AlertTriangle,
+  Loader2,
+} from 'lucide-react'
+import { useOrder } from '@/hooks/useOrders'
+import { supabase } from '@/lib/supabase'
+import { useApp } from '@/context/AppContext'
+import { useToast } from '@/context/ToastContext'
+import { useCart } from '@/context/CartContext'
+import { usePageMeta } from '@/hooks/usePageMeta'
+import { customerCancelOrder, submitPayment } from '@/lib/api'
+import { uploadPaymentScreenshot, createScreenshotSignedUrl, getPaymentInstructions, CUSTOMER_CAN_RESUBMIT } from '@/lib/payments'
+import { validatePayerIdentifier, validateAmount, validateScreenshotFile, type FieldErrors } from '@/lib/validation'
+import { PAYMENT_METHOD_LABELS, MAX_SCREENSHOT_SIZE_MB } from '@/lib/constants'
+import { formatPrice, formatDate, copyToClipboard, cn } from '@/lib/utils'
+import { OrderStatusBadge, PaymentStatusBadge } from '@/components/ui/StatusBadge'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import Footer from '@/components/Footer'
 import Loading from '@/components/Loading'
 import EmptyState from '@/components/EmptyState'
-import Price from '@/components/ui/Price'
-import Modal from '@/components/ui/Modal'
-import { StatusBadge } from '@/components/ui/Badge'
-import PaymentEvidenceForm from '@/components/PaymentEvidenceForm'
+import type { Order, OrderEvent, PaymentStatus } from '@/types'
+import { useI18n } from '@/i18n'
 
-export default function OrderDetailPage() {
-  const { id } = useParams<{ id: string }>()
-  const { order, loading, refetch } = useOrder(id)
-  const { settings, addToast } = useApp()
-  const [payModal, setPayModal] = useState(false)
-  const [digital, setDigital] = useState<{ unlocked: boolean; delivery?: Record<string, unknown> } | null>(null)
-
-  usePageMeta(order ? `Order ${order.order_number}` : 'Order', 'Order details and payment status.')
-
-  const payment = latestPayment(order)
-  const hasDigital = order?.items?.some(i => i.product_type === 'digital') ?? false
-
-  // Digital delivery info — only unlocked server-side after payment approval.
-  useEffect(() => {
-    if (!order || !hasDigital) return
-    let cancelled = false
-    supabase.rpc('get_order_digital_delivery', { p_order_id: order.id }).then(({ data }) => {
-      if (!cancelled && data) setDigital(data as { unlocked: boolean; delivery?: Record<string, unknown> })
-    })
-    return () => { cancelled = true }
-  }, [order?.id, hasDigital, payment?.status]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  if (loading) return <div className="pt-16"><Loading /></div>
-  if (!order) return (
-    <div className="pt-16 px-6">
-      <EmptyState title="Order not found" description="It may belong to another account." />
-      <div className="text-center"><Link to="/orders" className="btn text-xs">My Orders</Link></div>
-    </div>
-  )
-
-  const currency = settings?.currency || 'EGP'
-  const methodName = PAYMENT_METHODS.find(m => m.id === order.payment_method)?.name || order.payment_method
-  const canSubmitPayment = (order.status === 'pending' || order.status === 'payment_review') &&
-    (!payment || payment.status === 'rejected' || payment.status === 'cancelled')
-
-  return (
-    <div className="animate-[pageIn_0.5s_ease] px-4 sm:px-6 lg:px-10 pt-10 pb-20">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-saif-dim mb-1">Order</p>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-saif-text flex items-center gap-3">
-              {order.order_number}
-              <button
-                onClick={async () => {
-                  const ok = await copyToClipboard(order.order_number)
-                  addToast(ok ? 'Copied' : 'Could not copy', ok ? 'success' : 'error')
-                }}
-                className="p-1.5 border border-saif-border text-saif-dim hover:text-saif-text transition-colors"
-                aria-label="Copy order number"
-              >
-                <Copy size={13} />
-              </button>
-            </h1>
-            <p className="text-xs text-saif-dim mt-1">{formatDateTime(order.created_at)}</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <StatusBadge className={ORDER_STATUS_COLORS[order.status]}>{ORDER_STATUS_LABELS[order.status]}</StatusBadge>
-            {payment && (
-              <StatusBadge className={PAYMENT_STATUS_COLORS[payment.status]}>
-                {PAYMENT_STATUS_LABELS[payment.status]}
-              </StatusBadge>
-            )}
-          </div>
-        </div>
-
-        {/* Timeline */}
-        <OrderTimeline order={order} />
-
-        {/* Payment panel */}
-        <section className="mt-10 border border-saif-border p-6">
-          <div className="flex items-center justify-between gap-3 mb-4">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-saif-text">Payment</h2>
-            <span className="text-xs text-saif-dim">{methodName || 'Method not selected'}</span>
-          </div>
-
-          {payment ? (
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-saif-dim">Expected amount</span>
-                <Price value={payment.expected_amount} className="text-saif-text font-semibold" />
-              </div>
-              {payment.transferred_amount != null && (
-                <div className="flex justify-between">
-                  <span className="text-saif-dim">You transferred</span>
-                  <Price value={payment.transferred_amount} className="text-saif-text" />
-                </div>
-              )}
-              {payment.payer_identifier && (
-                <div className="flex justify-between">
-                  <span className="text-saif-dim">Paid from</span>
-                  <span dir="ltr" className="text-saif-text">{payment.payer_identifier}</span>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-saif-dim">Submitted</span>
-                <span className="text-saif-text">{formatDateTime(payment.created_at)}</span>
-              </div>
-              {payment.status === 'approved' && payment.verified_at && (
-                <p className="text-xs text-green-400 pt-1">Approved on {formatDateTime(payment.verified_at)}.</p>
-              )}
-              {payment.status === 'rejected' && (
-                <div className="bg-red-500/10 border border-red-500/30 p-3 mt-2">
-                  <p className="text-xs font-semibold text-red-400">Payment rejected</p>
-                  {payment.rejection_reason && <p className="text-xs text-saif-dim mt-1">{payment.rejection_reason}</p>}
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="text-sm text-saif-dim">No payment submitted yet.</p>
-          )}
-
-          {canSubmitPayment && (
-            <button onClick={() => setPayModal(true)} className="btn btn-primary w-full mt-5 text-xs">
-              {payment?.status === 'rejected' ? 'Re-submit Payment Evidence' : payment ? 'Submit Payment Evidence' : 'Complete Your Payment'}
-            </button>
-          )}
-        </section>
-
-        {/* Digital delivery */}
-        {hasDigital && (
-          <section className="mt-6 border border-saif-border p-6">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-saif-text mb-4 flex items-center gap-2">
-              <Zap size={14} className="text-saif-accent" /> Digital Delivery
-            </h2>
-            {digital?.unlocked ? (
-              digital.delivery && Object.keys(digital.delivery).length > 0 ? (
-                <div className="space-y-2 text-sm">
-                  {Object.entries(digital.delivery).map(([k, v]) => (
-                    <div key={k} className="flex gap-4">
-                      <span className="text-saif-dim capitalize w-32 flex-shrink-0">{k.replace(/_/g, ' ')}</span>
-                      <span className="text-saif-text break-all">{String(v)}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-saif-dim">Payment approved — our team is preparing your digital delivery. Check back soon.</p>
-              )
-            ) : (
-              <p className="text-sm text-saif-dim flex items-center gap-2">
-                <Lock size={13} /> Delivery details unlock once your payment is approved.
-              </p>
-            )}
-          </section>
-        )}
-
-        {/* Items & totals */}
-        <section className="mt-6 border border-saif-border divide-y divide-[rgba(245,240,232,0.08)]">
-          <div className="p-6 space-y-3">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-saif-text mb-2">Items</h2>
-            {order.items?.map(item => (
-              <div key={item.id} className="flex justify-between gap-4 text-sm">
-                <div>
-                  <p className="text-saif-text font-medium">{item.product_name}</p>
-                  <p className="text-xs text-saif-dim mt-0.5">
-                    {item.variant_name ? `${item.variant_name} · ` : ''}Qty {item.quantity} · {item.product_type === 'digital' ? 'Digital' : 'Physical'}
-                  </p>
-                </div>
-                <Price value={item.total} className="text-saif-text font-semibold" />
-              </div>
-            ))}
-          </div>
-          <div className="p-6 space-y-2 text-sm">
-            <div className="flex justify-between text-saif-dim"><span>Subtotal</span><Price value={order.subtotal} className="text-saif-text" /></div>
-            {order.discount > 0 && (
-              <div className="flex justify-between text-green-400">
-                <span>Discount{order.coupon_code ? ` (${order.coupon_code})` : ''}</span>
-                <span>−{formatPrice(order.discount, currency)}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-saif-dim"><span>Shipping</span><span>{order.shipping_fee === 0 ? 'Free' : formatPrice(order.shipping_fee, currency)}</span></div>
-            <div className="flex justify-between text-base font-bold text-saif-text pt-2 border-t border-saif-border"><span>Total</span><Price value={order.total} className="text-saif-text" /></div>
-          </div>
-        </section>
-
-        {/* Delivery info */}
-        <section className="mt-6 border border-saif-border p-6 text-sm">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-saif-text mb-3">Customer & Delivery</h2>
-          <p className="text-saif-text font-medium">{order.customer_name}</p>
-          <p className="text-saif-dim mt-1">{order.customer_email}{order.customer_phone ? <> · <span dir="ltr">{order.customer_phone}</span></> : null}</p>
-          {order.shipping_address && Object.keys(order.shipping_address).length > 0 && (
-            <p className="text-saif-dim mt-1">
-              {[order.shipping_address.address, order.shipping_address.city, order.shipping_address.governorate].filter(Boolean).join(', ')}
-            </p>
-          )}
-          {order.notes && <p className="text-saif-dim mt-2 italic">“{order.notes}”</p>}
-        </section>
-
-        <div className="mt-8 flex gap-3">
-          <Link to="/orders" className="btn text-xs">All Orders</Link>
-          <Link to="/products" className="btn text-xs">Continue Shopping</Link>
-        </div>
-      </div>
-
-      {/* Payment (re)submission */}
-      <Modal open={payModal} onClose={() => setPayModal(false)} title="Submit Payment" wide>
-        <PaymentEvidenceForm
-          orderId={order.id}
-          expectedAmount={order.total}
-          defaultMethod={order.payment_method}
-          onDone={() => { setPayModal(false); refetch() }}
-        />
-      </Modal>
-    </div>
-  )
+const EVENT_ICONS: Record<string, typeof Clock> = {
+  order_created: Package,
+  status_change: CheckCircle2,
+  payment_submitted: Upload,
+  payment_reviewed: ShieldCheck,
+  note: FileImage,
+  fulfillment: Zap,
+  cancellation: AlertTriangle,
 }
 
-function OrderTimeline({ order }: { order: Order }) {
-  const cancelled = ['cancelled', 'refunded', 'rejected'].includes(order.status)
-  const currentIndex = ORDER_TIMELINE.indexOf(order.status)
-  // delivered/completed both count as final step.
-  const effectiveIndex = order.status === 'completed' || order.status === 'delivered'
-    ? ORDER_TIMELINE.length - 1
-    : currentIndex
+const TIMELINE_STATUS_ORDER: PaymentStatus[] = ['awaiting_payment', 'payment_submitted', 'under_review', 'approved']
 
-  if (cancelled) {
+export default function OrderDetailPage() {
+  const { t, lang, formatPrice, isRTL } = useI18n()
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const { order, loading, refetch } = useOrder(id)
+  const { settings } = useApp()
+  const { addToast } = useToast()
+  const { addItem } = useCart()
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+
+  // Payment resubmission state
+  const [resubmitOpen, setResubmitOpen] = useState(false)
+  const [payerIdentifier, setPayerIdentifier] = useState('')
+  const [transferredAmount, setTransferredAmount] = useState('')
+  const [customerNote, setCustomerNote] = useState('')
+  const [screenshot, setScreenshot] = useState<File | null>(null)
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null)
+  const [errors, setErrors] = useState<FieldErrors>({})
+  const [submitting, setSubmitting] = useState(false)
+  const [signedUrl, setSignedUrl] = useState<string | null>(null)
+  const [urlLoading, setUrlLoading] = useState(false)
+
+  usePageMeta({ title: order ? `Order ${order.order_number}` : 'Order', description: 'Order details and payment status.' })
+
+  const currency = settings?.currency ?? 'EGP'
+  const payment = order?.payment ?? null
+  const receivingNumber = settings?.payment_number || '01040324811'
+
+  useEffect(() => {
+    if (!payment?.screenshot_path) return
+    setUrlLoading(true)
+    createScreenshotSignedUrl(payment.screenshot_path).then(url => {
+      setSignedUrl(url)
+      setUrlLoading(false)
+    })
+  }, [payment?.screenshot_path])
+
+  const canResubmit = payment ? CUSTOMER_CAN_RESUBMIT.includes(payment.payment_status) : false
+  const canCancel =
+    order &&
+    ['payment_review', 'pending'].includes(order.status) &&
+    ['awaiting_payment', 'rejected'].includes(order.payment_status ?? '')
+
+  function openResubmit() {
+    setPayerIdentifier(payment?.payer_identifier ?? '')
+    setTransferredAmount(payment?.expected_amount ? String(payment.expected_amount) : String(order?.total ?? ''))
+    setCustomerNote('')
+    setScreenshot(null)
+    setScreenshotPreview(null)
+    setErrors({})
+    setResubmitOpen(true)
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const err = validateScreenshotFile(file)
+    if (err) {
+      setErrors(prev => ({ ...prev, screenshot: err }))
+      e.target.value = ''
+      return
+    }
+    setErrors(prev => ({ ...prev, screenshot: undefined }))
+    setScreenshot(file)
+    const reader = new FileReader()
+    reader.onload = () => setScreenshotPreview(reader.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  async function handleResubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!order || !payment) return
+    const errs: FieldErrors = {}
+    errs.payerIdentifier = validatePayerIdentifier(payerIdentifier, payment.payment_method)
+    errs.transferredAmount = validateAmount(transferredAmount, order.total)
+    if (!screenshot && !payment.screenshot_path) errs.screenshot = 'Upload a screenshot of your transfer'
+    setErrors(errs)
+    if (Object.values(errs).some(v => v)) return
+
+    setSubmitting(true)
+    try {
+      let path = payment.screenshot_path
+      if (screenshot) {
+        const upload = await uploadPaymentScreenshot(order.user_id, screenshot, order.id)
+        if (upload.error || !upload.path) {
+          addToast(upload.error || 'Upload failed — please try again', 'error')
+          setSubmitting(false)
+          return
+        }
+        path = upload.path
+      }
+
+      const { error } = await submitPayment({
+        orderId: order.id,
+        payerIdentifier: payerIdentifier.trim(),
+        transferredAmount: Number(transferredAmount),
+        screenshotPath: path!,
+        customerNote: customerNote.trim() || null,
+      })
+      if (error) {
+        addToast(error || t('errors.generic'), 'error')
+      } else {
+        addToast(t('payment.submittedToast'))
+        setResubmitOpen(false)
+        refetch()
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleCancel() {
+    if (!order) return
+    setCancelling(true)
+    const { error } = await customerCancelOrder(order.id)
+    setCancelling(false)
+    setCancelOpen(false)
+    if (error) {
+      addToast(error || t('errors.generic'), 'error')
+    } else {
+      addToast(t('orders.cancelled'))
+      refetch()
+    }
+  }
+
+  async function handleReorder() {
+    if (!order?.items?.length) return
+    const { data: products } = await supabase
+      .from('products')
+      .select('*, categories(*), variants:product_variants(*)')
+      .in('id', order.items.map(i => i.product_id))
+    let added = 0
+    for (const item of order.items) {
+      const product = (products || []).find((p: { id: string }) => p.id === item.product_id)
+      if (!product || product.status !== 'active') continue
+      const variant = product.variants?.find((v: { id: string }) => v.id === item.variant_id) ?? null
+      const result = addItem(product, variant, item.quantity)
+      if (result.ok) added++
+    }
+    if (added > 0) {
+      addToast(t('orders.reordered', { count: added }))
+      navigate('/cart')
+    } else {
+      addToast(t('orders.noLongerAvailable'), 'error')
+    }
+  }
+
+  async function handleCopyNumber() {
+    if (!order) return
+    const ok = await copyToClipboard(order.order_number)
+    addToast(ok ? t('orders.copied') : t('errors.generic'), ok ? 'success' : 'error')
+  }
+
+  if (loading) {
     return (
-      <div className="border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-400">
-        This order was {ORDER_STATUS_LABELS[order.status].toLowerCase()}. If you believe this is a mistake, contact support.
+      <div className="pt-28">
+        <Loading />
+        <Footer />
       </div>
     )
   }
 
+  if (!order) {
+    return (
+      <div className="pt-28 px-5">
+        <EmptyState
+          title={t('orders.notFound')}
+          description={t('orders.notFoundDesc')}
+          action={
+            <Link to="/orders" className="btn btn-sm">
+              My Orders
+            </Link>
+          }
+        />
+        <Footer />
+      </div>
+    )
+  }
+
+  const events = (order.events ?? []) as OrderEvent[]
+  const shipping = order.shipping_address as { address?: string; governorate?: string; city?: string } | null
+  const hasPhysicalItems = order.items?.some(i => i.product_type === 'physical')
+  const currentPaymentStep = payment ? TIMELINE_STATUS_ORDER.indexOf(payment.payment_status) : -1
+
   return (
-    <ol className="flex items-start gap-0 overflow-x-auto pb-2" aria-label="Order progress">
-      {ORDER_TIMELINE.map((s, i) => {
-        const done = effectiveIndex >= 0 && i <= effectiveIndex
-        const current = i === effectiveIndex
-        return (
-          <li key={s} className="flex-1 min-w-[90px] text-center relative">
-            {i > 0 && (
-              <span className={`absolute top-[9px] right-1/2 w-full h-px ${done && i <= effectiveIndex ? 'bg-saif-accent' : 'bg-saif-border'}`} aria-hidden="true" />
+    <div className="animate-[pageIn_0.6s_ease] pt-24 md:pt-28 px-5 lg:px-10 pb-20">
+      <div className="max-w-4xl mx-auto">
+        <Link to="/orders" className="text-xs text-saif-dim hover:text-saif-text transition-colors inline-flex items-center gap-1 mb-6">
+          ← {t('orders.allOrders')}
+        </Link>
+
+        <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-saif-text flex items-center gap-3 flex-wrap">
+              {order.order_number}
+              <button onClick={handleCopyNumber} className="text-saif-dim hover:text-saif-accent transition-colors" aria-label={t('orders.copyOrderNumber')}>
+                <Copy size={16} />
+              </button>
+            </h1>
+            <p className="text-sm text-saif-dim mt-2">{formatDate(order.created_at, true)}</p>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <OrderStatusBadge status={order.status} />
+            <PaymentStatusBadge status={order.payment_status} />
+          </div>
+        </div>
+
+        {/* Payment status banner */}
+        {payment && (payment.payment_status === 'awaiting_payment' || payment.payment_status === 'rejected') && (
+          <div
+            className={cn(
+              'border p-5 rounded-sm mb-8',
+              payment.payment_status === 'rejected' ? 'border-red-500/40 bg-red-500/[0.04]' : 'border-yellow-500/40 bg-yellow-500/[0.03]',
             )}
-            <span className={`relative z-10 inline-flex w-5 h-5 rounded-full border-2 items-center justify-center ${
-              done ? 'bg-saif-accent border-saif-accent' : 'bg-black border-saif-border'
-            }`}>
-              {done && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
-            </span>
-            <p className={`mt-2 text-[10px] uppercase tracking-wider ${current ? 'text-saif-text font-bold' : done ? 'text-saif-dim' : 'text-saif-dim/40'}`}>
-              {ORDER_STATUS_LABELS[s]}
+          >
+            <h2 className="text-sm font-bold text-saif-text flex items-center gap-2 mb-2">
+              <AlertTriangle size={15} className={payment.payment_status === 'rejected' ? 'text-red-400' : 'text-yellow-400'} />
+              {payment.payment_status === 'rejected' ? 'Payment rejected' : 'Payment pending'}
+            </h2>
+            {payment.payment_status === 'rejected' ? (
+              <p className="text-sm text-saif-dim mb-3">
+                Reason: <span className="text-red-400">{payment.rejection_reason}</span>. You can resubmit correct payment
+                proof below.
+              </p>
+            ) : (
+              <p className="text-sm text-saif-dim mb-3">
+                Transfer {formatPrice(payment.expected_amount)} to {receivingNumber} via{' '}
+                {PAYMENT_METHOD_LABELS[payment.payment_method]} and upload your screenshot.
+              </p>
+            )}
+            <div className="flex flex-wrap gap-3">
+              <button onClick={openResubmit} className="btn btn-sm btn-primary">
+                <Upload size={13} /> Submit Payment Proof
+              </button>
+              {canCancel && (
+                <button onClick={() => setCancelOpen(true)} className="btn btn-sm btn-danger">
+                  Cancel Order
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {payment && payment.payment_status === 'under_review' && (
+          <div className="border border-purple-500/40 bg-purple-500/[0.03] p-5 rounded-sm mb-8 flex items-center gap-3">
+            <Loader2 size={16} className="text-purple-400 animate-spin" />
+            <p className="text-sm text-saif-dim">
+              Your payment is <span className="text-purple-400 font-semibold">under review</span>. We verify transfers
+              manually — usually within a few hours.
             </p>
-          </li>
-        )
-      })}
-    </ol>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
+          <div className="space-y-8">
+            {/* Items */}
+            <section className="border border-saif-border rounded-sm p-6">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-5">{t('orders.items')}</h2>
+              <div className="space-y-4">
+                {order.items?.map(item => (
+                  <div key={item.id} className="flex gap-4">
+                    <div className="w-16 h-20 bg-saif-panel overflow-hidden flex-shrink-0 rounded-sm">
+                      {item.image && <img src={item.image} alt="" className="w-full h-full object-cover" loading="lazy" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-saif-text">{item.product_name}</p>
+                          {item.variant_name && <p className="text-xs text-saif-dim mt-0.5">{item.variant_name}</p>}
+                          {item.product_type === 'digital' && (
+                            <span className="text-[10px] text-saif-accent uppercase tracking-wider">Digital</span>
+                          )}
+                        </div>
+                        <span className="text-sm font-semibold text-saif-text flex-shrink-0">
+                          {formatPrice(item.total)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-saif-dim mt-1">
+                        {formatPrice(item.price)} × {item.quantity}
+                      </p>
+
+                      {/* Digital fulfillment (only shown after payment approval) */}
+                      {item.product_type === 'digital' && item.fulfillment_note && order.payment_status === 'approved' && (
+                        <div className="mt-3 border border-green-500/30 bg-green-500/5 p-3 rounded-sm">
+                          <p className="text-xs font-semibold text-green-400 flex items-center gap-1.5 mb-1">
+                            <Zap size={11} /> Digital delivery
+                          </p>
+                          <p className="text-xs text-saif-dim whitespace-pre-line">{item.fulfillment_note}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t border-saif-border mt-5 pt-5 space-y-2 text-sm">
+                <div className="flex justify-between text-saif-dim">
+                  <span>Subtotal</span>
+                  <span className="text-saif-text">{formatPrice(order.subtotal)}</span>
+                </div>
+                {order.discount > 0 && (
+                  <div className="flex justify-between text-saif-dim">
+                    <span>Discount {order.coupon_code ? <span className="font-mono text-green-400 text-xs">({order.coupon_code})</span> : null}</span>
+                    <span className="text-green-400">−{formatPrice(order.discount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-saif-dim">
+                  <span>Shipping</span>
+                  <span className="text-saif-text">
+                    {hasPhysicalItems ? (order.shipping_fee === 0 ? 'Free' : formatPrice(order.shipping_fee)) : '—'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-base font-bold text-saif-text pt-2 border-t border-saif-border">
+                  <span>Total</span>
+                  <span>{formatPrice(order.total)}</span>
+                </div>
+              </div>
+            </section>
+
+            {/* Timeline */}
+            {events.length > 0 && (
+              <section className="border border-saif-border rounded-sm p-6">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-5">{t('orders.timeline')}</h2>
+                <ol className="relative border-l border-saif-border ml-2 space-y-6">
+                  {events.map(event => {
+                    const Icon = EVENT_ICONS[event.event_type] ?? Clock
+                    return (
+                      <li key={event.id} className="ml-5">
+                        <span className="absolute -left-[13px] w-6 h-6 bg-black border border-saif-border rounded-full flex items-center justify-center">
+                          <Icon size={11} className="text-saif-accent" />
+                        </span>
+                        <p className="text-sm text-saif-text">{event.message || event.event_type.replace(/_/g, ' ')}</p>
+                        <p className="text-xs text-saif-dim mt-0.5">{formatDate(event.created_at, true)}</p>
+                      </li>
+                    )
+                  })}
+                </ol>
+              </section>
+            )}
+          </div>
+
+          {/* Sidebar */}
+          <aside className="space-y-6">
+            {/* Payment card */}
+            {payment && (
+              <section className="border border-saif-border rounded-sm p-5">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-saif-text mb-4">{t('orders.payment')}</h2>
+
+                {/* Progress steps */}
+                <div className="space-y-3 mb-5">
+                  {[
+                    { key: 'awaiting_payment', label: t('payment.progressPlaced') },
+                    { key: 'payment_submitted', label: t('payment.progressSubmitted') },
+                    { key: 'under_review', label: t('payment.progressUnderReview') },
+                    { key: 'approved', label: t('payment.progressApproved') },
+                  ].map((step, i) => {
+                    const done =
+                      i <= currentPaymentStep ||
+                      (payment.payment_status === 'rejected' && i <= 1) ||
+                      payment.payment_status === 'approved'
+                    const rejected = payment.payment_status === 'rejected' && i === 3
+                    return (
+                      <div key={step.key} className="flex items-center gap-3">
+                        <span
+                          className={cn(
+                            'w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0',
+                            rejected
+                              ? 'border-red-500 bg-red-500/20'
+                              : done
+                                ? 'border-green-500 bg-green-500/20'
+                                : 'border-saif-border',
+                          )}
+                        >
+                          {rejected ? (
+                            <X size={10} className="text-red-400" />
+                          ) : done ? (
+                            <CheckCircle2 size={10} className="text-green-400" />
+                          ) : null}
+                        </span>
+                        <span className={cn('text-xs', done ? 'text-saif-text' : 'text-saif-faint')}>{step.label}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <dl className="space-y-2.5 text-xs">
+                  <div className="flex justify-between gap-2">
+                    <dt className="text-saif-dim">{t('payment.method')}</dt>
+                    <dd className="text-saif-text">{PAYMENT_METHOD_LABELS[payment.payment_method]}</dd>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <dt className="text-saif-dim">{t('payment.expected')}</dt>
+                    <dd className="text-saif-text">{formatPrice(payment.expected_amount)}</dd>
+                  </div>
+                  {payment.transferred_amount !== null && (
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-saif-dim">{t('payment.transferred')}</dt>
+                      <dd className="text-saif-text">{formatPrice(payment.transferred_amount)}</dd>
+                    </div>
+                  )}
+                  {payment.payer_identifier && (
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-saif-dim">{t('payment.paidFrom')}</dt>
+                      <dd className="text-saif-text font-mono">{payment.payer_identifier}</dd>
+                    </div>
+                  )}
+                  {payment.verified_at && (
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-saif-dim">{t('payment.verified')}</dt>
+                      <dd className="text-saif-text">{formatDate(payment.verified_at, true)}</dd>
+                    </div>
+                  )}
+                </dl>
+
+                {payment.rejection_reason && (
+                  <p className="text-xs text-red-400 mt-3 border-t border-saif-border pt-3">
+                    Rejection reason: {payment.rejection_reason}
+                  </p>
+                )}
+
+                {/* Screenshot */}
+                {payment.screenshot_path && (
+                  <div className="mt-4 border-t border-saif-border pt-4">
+                    <p className="text-xs text-saif-dim mb-2">{t('payment.yourScreenshot')}</p>
+                    {urlLoading ? (
+                      <div className="h-32 skeleton rounded-sm" />
+                    ) : signedUrl ? (
+                      <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="block group">
+                        <img
+                          src={signedUrl}
+                          alt="Transfer screenshot"
+                          className="w-full h-32 object-cover rounded-sm border border-saif-border group-hover:border-saif-text transition-colors"
+                        />
+                      </a>
+                    ) : (
+                      <p className="text-xs text-saif-dim">{t('payment.screenshotUnavailable')}</p>
+                    )}
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* Delivery */}
+            <section className="border border-saif-border rounded-sm p-5">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-saif-text mb-4 flex items-center gap-2">
+                <Truck size={13} /> Delivery
+              </h2>
+              {shipping?.address ? (
+                <div className="text-xs text-saif-dim space-y-1">
+                  <p className="text-saif-text text-sm">{order.customer_name}</p>
+                  <p>{shipping.address}</p>
+                  <p>
+                    {shipping.city}
+                    {shipping.governorate ? `, ${shipping.governorate}` : ''}
+                  </p>
+                  <p className="pt-2">{order.customer_phone}</p>
+                  <p>{order.customer_email}</p>
+                </div>
+              ) : (
+                <p className="text-xs text-saif-dim">Digital order — nothing to ship.</p>
+              )}
+              {order.notes && (
+                <p className="text-xs text-saif-dim mt-3 border-t border-saif-border pt-3">
+                  <span className="text-saif-text">Your note:</span> {order.notes}
+                </p>
+              )}
+            </section>
+
+            <button onClick={handleReorder} className="btn btn-sm w-full">
+              <RotateCcw size={13} /> Reorder Items
+            </button>
+          </aside>
+        </div>
+      </div>
+
+      {/* Cancel confirmation */}
+      <ConfirmDialog
+        open={cancelOpen}
+        onClose={() => setCancelOpen(false)}
+        onConfirm={handleCancel}
+        title={t('orders.cancelTitle')}
+        message={t('orders.cancelDesc')}
+        confirmLabel={t('orders.cancelConfirm')}
+        danger
+        busy={cancelling}
+      />
+
+      {/* Resubmit payment modal */}
+      {resubmitOpen && payment && order && (
+        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true" aria-label={t('payment.resubmit')}>
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => (submitting ? undefined : setResubmitOpen(false))} />
+          <div className="relative w-full bg-black border border-saif-border max-w-lg max-h-[92vh] overflow-y-auto animate-scaleIn rounded-t-lg sm:rounded-sm">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-saif-border sticky top-0 bg-black z-10">
+              <h2 className="text-base font-bold tracking-tight text-saif-text">{t('payment.resubmitTitle')}</h2>
+              <button onClick={() => setResubmitOpen(false)} className="text-saif-dim hover:text-saif-text p-1" aria-label={t('common.close')} disabled={submitting}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleResubmit} className="p-6 space-y-5">
+              {/* Instructions */}
+              <div className="border border-saif-accent/40 bg-saif-accent/5 p-4 rounded-sm text-xs text-saif-dim leading-relaxed">
+                <p className="text-saif-text font-semibold mb-1.5">
+                  {PAYMENT_METHOD_LABELS[payment.payment_method]} · {receivingNumber}
+                </p>
+                <p className="font-bold text-saif-accent text-sm mb-2">
+                  Transfer exactly {formatPrice(payment.expected_amount)}
+                </p>
+                <ul className="list-disc list-inside space-y-1">
+                  {getPaymentInstructions(payment.payment_method, receivingNumber).map(line => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <div>
+                <label className="label" htmlFor="re-payer">
+                  {payment.payment_method === 'vodafone_cash' ? 'Vodafone number you paid from' : 'Phone / account you paid from'}
+                </label>
+                <input
+                  id="re-payer"
+                  className={cn('input', errors.payerIdentifier && 'input-error')}
+                  value={payerIdentifier}
+                  onChange={e => setPayerIdentifier(e.target.value)}
+                />
+                {errors.payerIdentifier && <p className="field-error">{errors.payerIdentifier}</p>}
+              </div>
+
+              <div>
+                <label className="label" htmlFor="re-amount">{t('checkout.transferredAmount')}</label>
+                <input
+                  id="re-amount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className={cn('input', errors.transferredAmount && 'input-error')}
+                  value={transferredAmount}
+                  onChange={e => setTransferredAmount(e.target.value)}
+                />
+                {errors.transferredAmount && <p className="field-error">{errors.transferredAmount}</p>}
+              </div>
+
+              <div>
+                <span className="label">Transfer Screenshot {payment.screenshot_path ? '(replace if needed)' : '*'}</span>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={handleFileSelect}
+                  className="sr-only"
+                  id="re-screenshot"
+                />
+                {!screenshot ? (
+                  <label
+                    htmlFor="re-screenshot"
+                    className={cn(
+                      'flex flex-col items-center gap-2 border border-dashed p-6 cursor-pointer hover:border-saif-dim transition-colors rounded-sm text-center',
+                      errors.screenshot && 'border-saif-accent/60',
+                    )}
+                  >
+                    <Upload size={20} className="text-saif-dim" />
+                    <span className="text-xs text-saif-dim">
+                      {payment.screenshot_path ? 'Choose a new screenshot (optional)' : `PNG, JPG or WEBP · max ${MAX_SCREENSHOT_SIZE_MB}MB`}
+                    </span>
+                  </label>
+                ) : (
+                  <div className="flex items-center gap-3 border border-saif-border p-3 rounded-sm">
+                    <div className="w-12 h-12 bg-saif-panel overflow-hidden rounded-sm flex-shrink-0">
+                      {screenshotPreview && <img src={screenshotPreview} alt="" className="w-full h-full object-cover" />}
+                    </div>
+                    <p className="text-xs text-saif-text truncate flex-1">{screenshot.name}</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setScreenshot(null)
+                        setScreenshotPreview(null)
+                      }}
+                      className="p-1 text-saif-dim hover:text-saif-accent"
+                      aria-label={t('a11y.removeItem', { name: t('checkout.uploadScreenshot') })}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+                {errors.screenshot && <p className="field-error">{errors.screenshot}</p>}
+              </div>
+
+              <div>
+                <label className="label" htmlFor="re-note">Note (Optional)</label>
+                <textarea
+                  id="re-note"
+                  className="input resize-none"
+                  rows={2}
+                  value={customerNote}
+                  onChange={e => setCustomerNote(e.target.value)}
+                />
+              </div>
+
+              <button type="submit" className="btn btn-primary w-full" disabled={submitting}>
+                {submitting ? 'Submitting…' : 'Submit for Review'}
+              </button>
+              <p className="text-xs text-saif-dim text-center">
+                The payment will be marked as under review — approval is always manual.
+              </p>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <Footer />
+    </div>
   )
 }

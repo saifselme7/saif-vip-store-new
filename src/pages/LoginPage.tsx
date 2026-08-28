@@ -1,48 +1,77 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
-import { useApp } from '@/context/AppContext'
+import { useToast } from '@/context/ToastContext'
 import { usePageMeta } from '@/hooks/usePageMeta'
+import { validateEmail, type FieldErrors } from '@/lib/validation'
+import { cn } from '@/lib/utils'
+import { useI18n } from '@/i18n'
 
 export default function LoginPage() {
+  const { t } = useI18n()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const redirectTo = searchParams.get('redirect') || '/'
   const { signIn } = useAuth()
-  const { addToast } = useApp()
+  const { addToast } = useToast()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-
-  usePageMeta('Sign In', 'Sign in to your SAIF STORE account.')
-  const next = searchParams.get('next')
+  const [errors, setErrors] = useState<FieldErrors>({})
+  usePageMeta({ title: 'Sign In', description: 'Sign in to your SAIF STORE account.' })
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    const errs: FieldErrors = {
+      email: validateEmail(email),
+      password: password ? undefined : 'Password is required',
+    }
+    setErrors(errs)
+    if (Object.values(errs).some(v => v)) return
+
     setLoading(true)
     const { error } = await signIn(email, password)
     setLoading(false)
     if (error) {
-      addToast(error.message || 'Login failed', 'error')
+      addToast(error || t('errors.generic'), 'error')
     } else {
-      addToast('Welcome back!')
-      navigate(next && next.startsWith('/') ? next : '/', { replace: true })
+      addToast(t('auth.welcomeBack'))
+      navigate(redirectTo, { replace: true })
     }
   }
 
   return (
-    <div className="min-h-[70vh] flex items-center justify-center px-6 py-16">
-      <div className="w-full max-w-sm animate-[pageIn_0.5s_ease]">
-        <h1 className="text-3xl font-black tracking-tighter text-saif-text mb-2">Sign In</h1>
-        <p className="text-sm text-saif-dim mb-8">Welcome back to SAIF STORE.</p>
+    <div className="min-h-screen flex items-center justify-center px-5 pt-20">
+      <div className="w-full max-w-sm">
+        <h1 className="text-3xl font-black tracking-tighter text-saif-text mb-2">{t('auth.signInTitle')}</h1>
+        <p className="text-sm text-saif-dim mb-8">{t('auth.signInSubtitle')}</p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
-            <label htmlFor="login-email" className="label">Email</label>
-            <input id="login-email" required type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className="input" />
+            <label className="label" htmlFor="li-email">{t('auth.email')}</label>
+            <input
+              id="li-email"
+              required
+              type="email"
+              className={cn('input', errors.email && 'input-error')}
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              autoComplete="email"
+            />
+            {errors.email && <p className="field-error">{errors.email}</p>}
           </div>
           <div>
-            <label htmlFor="login-password" className="label">Password</label>
-            <input id="login-password" required type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} className="input" />
+            <label className="label" htmlFor="li-password">{t('auth.password')}</label>
+            <input
+              id="li-password"
+              required
+              type="password"
+              className={cn('input', errors.password && 'input-error')}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              autoComplete="current-password"
+            />
+            {errors.password && <p className="field-error">{errors.password}</p>}
           </div>
           <button type="submit" disabled={loading} className="btn btn-primary w-full">
             {loading ? 'Signing in…' : 'Sign In'}
@@ -50,8 +79,10 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-6 text-sm text-saif-dim text-center">
-          Don&apos;t have an account?{' '}
-          <Link to={`/register${next ? `?next=${encodeURIComponent(next)}` : ''}`} className="text-saif-text hover:underline">Create one</Link>
+          {t('auth.noAccount')}{' '}
+          <Link to={`/register?redirect=${encodeURIComponent(redirectTo)}`} className="text-saif-text hover:underline">
+            Create one
+          </Link>
         </p>
       </div>
     </div>

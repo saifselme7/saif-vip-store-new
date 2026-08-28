@@ -1,116 +1,195 @@
+import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Clock, Copy, CheckCircle2 } from 'lucide-react'
-import { useOrder, latestPayment } from '@/hooks/useOrders'
+import { CheckCircle2, Clock, Copy, ArrowRight, ShieldCheck } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 import { useApp } from '@/context/AppContext'
+import { useToast } from '@/context/ToastContext'
 import { usePageMeta } from '@/hooks/usePageMeta'
-import { PAYMENT_METHODS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS } from '@/lib/constants'
-import { formatPrice, formatDateTime, copyToClipboard } from '@/lib/utils'
+import { formatPrice, formatDate, copyToClipboard, cn } from '@/lib/utils'
+import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
+import { OrderStatusBadge, PaymentStatusBadge } from '@/components/ui/StatusBadge'
+import Footer from '@/components/Footer'
 import Loading from '@/components/Loading'
-import Price from '@/components/ui/Price'
-import { StatusBadge } from '@/components/ui/Badge'
+import EmptyState from '@/components/EmptyState'
+import type { Order } from '@/types'
+import { useI18n } from '@/i18n'
 
 export default function OrderConfirmationPage() {
+  const { t, lang, formatPrice } = useI18n()
   const { id } = useParams<{ id: string }>()
-  const { order, loading } = useOrder(id)
-  const { settings, addToast } = useApp()
+  const { settings } = useApp()
+  const { addToast } = useToast()
+  const [order, setOrder] = useState<Order | null>(null)
+  const [loading, setLoading] = useState(true)
+  usePageMeta({ title: 'Order Confirmation', description: 'Your SAIF STORE order has been placed.' })
 
-  usePageMeta('Order Received', 'Your SAIF STORE order has been received.')
+  useEffect(() => {
+    async function fetch() {
+      if (!id) return
+      const { data } = await supabase
+        .from('orders')
+        .select('*, order_items(*)')
+        .eq('id', id)
+        .maybeSingle()
+      setOrder((data as unknown as Order) ?? null)
+      setLoading(false)
+    }
+    fetch()
+  }, [id])
 
-  if (loading) return <div className="pt-16"><Loading /></div>
-  if (!order) return (
-    <div className="pt-16 px-6 text-center min-h-[50vh]">
-      <p className="text-saif-dim">Order not found.</p>
-      <Link to="/orders" className="btn mt-4 text-xs">My Orders</Link>
-    </div>
-  )
+  const currency = settings?.currency ?? 'EGP'
+  const payment = order?.payment
 
-  const payment = latestPayment(order)
-  const currency = settings?.currency || 'EGP'
-  const methodName = PAYMENT_METHODS.find(m => m.id === order.payment_method)?.name || order.payment_method
+  async function handleCopy() {
+    if (!order) return
+    const ok = await copyToClipboard(order.order_number)
+    addToast(ok ? t('orders.copied') : t('errors.generic'), ok ? 'success' : 'error')
+  }
+
+  if (loading) {
+    return (
+      <div className="pt-28">
+        <Loading />
+        <Footer />
+      </div>
+    )
+  }
+
+  if (!order) {
+    return (
+      <div className="pt-28 px-5">
+        <EmptyState
+          title={t('orders.notFound')}
+          description="This order does not exist or belongs to another account."
+          action={
+            <Link to="/orders" className="btn btn-sm">
+              My Orders
+            </Link>
+          }
+        />
+        <Footer />
+      </div>
+    )
+  }
+
+  const underReview = order.payment_status === 'under_review' || order.payment_status === 'awaiting_payment'
 
   return (
-    <div className="animate-[pageIn_0.5s_ease] px-4 sm:px-6 lg:px-10 pt-14 pb-20">
+    <div className="animate-[pageIn_0.6s_ease] pt-24 md:pt-28 px-5 lg:px-10 pb-20">
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-400/10 border border-amber-400/30 mb-5">
-            <Clock size={26} className="text-amber-400" />
+          <div className="w-16 h-16 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center mx-auto mb-6">
+            <CheckCircle2 size={30} className="text-green-400" />
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-saif-text">Order Received</h1>
-          <p className="mt-3 text-sm text-saif-dim leading-relaxed max-w-md mx-auto">
-            {payment
-              ? 'Your payment proof was submitted and is now under manual review. We usually verify within a few hours — nothing is confirmed until then.'
-              : 'Your order was created. Submit your payment proof to start verification.'}
+          <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-saif-text mb-3">
+            {t('orders.confirmation.title')}
+          </h1>
+          <p className="text-sm text-saif-dim max-w-md mx-auto leading-relaxed">
+            {underReview
+              ? t('orders.confirmation.desc')
+              : 'Your order has been received.'}
           </p>
         </div>
 
-        <div className="border border-saif-border divide-y divide-[rgba(245,240,232,0.08)] mb-8">
-          <Row label="Order Number">
-            <span className="flex items-center gap-2">
-              <span className="font-bold text-saif-text">{order.order_number}</span>
-              <button
-                onClick={async () => {
-                  const ok = await copyToClipboard(order.order_number)
-                  addToast(ok ? 'Order number copied' : 'Could not copy', ok ? 'success' : 'error')
-                }}
-                className="p-1 border border-saif-border text-saif-dim hover:text-saif-text transition-colors"
-                aria-label="Copy order number"
-              >
-                <Copy size={11} />
-              </button>
-            </span>
-          </Row>
-          <Row label="Date">{formatDateTime(order.created_at)}</Row>
-          <Row label="Payment Method">{methodName || '—'}</Row>
-          <Row label="Payment Status">
-            <StatusBadge className={payment ? PAYMENT_STATUS_COLORS[payment.status] : PAYMENT_STATUS_COLORS.awaiting_payment}>
-              {payment ? PAYMENT_STATUS_LABELS[payment.status] : 'Awaiting Payment'}
-            </StatusBadge>
-          </Row>
-          <div className="p-5">
-            <p className="text-xs uppercase tracking-widest text-saif-dim mb-3">Items</p>
-            <div className="space-y-2">
-              {order.items?.map(item => (
-                <div key={item.id} className="flex justify-between text-sm">
-                  <span className="text-saif-dim">{item.product_name}{item.variant_name ? ` (${item.variant_name})` : ''} × {item.quantity}</span>
-                  <Price value={item.total} className="text-saif-text" />
-                </div>
-              ))}
+        <div className="border border-saif-border rounded-sm p-6 mb-6">
+          <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-2 text-sm font-bold text-saif-text hover:text-saif-accent transition-colors"
+              title={t('common.copy')}
+            >
+              {order.order_number}
+              <Copy size={13} className="text-saif-dim" />
+            </button>
+            <div className="flex gap-2 flex-wrap">
+              <OrderStatusBadge status={order.status} />
+              <PaymentStatusBadge status={order.payment_status} />
             </div>
-            <div className="mt-4 pt-3 border-t border-saif-border space-y-1.5 text-sm">
-              <div className="flex justify-between text-saif-dim"><span>Subtotal</span><Price value={order.subtotal} className="text-saif-text" /></div>
-              {order.discount > 0 && <div className="flex justify-between text-green-400"><span>Discount</span><span>−{formatPrice(order.discount, currency)}</span></div>}
-              <div className="flex justify-between text-saif-dim"><span>Shipping</span><span>{order.shipping_fee === 0 ? 'Free' : formatPrice(order.shipping_fee, currency)}</span></div>
-              <div className="flex justify-between text-base font-bold text-saif-text pt-1"><span>Total</span><Price value={order.total} className="text-saif-text" /></div>
+          </div>
+
+          <dl className="space-y-3 text-sm">
+            <div className="flex justify-between gap-4">
+              <dt className="text-saif-dim">{t('common.date')}</dt>
+              <dd className="text-saif-text">{formatDate(order.created_at, true)}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-saif-dim">{t('orders.confirmation.paymentMethod')}</dt>
+              <dd className="text-saif-text">{PAYMENT_METHOD_LABELS[order.payment_method!] ?? '—'}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-saif-dim">{t('orders.confirmation.deliverTo')}</dt>
+              <dd className="text-saif-text text-right">
+                {order.customer_name}
+                {order.shipping_address && (order.shipping_address as { city?: string }).city
+                  ? `, ${(order.shipping_address as { city?: string }).city}`
+                  : ` (${t('orders.confirmation.digitalNote')})`}
+              </dd>
+            </div>
+          </dl>
+
+          <div className="border-t border-saif-border mt-5 pt-5 space-y-2.5">
+            {order.items?.map(item => (
+              <div key={item.id} className="flex justify-between gap-4 text-sm">
+                <span className="text-saif-dim min-w-0 truncate">
+                  {item.product_name}
+                  {item.variant_name ? ` · ${item.variant_name}` : ''} × {item.quantity}
+                </span>
+                <span className="text-saif-text flex-shrink-0">{formatPrice(item.total)}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t border-saif-border mt-5 pt-5 space-y-2 text-sm">
+            <div className="flex justify-between text-saif-dim">
+              <span>{t('common.subtotal')}</span>
+              <span className="text-saif-text">{formatPrice(order.subtotal)}</span>
+            </div>
+            {order.discount > 0 && (
+              <div className="flex justify-between text-saif-dim">
+                <span>Discount {order.coupon_code ? <span className="font-mono text-green-400 text-xs">({order.coupon_code})</span> : null}</span>
+                <span className="text-green-400">−{formatPrice(order.discount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-saif-dim">
+              <span>{t('common.shipping')}</span>
+              <span className="text-saif-text">
+                {order.shipping_fee === 0 ? 'Free' : formatPrice(order.shipping_fee)}
+              </span>
+            </div>
+            <div className="flex justify-between text-base font-bold text-saif-text pt-2 border-t border-saif-border">
+              <span>{t('common.total')}</span>
+              <span>{formatPrice(order.total)}</span>
             </div>
           </div>
         </div>
 
-        {/* Next steps */}
-        <div className="border border-saif-border p-5 mb-8">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-saif-text mb-3 flex items-center gap-2">
-            <CheckCircle2 size={14} className="text-saif-accent" /> What happens next
+        {/* What happens next */}
+        <div className={cn('border rounded-sm p-6 mb-8', underReview ? 'border-yellow-500/30 bg-yellow-500/[0.03]' : 'border-saif-border')}>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text flex items-center gap-2 mb-4">
+            {underReview ? <Clock size={15} className="text-yellow-400" /> : <ShieldCheck size={15} className="text-green-400" />}
+            What happens next
           </h2>
-          <ol className="space-y-2 text-sm text-saif-dim list-decimal list-inside leading-relaxed">
-            <li>Our team verifies your transfer against the screenshot.</li>
-            <li>Once approved, your order is confirmed ({order.items?.some(i => i.product_type === 'digital') ? 'digital items are fulfilled and physical items ship' : 'physical items are prepared and shipped'}).</li>
-            <li>You can track everything from your order page — no need to contact us.</li>
+          <ol className="space-y-2.5 text-sm text-saif-dim">
+            <li>1. {t('orders.confirmation.next1', { method: PAYMENT_METHOD_LABELS[order.payment_method!] ?? '' })}</li>
+            <li>2. Once approved, your order moves to <span className="text-saif-text">Confirmed</span> and we start preparing it.</li>
+            <li>3. {t('orders.confirmation.next3')}</li>
           </ol>
+          <p className="text-xs text-saif-faint mt-4">
+            Your payment has <span className="text-saif-text font-semibold">not</span> been approved yet — this page will
+            update once verification is complete.
+          </p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Link to={`/orders/${order.id}`} className="btn btn-primary">Track This Order</Link>
-          <Link to="/products" className="btn">Continue Shopping</Link>
+          <Link to={`/orders/${order.id}`} className="btn btn-primary">
+            View Order Details <ArrowRight size={14} />
+          </Link>
+          <Link to="/products" className="btn">
+            Continue Shopping
+          </Link>
         </div>
       </div>
-    </div>
-  )
-}
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-4 p-5">
-      <span className="text-xs uppercase tracking-widest text-saif-dim">{label}</span>
-      <span className="text-sm text-saif-text">{children}</span>
+      <Footer />
     </div>
   )
 }
