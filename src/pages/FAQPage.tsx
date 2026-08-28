@@ -3,11 +3,13 @@ import { ChevronDown } from 'lucide-react'
 import Footer from '@/components/Footer'
 
 const faqs = [
-  { q: 'What is SAIF STORE?', a: 'SAIF STORE is a premium e-commerce platform offering fashion apparel and digital products.' },
-  { q: 'How do digital products work?', a: 'Digital products are delivered automatically after order confirmation. No shipping required.' },
-  { q: 'What is your return policy?', a: 'Physical items can be returned within 30 days. Digital products are non-refundable.' },
-  { q: 'How long does shipping take?', a: 'Orders are processed within 1-2 business days. Delivery varies by location.' },
-  { q: 'Is my data secure?', a: 'Yes. We use industry-standard encryption and never store payment details.' },
+  { q: 'What is SAIF STORE?', a: 'SAIF STORE is a premium e-commerce platform offering fashion apparel and digital products, based in Egypt.' },
+  { q: 'How do I pay?', a: 'We accept two manual payment methods: InstaPay and Vodafone Cash. After placing your order you transfer the exact total to the receiving number shown at checkout and upload a screenshot of the confirmation. Our team verifies the transfer manually, usually within a few hours.' },
+  { q: 'Why is my payment under review?', a: 'All InstaPay / Vodafone Cash transfers are verified manually by our team to prevent fraud. Your order is reserved as soon as it is placed, and it moves to Confirmed once the payment is approved.' },
+  { q: 'How do digital products work?', a: 'Digital products (such as social media packages) are delivered after your payment is verified. Delivery time depends on the package and is listed on each product page. No shipping is required.' },
+  { q: 'What is your return policy?', a: 'Physical items can be returned within 30 days. Digital products are non-refundable once delivered.' },
+  { q: 'How long does shipping take?', a: 'Orders are processed within 1-2 business days after payment approval. Delivery across Egypt varies by governorate.' },
+  { q: 'Is my data secure?', a: 'Yes. We use industry-standard encryption and never store payment details. Your transfer screenshots are stored privately and visible only to you and our verification team.' },
 ]
 
 export default function FAQPage() {

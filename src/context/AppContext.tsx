@@ -1,53 +1,32 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { SiteSettings } from '@/types'
 
-interface Toast {
-  id: string
-  message: string
-  type: 'success' | 'error' | 'info'
-}
-
 interface AppContextType {
   settings: SiteSettings | null
-  toasts: Toast[]
-  addToast: (message: string, type?: Toast['type']) => void
-  removeToast: (id: string) => void
-  mobileMenuOpen: boolean
-  setMobileMenuOpen: (v: boolean) => void
+  settingsLoading: boolean
+  refreshSettings: () => Promise<void>
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<SiteSettings | null>(null)
-  const [toasts, setToasts] = useState<Toast[]>([])
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [settingsLoading, setSettingsLoading] = useState(true)
 
-  useEffect(() => {
-    loadSettings()
-  }, [])
-
-  async function loadSettings() {
+  const refreshSettings = useCallback(async () => {
     const { data } = await supabase.from('site_settings').select('*').limit(1).maybeSingle()
     if (data) setSettings(data as SiteSettings)
-  }
+    setSettingsLoading(false)
+  }, [])
 
-  function addToast(message: string, type: Toast['type'] = 'success') {
-    const id = crypto.randomUUID()
-    setToasts(prev => [...prev, { id, message, type }])
-    setTimeout(() => removeToast(id), 3000)
-  }
+  useEffect(() => {
+    refreshSettings()
+  }, [refreshSettings])
 
-  function removeToast(id: string) {
-    setToasts(prev => prev.filter(t => t.id !== id))
-  }
+  const value = useMemo(() => ({ settings, settingsLoading, refreshSettings }), [settings, settingsLoading, refreshSettings])
 
-  return (
-    <AppContext.Provider value={{ settings, toasts, addToast, removeToast, mobileMenuOpen, setMobileMenuOpen }}>
-      {children}
-    </AppContext.Provider>
-  )
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }
 
 export function useApp() {

@@ -2,22 +2,34 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Category } from '@/types'
 
+let cache: Category[] | null = null
+
 export function useCategories() {
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
+  const [categories, setCategories] = useState<Category[]>(cache ?? [])
+  const [loading, setLoading] = useState(!cache)
 
   useEffect(() => {
-    async function fetch() {
-      const { data } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order')
-      setCategories((data || []) as Category[])
-      setLoading(false)
+    if (cache) return
+    let cancelled = false
+    supabase
+      .from('categories')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order')
+      .then(({ data }) => {
+        if (cancelled) return
+        cache = (data || []) as Category[]
+        setCategories(cache)
+        setLoading(false)
+      })
+    return () => {
+      cancelled = true
     }
-    fetch()
   }, [])
 
   return { categories, loading }
+}
+
+export function invalidateCategoriesCache() {
+  cache = null
 }

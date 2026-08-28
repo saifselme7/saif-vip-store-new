@@ -1,53 +1,182 @@
--- Seed data for SAIF STORE
+-- ============================================================
+-- SAIF STORE — Seed data (fresh install)
+-- Catalog priced in EGP for the Egyptian market
+-- (InstaPay / Vodafone Cash are EGP payment rails).
+-- ============================================================
 
--- Insert default site settings
-INSERT INTO site_settings (store_name, store_description, contact_email, currency, shipping_fee, hero_title, hero_subtitle, footer_text)
-VALUES (
+-- Site settings
+INSERT INTO site_settings (
+  store_name, store_description, contact_email, contact_phone, currency,
+  shipping_fee, free_shipping_threshold, payment_number,
+  instapay_enabled, vodafone_cash_enabled, payment_instructions,
+  announcement, hero_title, hero_subtitle, footer_text
+) VALUES (
   'SAIF STORE',
-  'Premium fashion and digital products.',
+  'Premium streetwear and digital products, curated in Egypt.',
   'hello@saifstore.com',
-  'USD',
-  5.00,
+  '01040324811',
+  'EGP',
+  75.00,
+  1500.00,
+  '01040324811',
+  true,
+  true,
+  'Transfer the exact order total, then upload a screenshot of the confirmation. Payments are verified manually, usually within a few hours.',
+  'Free shipping on orders over EGP 1,500',
   'SAIF STORE',
-  'Premium fashion and digital products. Carefully curated.',
+  'Premium streetwear and digital products. Carefully curated.',
   '© SAIF STORE. All rights reserved.'
 );
 
--- Insert categories
+-- Categories
 INSERT INTO categories (name, slug, description, sort_order, is_active) VALUES
-  ('T-Shirts', 't-shirts', 'Premium cotton tees', 1, true),
-  ('Hoodies', 'hoodies', 'Comfortable hoodies', 2, true),
-  ('Pants', 'pants', 'Streetwear bottoms', 3, true),
-  ('Accessories', 'accessories', 'Caps, bags, and more', 4, true),
-  ('Digital', 'digital', 'Digital services and products', 5, true);
+  ('T-Shirts', 't-shirts', 'Premium heavyweight cotton tees', 1, true),
+  ('Hoodies', 'hoodies', 'Oversized and classic hoodies', 2, true),
+  ('Streetwear', 'streetwear', 'Bottoms and layered pieces', 3, true),
+  ('Accessories', 'accessories', 'Caps, bags, beanies and more', 4, true),
+  ('Digital Products', 'digital-products', 'Digital goods and licenses', 5, true),
+  ('Social Media Services', 'social-media', 'Boost packages delivered after confirmation', 6, true);
 
--- Insert sample products (physical)
-INSERT INTO products (name, slug, description, short_description, price, compare_at_price, product_type, category_id, images, thumbnail, stock, sku, status, featured, bestseller, tags) VALUES
-  ('Off by Design Tee', 'off-by-design-tee', 'Made to be worn. Or judged. Or both. Premium heavyweight cotton with a minimal screen-printed design.', 'Premium heavyweight cotton tee.', 45.00, 55.00, 'physical', (SELECT id FROM categories WHERE slug = 't-shirts'), ARRAY['https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=800&q=80', 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=800&q=80'], 'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=800&q=80', 24, 'SAIF-TS-001', 'active', true, false, ARRAY['tee', 'cotton', 'minimal']),
-  ('Kerned Confidence Cap', 'kerned-confidence-cap', 'Designed with enough spacing to keep your thoughts aligned. Structured 6-panel cap with embroidered logo.', 'Structured cap with embroidered logo.', 35.00, NULL, 'physical', (SELECT id FROM categories WHERE slug = 'accessories'), ARRAY['https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=800&q=80'], 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=800&q=80', 18, 'SAIF-AC-001', 'active', false, true, ARRAY['cap', 'accessory']),
-  ('Positive Space Tote', 'positive-space-tote', 'For those who believe in leaving room to breathe. Heavy canvas tote with contrast stitching.', 'Heavy canvas tote bag.', 28.00, 35.00, 'physical', (SELECT id FROM categories WHERE slug = 'accessories'), ARRAY['https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=800&q=80'], 'https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=800&q=80', 32, 'SAIF-AC-002', 'active', true, false, ARRAY['tote', 'bag']),
-  ('Command K Hoodie', 'command-k-hoodie', 'The shortcut to comfort. Oversized fit hoodie with kangaroo pocket and tonal embroidery.', 'Oversized fit hoodie.', 68.00, NULL, 'physical', (SELECT id FROM categories WHERE slug = 'hoodies'), ARRAY['https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=800&q=80'], 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=800&q=80', 12, 'SAIF-HD-001', 'active', false, true, ARRAY['hoodie', 'oversized']),
-  ('Monochrome Joggers', 'monochrome-joggers', 'A declaration of intent. Relaxed fit joggers with elastic cuffs and side pockets.', 'Relaxed fit joggers.', 55.00, 70.00, 'physical', (SELECT id FROM categories WHERE slug = 'pants'), ARRAY['https://images.unsplash.com/photo-1517438476312-10d79c077509?w=800&q=80'], 'https://images.unsplash.com/photo-1517438476312-10d79c077509?w=800&q=80', 20, 'SAIF-PT-001', 'active', false, false, ARRAY['joggers', 'pants']),
-  ('Red Beanie', 'red-beanie', 'Warmth with an edge. Ribbed knit beanie in signature red.', 'Ribbed knit beanie.', 30.00, NULL, 'physical', (SELECT id FROM categories WHERE slug = 'accessories'), ARRAY['https://images.unsplash.com/photo-1576871337632-b9aef4c17ab9?w=800&q=80'], 'https://images.unsplash.com/photo-1576871337632-b9aef4c17ab9?w=800&q=80', 15, 'SAIF-AC-003', 'active', false, false, ARRAY['beanie', 'winter']);
+-- Physical products
+INSERT INTO products (name, slug, description, short_description, price, compare_at_price, product_type, category_id, images, thumbnail, stock, low_stock_threshold, sku, status, featured, bestseller, tags, specifications) VALUES
+  ('Off by Design Tee', 'off-by-design-tee',
+   'Made to be worn. Or judged. Or both. Premium 240gsm heavyweight cotton with a minimal screen-printed design. Pre-shrunk, boxy fit, built to outlast trends.',
+   '240gsm heavyweight cotton tee.',
+   850.00, 1050.00, 'physical', (SELECT id FROM categories WHERE slug = 't-shirts'),
+   ARRAY['https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=900&q=80', 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=900&q=80'],
+   'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=900&q=80',
+   24, 5, 'SAIF-TS-001', 'active', true, true, ARRAY['tee', 'cotton', 'minimal'],
+   '{"Material": "100% cotton, 240gsm", "Fit": "Boxy / oversized", "Care": "Machine wash cold, hang dry"}'::jsonb),
+  ('Layered Signal Tee', 'layered-signal-tee',
+   'A quiet tee with a loud grid. Mid-weight ring-spun cotton with a small chest hit and drop shoulder.',
+   'Mid-weight ring-spun cotton tee.',
+   720.00, NULL, 'physical', (SELECT id FROM categories WHERE slug = 't-shirts'),
+   ARRAY['https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=900&q=80'],
+   'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=900&q=80',
+   30, 5, 'SAIF-TS-002', 'active', false, false, ARRAY['tee', 'cotton'],
+   '{"Material": "100% ring-spun cotton", "Fit": "Regular"}'::jsonb),
+  ('Command K Hoodie', 'command-k-hoodie',
+   'The shortcut to comfort. 400gsm brushed fleece hoodie with kangaroo pocket, tonal embroidery and ribbed cuffs.',
+   '400gsm brushed fleece hoodie.',
+   1450.00, 1750.00, 'physical', (SELECT id FROM categories WHERE slug = 'hoodies'),
+   ARRAY['https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=900&q=80', 'https://images.unsplash.com/photo-1578768079052-aa76e52ff62e?w=900&q=80'],
+   'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=900&q=80',
+   12, 4, 'SAIF-HD-001', 'active', true, true, ARRAY['hoodie', 'oversized', 'fleece'],
+   '{"Material": "80% cotton / 20% polyester fleece", "Weight": "400gsm", "Fit": "Oversized"}'::jsonb),
+  ('Monochrome Joggers', 'monochrome-joggers',
+   'A declaration of intent. Relaxed fit joggers in heavy cotton twill with elastic cuffs and side pockets.',
+   'Heavy twill relaxed joggers.',
+   1100.00, 1400.00, 'physical', (SELECT id FROM categories WHERE slug = 'streetwear'),
+   ARRAY['https://images.unsplash.com/photo-1517438476312-10d79c077509?w=900&q=80'],
+   'https://images.unsplash.com/photo-1517438476312-10d79c077509?w=900&q=80',
+   20, 5, 'SAIF-SW-001', 'active', false, true, ARRAY['joggers', 'pants'],
+   '{"Material": "Cotton twill", "Fit": "Relaxed"}'::jsonb),
+  ('Static Cargo Pants', 'static-cargo-pants',
+   'Utility silhouette with six pockets and adjustable hem. Cut from durable ripstop cotton.',
+   'Ripstop utility cargo pants.',
+   1250.00, NULL, 'physical', (SELECT id FROM categories WHERE slug = 'streetwear'),
+   ARRAY['https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=900&q=80'],
+   'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=900&q=80',
+   14, 5, 'SAIF-SW-002', 'active', false, false, ARRAY['cargo', 'pants'],
+   '{"Material": "Cotton ripstop", "Pockets": "6"}'::jsonb),
+  ('Kerned Confidence Cap', 'kerned-confidence-cap',
+   'Designed with enough spacing to keep your thoughts aligned. Structured 6-panel cap with embroidered logo and brass clasp.',
+   'Structured 6-panel cap.',
+   650.00, NULL, 'physical', (SELECT id FROM categories WHERE slug = 'accessories'),
+   ARRAY['https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=900&q=80'],
+   'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=900&q=80',
+   18, 4, 'SAIF-AC-001', 'active', false, true, ARRAY['cap', 'accessory'],
+   '{"Material": "Cotton twill", "Closure": "Brass clasp"}'::jsonb),
+  ('Positive Space Tote', 'positive-space-tote',
+   'For those who believe in leaving room to breathe. 16oz heavy canvas tote with contrast stitching and inner pocket.',
+   '16oz heavy canvas tote.',
+   500.00, 650.00, 'physical', (SELECT id FROM categories WHERE slug = 'accessories'),
+   ARRAY['https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=900&q=80'],
+   'https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=900&q=80',
+   32, 6, 'SAIF-AC-002', 'active', true, false, ARRAY['tote', 'bag'],
+   '{"Material": "16oz canvas", "Dimensions": "38 × 42 × 12 cm"}'::jsonb),
+  ('Red Beanie', 'red-beanie',
+   'Warmth with an edge. Ribbed knit beanie in signature SAIF red with woven label.',
+   'Ribbed knit beanie.',
+   550.00, NULL, 'physical', (SELECT id FROM categories WHERE slug = 'accessories'),
+   ARRAY['https://images.unsplash.com/photo-1576871337632-b9aef4c17ab9?w=900&q=80'],
+   'https://images.unsplash.com/photo-1576871337632-b9aef4c17ab9?w=900&q=80',
+   15, 4, 'SAIF-AC-003', 'active', false, false, ARRAY['beanie', 'winter'],
+   '{"Material": "Acrylic ribbed knit"}'::jsonb);
 
--- Insert sample digital products
-INSERT INTO products (name, slug, description, short_description, price, product_type, category_id, images, thumbnail, stock, sku, status, featured, tags, metadata) VALUES
-  ('TikTok Followers — 1K', 'tiktok-followers-1k', 'Real TikTok followers delivered within 24 hours. No password required. Safe and secure.', '1,000 real TikTok followers.', 12.00, 'digital', (SELECT id FROM categories WHERE slug = 'digital'), ARRAY['https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800&q=80'], 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800&q=80', 999, 'SAIF-DG-001', 'active', true, ARRAY['tiktok', 'social', 'followers'], '{"delivery_time": "24h", "platform": "tiktok", "quantity": 1000}'::jsonb),
-  ('TikTok Followers — 5K', 'tiktok-followers-5k', 'Real TikTok followers delivered within 48 hours. No password required. Safe and secure.', '5,000 real TikTok followers.', 45.00, 'digital', (SELECT id FROM categories WHERE slug = 'digital'), ARRAY['https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800&q=80'], 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800&q=80', 999, 'SAIF-DG-002', 'active', false, ARRAY['tiktok', 'social', 'followers'], '{"delivery_time": "48h", "platform": "tiktok", "quantity": 5000}'::jsonb),
-  ('Instagram Likes — 500', 'instagram-likes-500', 'High-quality Instagram likes delivered instantly. Boost your engagement.', '500 Instagram likes.', 8.00, 'digital', (SELECT id FROM categories WHERE slug = 'digital'), ARRAY['https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=800&q=80'], 'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=800&q=80', 999, 'SAIF-DG-003', 'active', false, ARRAY['instagram', 'social', 'likes'], '{"delivery_time": "instant", "platform": "instagram", "quantity": 500}'::jsonb),
-  ('YouTube Views — 10K', 'youtube-views-10k', 'Real YouTube views to boost your video. Gradual delivery for safety.', '10,000 YouTube views.', 25.00, 'digital', (SELECT id FROM categories WHERE slug = 'digital'), ARRAY['https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=800&q=80'], 'https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=800&q=80', 999, 'SAIF-DG-004', 'active', false, ARRAY['youtube', 'social', 'views'], '{"delivery_time": "72h", "platform": "youtube", "quantity": 10000}'::jsonb);
+-- Digital products
+INSERT INTO products (name, slug, description, short_description, price, compare_at_price, product_type, category_id, images, thumbnail, stock, low_stock_threshold, sku, status, featured, bestseller, tags, metadata, delivery_info) VALUES
+  ('TikTok Followers — 1K', 'tiktok-followers-1k',
+   'A 1,000-follower boost package for your TikTok profile. No password required — only your username. Delivery starts after your order is confirmed.',
+   '1,000 TikTok followers.',
+   220.00, NULL, 'digital', (SELECT id FROM categories WHERE slug = 'social-media'),
+   ARRAY['https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=900&q=80'],
+   'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=900&q=80',
+   999, 0, 'SAIF-DG-001', 'active', true, true, ARRAY['tiktok', 'social'],
+   '{"delivery_time": "24-72h", "platform": "tiktok", "quantity": 1000}'::jsonb,
+   'Delivered within 24–72 hours after payment verification. You will be contacted on the phone number or email used at checkout.'),
+  ('TikTok Followers — 5K', 'tiktok-followers-5k',
+   'A 5,000-follower boost package for your TikTok profile. No password required — only your username. Delivery starts after your order is confirmed.',
+   '5,000 TikTok followers.',
+   950.00, 1100.00, 'digital', (SELECT id FROM categories WHERE slug = 'social-media'),
+   ARRAY['https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=900&q=80'],
+   'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=900&q=80',
+   999, 0, 'SAIF-DG-002', 'active', false, false, ARRAY['tiktok', 'social'],
+   '{"delivery_time": "48-96h", "platform": "tiktok", "quantity": 5000}'::jsonb,
+   'Delivered within 48–96 hours after payment verification. You will be contacted on the phone number or email used at checkout.'),
+  ('Instagram Likes — 500', 'instagram-likes-500',
+   'A 500-like package for an Instagram post of your choice. Just send the post link after checkout. Delivery starts after your order is confirmed.',
+   '500 Instagram likes.',
+   150.00, NULL, 'digital', (SELECT id FROM categories WHERE slug = 'social-media'),
+   ARRAY['https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=900&q=80'],
+   'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=900&q=80',
+   999, 0, 'SAIF-DG-003', 'active', false, false, ARRAY['instagram', 'social'],
+   '{"delivery_time": "up to 24h", "platform": "instagram", "quantity": 500}'::jsonb,
+   'Delivered within 24 hours after payment verification. You will be contacted to confirm the post link.'),
+  ('Instagram Followers — 1K', 'instagram-followers-1k',
+   'A 1,000-follower boost package for your Instagram profile. No password required — only your username. Delivery starts after your order is confirmed.',
+   '1,000 Instagram followers.',
+   260.00, NULL, 'digital', (SELECT id FROM categories WHERE slug = 'social-media'),
+   ARRAY['https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=900&q=80'],
+   'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=900&q=80',
+   999, 0, 'SAIF-DG-005', 'active', false, false, ARRAY['instagram', 'social'],
+   '{"delivery_time": "24-72h", "platform": "instagram", "quantity": 1000}'::jsonb,
+   'Delivered within 24–72 hours after payment verification. You will be contacted on the phone number or email used at checkout.'),
+  ('YouTube Views — 10K', 'youtube-views-10k',
+   'A 10,000-view package for one YouTube video, delivered gradually for a natural pace. Delivery starts after your order is confirmed.',
+   '10,000 YouTube views.',
+   420.00, 500.00, 'digital', (SELECT id FROM categories WHERE slug = 'social-media'),
+   ARRAY['https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=900&q=80'],
+   'https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=900&q=80',
+   999, 0, 'SAIF-DG-004', 'active', false, false, ARRAY['youtube', 'social'],
+   '{"delivery_time": "72h", "platform": "youtube", "quantity": 10000}'::jsonb,
+   'Delivered gradually over ~72 hours after payment verification. You will be contacted to confirm the video link.'),
+  ('SAIF Wallpaper Pack', 'saif-wallpaper-pack',
+   'A curated pack of 12 high-resolution SAIF STORE wallpapers for desktop and mobile (4K, PNG). Delivered instantly to your email after confirmation.',
+   '12 × 4K wallpapers.',
+   120.00, NULL, 'digital', (SELECT id FROM categories WHERE slug = 'digital-products'),
+   ARRAY['https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=900&q=80'],
+   'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=900&q=80',
+   999, 0, 'SAIF-DG-006', 'active', false, false, ARRAY['wallpaper', 'artwork'],
+   '{"delivery_time": "up to 12h", "format": "PNG 4K", "quantity": 12}'::jsonb,
+   'A download link is sent to your order email within 12 hours after payment verification.');
 
--- Insert variants for physical products
+-- Variants for physical products
 INSERT INTO product_variants (product_id, name, sku, price, stock, size, color) VALUES
-  ((SELECT id FROM products WHERE slug = 'off-by-design-tee'), 'Small / Black', 'SAIF-TS-001-S-BLK', NULL, 8, 'S', 'Black'),
-  ((SELECT id FROM products WHERE slug = 'off-by-design-tee'), 'Medium / Black', 'SAIF-TS-001-M-BLK', NULL, 8, 'M', 'Black'),
-  ((SELECT id FROM products WHERE slug = 'off-by-design-tee'), 'Large / Black', 'SAIF-TS-001-L-BLK', NULL, 8, 'L', 'Black'),
-  ((SELECT id FROM products WHERE slug = 'command-k-hoodie'), 'Medium / Grey', 'SAIF-HD-001-M-GRY', NULL, 6, 'M', 'Grey'),
-  ((SELECT id FROM products WHERE slug = 'command-k-hoodie'), 'Large / Grey', 'SAIF-HD-001-L-GRY', NULL, 6, 'L', 'Grey'),
-  ((SELECT id FROM products WHERE slug = 'monochrome-joggers'), 'Medium / Black', 'SAIF-PT-001-M-BLK', NULL, 10, 'M', 'Black'),
-  ((SELECT id FROM products WHERE slug = 'monochrome-joggers'), 'Large / Black', 'SAIF-PT-001-L-BLK', NULL, 10, 'L', 'Black');
+  ((SELECT id FROM products WHERE slug = 'off-by-design-tee'), 'S / Black', 'SAIF-TS-001-S-BLK', NULL, 6, 'S', 'Black'),
+  ((SELECT id FROM products WHERE slug = 'off-by-design-tee'), 'M / Black', 'SAIF-TS-001-M-BLK', NULL, 10, 'M', 'Black'),
+  ((SELECT id FROM products WHERE slug = 'off-by-design-tee'), 'L / Black', 'SAIF-TS-001-L-BLK', NULL, 8, 'L', 'Black'),
+  ((SELECT id FROM products WHERE slug = 'layered-signal-tee'), 'M / White', 'SAIF-TS-002-M-WHT', NULL, 12, 'M', 'White'),
+  ((SELECT id FROM products WHERE slug = 'layered-signal-tee'), 'L / White', 'SAIF-TS-002-L-WHT', NULL, 10, 'L', 'White'),
+  ((SELECT id FROM products WHERE slug = 'command-k-hoodie'), 'M / Grey', 'SAIF-HD-001-M-GRY', NULL, 5, 'M', 'Grey'),
+  ((SELECT id FROM products WHERE slug = 'command-k-hoodie'), 'L / Grey', 'SAIF-HD-001-L-GRY', NULL, 4, 'L', 'Grey'),
+  ((SELECT id FROM products WHERE slug = 'command-k-hoodie'), 'XL / Grey', 'SAIF-HD-001-XL-GRY', NULL, 3, 'XL', 'Grey'),
+  ((SELECT id FROM products WHERE slug = 'monochrome-joggers'), 'M / Black', 'SAIF-SW-001-M-BLK', NULL, 10, 'M', 'Black'),
+  ((SELECT id FROM products WHERE slug = 'monochrome-joggers'), 'L / Black', 'SAIF-SW-001-L-BLK', NULL, 10, 'L', 'Black'),
+  ((SELECT id FROM products WHERE slug = 'static-cargo-pants'), 'M / Olive', 'SAIF-SW-002-M-OLV', NULL, 7, 'M', 'Olive'),
+  ((SELECT id FROM products WHERE slug = 'static-cargo-pants'), 'L / Olive', 'SAIF-SW-002-L-OLV', NULL, 7, 'L', 'Olive');
 
--- Insert sample coupon
-INSERT INTO coupons (code, type, value, min_order_value, max_uses, is_active) VALUES
-  ('WELCOME20', 'percentage', 20, 50.00, 100, true),
-  ('SAIF10', 'fixed', 10, NULL, NULL, true);
+-- Coupons
+INSERT INTO coupons (code, type, value, min_order_value, max_uses, max_discount_amount, is_active) VALUES
+  ('WELCOME20', 'percentage', 20, 500.00, 100, 300.00, true),
+  ('SAIF100', 'fixed', 100, 1000.00, NULL, NULL, true);

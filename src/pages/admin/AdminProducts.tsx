@@ -1,217 +1,363 @@
-import { useState } from 'react'
-import { Plus, Pencil, Trash2, Search } from 'lucide-react'
-import { useAdminProducts } from '@/hooks/useAdmin'
+import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Plus, Pencil, Trash2, Copy, ExternalLink } from 'lucide-react'
+import { useAdminProducts } from '@/hooks/admin/useAdminData'
 import { useCategories } from '@/hooks/useCategories'
+import { useToast } from '@/context/ToastContext'
 import { useApp } from '@/context/AppContext'
-import { formatPrice, generateSlug } from '@/lib/utils'
+import { formatPrice, formatDate } from '@/lib/utils'
+import { PageHeader, SearchInput, FilterTabs, DataList, type Cell } from '@/components/admin/ui'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import Loading from '@/components/Loading'
 
+type StatusFilter = '' | 'active' | 'draft' | 'archived'
+type SortKey = 'newest' | 'name' | 'price_asc' | 'price_desc' | 'stock_asc'
+
 export default function AdminProducts() {
-  const { products, loading, create, update, remove } = useAdminProducts()
+  const { products, loading, update, remove, duplicate } = useAdminProducts()
   const { categories } = useCategories()
-  const { addToast } = useApp()
+  const { addToast } = useToast()
+  const { settings } = useApp()
+  const currency = settings?.currency ?? 'EGP'
+
   const [search, setSearch] = useState('')
-  const [editing, setEditing] = useState<any>(undefined)
-  const [form, setForm] = useState<any>({
-    name: '', slug: '', description: '', short_description: '', price: '', compare_at_price: '',
-    product_type: 'physical', category_id: '', stock: '', sku: '', status: 'draft', featured: false, bestseller: false,
-    images: '', thumbnail: '',
-  })
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('')
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [sort, setSort] = useState<SortKey>('newest')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [bulkBusy, setBulkBusy] = useState(false)
 
-  const filtered = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+  const filtered = useMemo(() => {
+    let list = [...products]
+    const q = search.trim().toLowerCase()
+    if (q) {
+      list = list.filter(
+        p =>
+          p.name.toLowerCase().includes(q) ||
+          p.sku?.toLowerCase().includes(q) ||
+          p.slug.toLowerCase().includes(q),
+      )
+    }
+    if (statusFilter) list = list.filter(p => p.status === statusFilter)
+    if (categoryFilter) list = list.filter(p => p.category_id === categoryFilter)
+    switch (sort) {
+      case 'name':
+        list.sort((a, b) => a.name.localeCompare(b.name))
+        break
+      case 'price_asc':
+        list.sort((a, b) => a.price - b.price)
+        break
+      case 'price_desc':
+        list.sort((a, b) => b.price - a.price)
+        break
+      case 'stock_asc':
+        list.sort((a, b) => a.stock - b.stock)
+        break
+      default:
+        break
+    }
+    return list
+  }, [products, search, statusFilter, categoryFilter, sort])
 
-  function openCreate() {
-    setEditing(null)
-    setForm({ name: '', slug: '', description: '', short_description: '', price: '', compare_at_price: '',
-      product_type: 'physical', category_id: '', stock: '', sku: '', status: 'draft', featured: false, bestseller: false,
-      images: '', thumbnail: '' })
-  }
-
-  function openEdit(product: any) {
-    setEditing(product)
-    setForm({
-      name: product.name, slug: product.slug, description: product.description,
-      short_description: product.short_description, price: product.price,
-      compare_at_price: product.compare_at_price || '', product_type: product.product_type,
-      category_id: product.category_id || '', stock: product.stock, sku: product.sku || '',
-      status: product.status, featured: product.featured, bestseller: product.bestseller,
-      images: (product.images || []).join(', '), thumbnail: product.thumbnail || '',
+  function toggleSelect(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
     })
   }
 
-  async function handleSave() {
-    const payload = {
-      ...form,
-      price: Number(form.price),
-      compare_at_price: form.compare_at_price ? Number(form.compare_at_price) : null,
-      stock: Number(form.stock),
-      images: form.images ? form.images.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
-    }
-    if (!payload.slug) payload.slug = generateSlug(payload.name)
+  function toggleSelectAll() {
+    if (selected.size === filtered.length) setSelected(new Set())
+    else setSelected(new Set(filtered.map(p => p.id)))
+  }
 
-    if (editing) {
-      const { error } = await update(editing.id, payload)
-      if (error) addToast('Failed to update product', 'error')
-      else { addToast('Product updated'); setEditing(undefined) }
-    } else {
-      const { error } = await create(payload)
-      if (error) addToast('Failed to create product', 'error')
-      else { addToast('Product created'); setEditing(undefined) }
+  async function handleBulk(action: 'active' | 'draft' | 'feature' | 'unfeature' | 'delete') {
+    if (selected.size === 0) return
+    setBulkBusy(true)
+    const ids = [...selected]
+    try {
+      if (action === 'delete') {
+        let failed = 0
+        for (const id of ids) {
+          const { error } = await remove(id)
+          if (error) failed++
+        }
+        addToast(failed ? `${failed} products could not be deleted` : `${ids.length} products deleted`, failed ? 'error' : 'success')
+      } else {
+        const patch =
+          action === 'active'
+            ? { status: 'active' as const }
+            : action === 'draft'
+              ? { status: 'draft' as const }
+              : action === 'feature'
+                ? { featured: true as const }
+                : { featured: false as const }
+        const { error } = await updateBulk(ids, patch)
+        if (error) addToast('Bulk update failed', 'error')
+        else addToast(`${ids.length} products updated`)
+      }
+    } finally {
+      setBulkBusy(false)
+      setSelected(new Set())
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this product?')) return
-    const { error } = await remove(id)
-    if (error) addToast('Failed to delete', 'error')
+  async function updateBulk(
+    ids: string[],
+    patch: { status?: 'active' | 'draft' | 'archived'; featured?: boolean },
+  ) {
+    const { supabase } = await import('@/lib/supabase')
+    const { error } = await supabase.from('products').update(patch).in('id', ids)
+    return { error }
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    const { error } = await remove(deleteTarget.id)
+    setDeleting(false)
+    setDeleteTarget(null)
+    if (error) addToast('Failed to delete product', 'error')
     else addToast('Product deleted')
   }
 
-  return (
-    <div className="animate-[pageIn_0.6s_ease]">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-black tracking-tight text-saif-text">Products</h1>
-        <button onClick={openCreate} className="btn btn-primary btn-sm">
-          <Plus size={14} className="mr-1" /> Add Product
-        </button>
+  async function handleDuplicate(id: string) {
+    const product = products.find(p => p.id === id)
+    if (!product) return
+    const { error } = await duplicate(product)
+    if (error) addToast('Failed to duplicate product', 'error')
+    else addToast('Product duplicated as draft')
+  }
+
+  if (loading) {
+    return (
+      <div>
+        <PageHeader title="Products" />
+        <Loading />
       </div>
+    )
+  }
 
-      <div className="mb-6">
-        <div className="relative max-w-sm">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-saif-dim" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..." className="input pl-10" />
-        </div>
-      </div>
-
-      {loading ? <Loading /> : (
-        <div className="border border-saif-border overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-saif-border text-left">
-                <th className="p-4 text-xs uppercase tracking-wider text-saif-dim font-semibold">Product</th>
-                <th className="p-4 text-xs uppercase tracking-wider text-saif-dim font-semibold">Price</th>
-                <th className="p-4 text-xs uppercase tracking-wider text-saif-dim font-semibold">Stock</th>
-                <th className="p-4 text-xs uppercase tracking-wider text-saif-dim font-semibold">Status</th>
-                <th className="p-4 text-xs uppercase tracking-wider text-saif-dim font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(product => (
-                <tr key={product.id} className="border-b border-saif-border hover:bg-white/5">
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      {product.thumbnail && (
-                        <img src={product.thumbnail} alt="" className="w-10 h-10 object-cover bg-[#111]" />
-                      )}
-                      <div>
-                        <p className="font-medium text-saif-text">{product.name}</p>
-                        <p className="text-xs text-saif-dim">{product.categories?.name}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-4 text-saif-text">{formatPrice(product.price)}</td>
-                  <td className="p-4 text-saif-dim">{product.stock}</td>
-                  <td className="p-4">
-                    <span className={`text-xs uppercase px-2 py-0.5 border ${
-                      product.status === 'active' ? 'border-green-500 text-green-400' :
-                      product.status === 'draft' ? 'border-yellow-500 text-yellow-400' :
-                      'border-saif-dim text-saif-dim'
-                    }`}>
-                      {product.status}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex gap-2">
-                      <button onClick={() => openEdit(product)} className="p-1.5 text-saif-dim hover:text-saif-text transition-colors"><Pencil size={14} /></button>
-                      <button onClick={() => handleDelete(product.id)} className="p-1.5 text-saif-dim hover:text-saif-accent transition-colors"><Trash2 size={14} /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {editing !== undefined && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-          <div className="bg-black border border-saif-border w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
-            <h2 className="text-xl font-bold text-saif-text mb-6">{editing ? 'Edit Product' : 'New Product'}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
-                <label className="label">Name</label>
-                <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="input" />
-              </div>
-              <div>
-                <label className="label">Slug</label>
-                <input value={form.slug} onChange={e => setForm({...form, slug: e.target.value})} className="input" placeholder="auto-generated if empty" />
-              </div>
-              <div>
-                <label className="label">Category</label>
-                <select value={form.category_id} onChange={e => setForm({...form, category_id: e.target.value})} className="input">
-                  <option value="">None</option>
-                  {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="label">Price</label>
-                <input type="number" step="0.01" value={form.price} onChange={e => setForm({...form, price: e.target.value})} className="input" />
-              </div>
-              <div>
-                <label className="label">Compare at Price</label>
-                <input type="number" step="0.01" value={form.compare_at_price} onChange={e => setForm({...form, compare_at_price: e.target.value})} className="input" />
-              </div>
-              <div>
-                <label className="label">Stock</label>
-                <input type="number" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} className="input" />
-              </div>
-              <div>
-                <label className="label">SKU</label>
-                <input value={form.sku} onChange={e => setForm({...form, sku: e.target.value})} className="input" />
-              </div>
-              <div>
-                <label className="label">Type</label>
-                <select value={form.product_type} onChange={e => setForm({...form, product_type: e.target.value})} className="input">
-                  <option value="physical">Physical</option>
-                  <option value="digital">Digital</option>
-                </select>
-              </div>
-              <div>
-                <label className="label">Status</label>
-                <select value={form.status} onChange={e => setForm({...form, status: e.target.value})} className="input">
-                  <option value="active">Active</option>
-                  <option value="draft">Draft</option>
-                  <option value="archived">Archived</option>
-                </select>
-              </div>
-              <div className="md:col-span-2">
-                <label className="label">Description</label>
-                <textarea rows={3} value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="input resize-none" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="label">Thumbnail URL</label>
-                <input value={form.thumbnail} onChange={e => setForm({...form, thumbnail: e.target.value})} className="input" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="label">Images (comma-separated URLs)</label>
-                <input value={form.images} onChange={e => setForm({...form, images: e.target.value})} className="input" placeholder="https://... , https://..." />
-              </div>
-              <div className="md:col-span-2 flex gap-4">
-                <label className="flex items-center gap-2 text-sm text-saif-text cursor-pointer">
-                  <input type="checkbox" checked={form.featured} onChange={e => setForm({...form, featured: e.target.checked})} /> Featured
-                </label>
-                <label className="flex items-center gap-2 text-sm text-saif-text cursor-pointer">
-                  <input type="checkbox" checked={form.bestseller} onChange={e => setForm({...form, bestseller: e.target.checked})} /> Bestseller
-                </label>
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button onClick={handleSave} className="btn btn-primary flex-1">Save</button>
-              <button onClick={() => setEditing(undefined)} className="btn flex-1">Cancel</button>
-            </div>
+  const rows: Cell[][] = filtered.map(p => [
+    {
+      label: '',
+      primary: true,
+      content: (
+        <div className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={selected.has(p.id)}
+            onChange={() => toggleSelect(p.id)}
+            aria-label={`Select ${p.name}`}
+            className="w-4 h-4 accent-[#E63946] flex-shrink-0"
+          />
+          <div className="w-10 h-12 bg-saif-panel overflow-hidden rounded-sm flex-shrink-0">
+            {(p.thumbnail || p.images?.[0]) && (
+              <img src={p.thumbnail || p.images[0]} alt="" className="w-full h-full object-cover" loading="lazy" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="font-medium text-saif-text truncate">{p.name}</p>
+            <p className="text-xs text-saif-dim">
+              {p.categories?.name || 'No category'}
+              {p.product_type === 'digital' && <span className="text-saif-accent"> · digital</span>}
+              {p.featured && <span className="text-yellow-400"> · featured</span>}
+              {p.bestseller && <span className="text-saif-text"> · bestseller</span>}
+            </p>
           </div>
         </div>
+      ),
+    },
+    {
+      label: 'Price',
+      content: (
+        <div>
+          <span className="text-saif-text font-medium">{formatPrice(p.price, currency)}</span>
+          {p.compare_at_price && (
+            <span className="text-xs text-saif-dim line-through ml-1.5">{formatPrice(p.compare_at_price, currency)}</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      label: 'Stock',
+      content: (
+        <span className={p.stock === 0 ? 'text-red-400' : p.stock <= p.low_stock_threshold ? 'text-yellow-400' : 'text-saif-dim'}>
+          {p.product_type === 'digital' ? '∞' : p.stock}
+          {p.variants?.length ? <span className="text-xs text-saif-dim"> ({p.variants.length} var.)</span> : ''}
+        </span>
+      ),
+    },
+    {
+      label: 'Status',
+      content: (
+        <span
+          className={`badge ${
+            p.status === 'active'
+              ? 'border-green-500/30 text-green-400'
+              : p.status === 'draft'
+                ? 'border-yellow-500/30 text-yellow-400'
+                : 'border-saif-border text-saif-dim'
+          }`}
+        >
+          {p.status}
+        </span>
+      ),
+    },
+    { label: 'Created', hideOnMobile: true, content: <span className="text-xs text-saif-dim">{formatDate(p.created_at)}</span> },
+    {
+      label: 'Actions',
+      content: (
+        <div className="flex gap-1">
+          <Link
+            to={`/admin/products/${p.id}/edit`}
+            className="p-1.5 text-saif-dim hover:text-saif-text transition-colors"
+            aria-label={`Edit ${p.name}`}
+            title="Edit"
+          >
+            <Pencil size={14} />
+          </Link>
+          <button
+            onClick={() => handleDuplicate(p.id)}
+            className="p-1.5 text-saif-dim hover:text-saif-text transition-colors"
+            aria-label={`Duplicate ${p.name}`}
+            title="Duplicate"
+          >
+            <Copy size={14} />
+          </button>
+          <Link
+            to={`/products/${p.slug}`}
+            target="_blank"
+            className="p-1.5 text-saif-dim hover:text-saif-text transition-colors"
+            aria-label={`View ${p.name} in store`}
+            title="View in store"
+          >
+            <ExternalLink size={14} />
+          </Link>
+          <button
+            onClick={() => setDeleteTarget({ id: p.id, name: p.name })}
+            className="p-1.5 text-saif-dim hover:text-saif-accent transition-colors"
+            aria-label={`Delete ${p.name}`}
+            title="Delete"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      ),
+    },
+  ])
+
+  return (
+    <div className="animate-[pageIn_0.4s_ease]">
+      <PageHeader
+        title="Products"
+        description={`${products.length} products in catalog`}
+        actions={
+          <Link to="/admin/products/new" className="btn btn-primary btn-sm">
+            <Plus size={14} /> Add Product
+          </Link>
+        }
+      />
+
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <SearchInput value={search} onChange={setSearch} placeholder="Search name, SKU…" className="flex-1" />
+        <select
+          value={categoryFilter}
+          onChange={e => setCategoryFilter(e.target.value)}
+          className="input py-2.5 text-xs w-full sm:w-44"
+          aria-label="Filter by category"
+        >
+          <option value="">All categories</option>
+          {categories.map(c => (
+            <option key={c.id} value={c.id} className="bg-black">
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <select
+          value={sort}
+          onChange={e => setSort(e.target.value as SortKey)}
+          className="input py-2.5 text-xs w-full sm:w-44"
+          aria-label="Sort products"
+        >
+          <option value="newest">Newest first</option>
+          <option value="name">Name A–Z</option>
+          <option value="price_asc">Price low → high</option>
+          <option value="price_desc">Price high → low</option>
+          <option value="stock_asc">Stock low → high</option>
+        </select>
+      </div>
+
+      <div className="mb-4">
+        <FilterTabs
+          value={statusFilter}
+          onChange={v => setStatusFilter(v as StatusFilter)}
+          options={[
+            { value: '', label: 'All', count: products.length },
+            { value: 'active', label: 'Active', count: products.filter(p => p.status === 'active').length },
+            { value: 'draft', label: 'Draft', count: products.filter(p => p.status === 'draft').length },
+            { value: 'archived', label: 'Archived', count: products.filter(p => p.status === 'archived').length },
+          ]}
+        />
+      </div>
+
+      {/* Bulk actions */}
+      {selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-4 border border-saif-border bg-white/[0.03] p-3 rounded-sm">
+          <span className="text-xs text-saif-dim text-saif-dim">{selected.size} selected</span>
+          <button className="btn btn-sm" onClick={() => handleBulk('active')} disabled={bulkBusy}>
+            Activate
+          </button>
+          <button className="btn btn-sm" onClick={() => handleBulk('draft')} disabled={bulkBusy}>
+            Move to Draft
+          </button>
+          <button className="btn btn-sm" onClick={() => handleBulk('feature')} disabled={bulkBusy}>
+            Feature
+          </button>
+          <button className="btn btn-sm" onClick={() => handleBulk('unfeature')} disabled={bulkBusy}>
+            Unfeature
+          </button>
+          <button className="btn btn-sm btn-danger" onClick={() => handleBulk('delete')} disabled={bulkBusy}>
+            Delete
+          </button>
+          <button className="btn btn-sm btn-ghost" onClick={() => setSelected(new Set())} disabled={bulkBusy}>
+            Clear
+          </button>
+        </div>
       )}
+
+      {filtered.length > 0 && (
+        <label className="flex items-center gap-2 text-xs text-saif-dim mb-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={selected.size === filtered.length && filtered.length > 0}
+            onChange={toggleSelectAll}
+            className="w-4 h-4 accent-[#E63946]"
+          />
+          Select all ({filtered.length})
+        </label>
+      )}
+
+      <DataList
+        columns={['Product', 'Price', 'Stock', 'Status', 'Created', 'Actions']}
+        rows={rows}
+        empty={filtered.length === 0}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title={`Delete "${deleteTarget?.name}"?`}
+        message="This permanently removes the product, its variants and wishlist entries. Order history keeps its snapshot."
+        confirmLabel="Delete Product"
+        danger
+        busy={deleting}
+      />
     </div>
   )
 }

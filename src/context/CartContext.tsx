@@ -1,79 +1,129 @@
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
-import { supabase } from '@/lib/supabase'
-import { useAuth } from './AuthContext'
-import type { Product, ProductVariant, CartItem } from '@/types'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
+import type { CartItem, CouponValidation, Product, ProductVariant } from '@/types'
+import { computeCartTotals, effectiveStock, unitPrice } from '@/lib/pricing'
+import { validateCoupon } from '@/lib/api'
+import { useApp } from './AppContext'
+
+interface AppliedCoupon {
+  code: string
+  discount: number
+  coupon: NonNullable<CouponValidation['coupon']>
+}
 
 interface CartContextType {
   items: CartItem[]
   count: number
   subtotal: number
-  addItem: (product: Product, variant: ProductVariant | null, qty?: number) => void
+  discount: number
+  shipping: number
+  total: number
+  hasPhysical: boolean
+  freeShippingRemaining: number | null
+  coupon: AppliedCoupon | null
+  couponChecking: boolean
+  couponError: string | null
+  isOpen: boolean
+  setIsOpen: (v: boolean) => void
+  addItem: (product: Product, variant: ProductVariant | null, qty?: number) => { ok: boolean; message?: string }
   removeItem: (itemId: string) => void
   updateQty: (itemId: string, qty: number) => void
   clearCart: () => void
-  isOpen: boolean
-  setIsOpen: (v: boolean) => void
+  applyCoupon: (code: string) => Promise<boolean>
+  removeCoupon: () => void
+  clearCartSilently: () => void
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
-const STORAGE_KEY = 'saif-cart'
-
-function getSessionId() {
-  let sid = localStorage.getItem('saif-session-id')
-  if (!sid) {
-    sid = crypto.randomUUID()
-    localStorage.setItem('saif-session-id', sid)
-  }
-  return sid
-}
+const STORAGE_KEY = 'saif-cart-v2'
+const COUPON_KEY = 'saif-coupon-v2'
 
 export function CartProvider({ children }: { children: ReactNode }) {
+  const { settings } = useApp()
   const [items, setItems] = useState<CartItem[]>([])
   const [isOpen, setIsOpen] = useState(false)
-  const { user } = useAuth()
+  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null)
+  const [couponChecking, setCouponChecking] = useState(false)
+  const [couponError, setCouponError] = useState<string | null>(null)
+  const hydrated = useRef(false)
 
-  // Load from localStorage on mount
+  // Hydrate from localStorage
   useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      try { setItems(JSON.parse(raw)) } catch {}
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw) as CartItem[]
+        if (Array.isArray(parsed)) setItems(parsed.filter(i => i?.product?.id))
+      }
+      const rawCoupon = localStorage.getItem(COUPON_KEY)
+      if (rawCoupon) {
+        const parsedCoupon = JSON.parse(rawCoupon) as AppliedCoupon
+        if (parsedCoupon?.code && parsedCoupon?.coupon) setCoupon(parsedCoupon)
+      }
+    } catch {
+      // corrupted storage — start fresh
     }
+    hydrated.current = true
   }, [])
 
-  // Persist to localStorage
+  // Persist
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+    if (!hydrated.current) return
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+    } catch {
+      /* storage full — ignore */
+    }
   }, [items])
 
-  // Sync with Supabase when user logs in
   useEffect(() => {
-    if (!user) return
-    syncCartToUser()
-  }, [user])
+    if (!hydrated.current) return
+    if (coupon) localStorage.setItem(COUPON_KEY, JSON.stringify(coupon))
+    else localStorage.removeItem(COUPON_KEY)
+  }, [coupon])
 
-  async function syncCartToUser() {
-    const sessionId = getSessionId()
-    const { data: existing } = await supabase
-      .from('carts')
-      .select('id, cart_items(*)')
-      .eq('user_id', user.id)
-      .single()
-
-    if (existing) {
-      // Merge local items with server items
-      // For simplicity, we'll just keep local items and update server
+  // Lock body scroll while the drawer is open
+  useEffect(() => {
+    document.body.style.overflow = isOpen ? 'hidden' : ''
+    return () => {
+      document.body.style.overflow = ''
     }
-  }
+  }, [isOpen])
 
   const addItem = useCallback((product: Product, variant: ProductVariant | null, qty = 1) => {
+    const available = variant ? variant.stock : product.stock
+    if (product.status !== 'active') {
+      return { ok: false, message: 'This product is not available right now.' }
+    }
+    if (available <= 0) {
+      return { ok: false, message: 'This item is sold out.' }
+    }
+    if (qty > available) {
+      return { ok: false, message: `Only ${available} left in stock.` }
+    }
+
+    let outcome: { ok: boolean; message?: string } = { ok: true }
     setItems(prev => {
       const existing = prev.find(i => i.product.id === product.id && i.variant?.id === variant?.id)
       if (existing) {
-        return prev.map(i => i.id === existing.id ? { ...i, quantity: i.quantity + qty } : i)
+        const newQty = Math.min(existing.quantity + qty, available)
+        if (newQty === existing.quantity) {
+          outcome = { ok: false, message: `Only ${available} left in stock.` }
+          return prev
+        }
+        return prev.map(i => (i.id === existing.id ? { ...i, quantity: newQty } : i))
       }
-      return [...prev, { id: crypto.randomUUID(), product, variant, quantity: qty }]
+      return [...prev, { id: crypto.randomUUID(), product, variant, quantity: Math.min(qty, available) }]
     })
-    setIsOpen(true)
+    return outcome
   }, [])
 
   const removeItem = useCallback((itemId: string) => {
@@ -81,26 +131,116 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const updateQty = useCallback((itemId: string, qty: number) => {
-    if (qty < 1) {
-      setItems(prev => prev.filter(i => i.id !== itemId))
-      return
-    }
-    setItems(prev => prev.map(i => i.id === itemId ? { ...i, quantity: qty } : i))
+    setItems(prev => {
+      const item = prev.find(i => i.id === itemId)
+      if (!item) return prev
+      const available = effectiveStock(item)
+      const clamped = Math.max(1, Math.min(qty, Math.max(1, available)))
+      return prev.map(i => (i.id === itemId ? { ...i, quantity: clamped } : i))
+    })
   }, [])
 
   const clearCart = useCallback(() => {
     setItems([])
+    setCoupon(null)
+    setCouponError(null)
+    setIsOpen(false)
     localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(COUPON_KEY)
   }, [])
 
-  const count = items.reduce((s, i) => s + i.quantity, 0)
-  const subtotal = items.reduce((s, i) => s + i.product.price * i.quantity, 0)
+  const clearCartSilently = useCallback(() => {
+    setItems([])
+    setCoupon(null)
+    setIsOpen(false)
+  }, [])
 
-  return (
-    <CartContext.Provider value={{ items, count, subtotal, addItem, removeItem, updateQty, clearCart, isOpen, setIsOpen }}>
-      {children}
-    </CartContext.Provider>
+  const subtotal = useMemo(
+    () => items.reduce((s, i) => s + unitPrice(i) * i.quantity, 0),
+    [items],
   )
+
+  // Keep subtotal in a ref for the coupon validation callback
+  const subtotalRef = useRef(subtotal)
+  useEffect(() => {
+    subtotalRef.current = subtotal
+  }, [subtotal])
+
+  const applyCoupon = useCallback(async (code: string) => {
+    const trimmed = code.trim().toUpperCase()
+    if (!trimmed) {
+      setCouponError('Enter a coupon code')
+      return false
+    }
+    setCouponChecking(true)
+    setCouponError(null)
+    const result = await validateCoupon(trimmed, subtotalRef.current)
+    setCouponChecking(false)
+    if (!result.valid || result.discount === null || !result.coupon) {
+      setCouponError(result.reason || 'This coupon cannot be applied')
+      return false
+    }
+    setCoupon({ code: result.coupon.code, discount: result.discount, coupon: result.coupon })
+    return true
+  }, [])
+
+  const removeCoupon = useCallback(() => {
+    setCoupon(null)
+    setCouponError(null)
+  }, [])
+
+  // Re-validate the applied coupon whenever the subtotal changes
+  // (minimum order / threshold rules may no longer hold).
+  useEffect(() => {
+    if (!coupon || subtotalRef.current === 0) return
+    let cancelled = false
+    ;(async () => {
+      const result = await validateCoupon(coupon.code, subtotalRef.current)
+      if (cancelled) return
+      if (!result.valid) {
+        setCoupon(null)
+        setCouponError(result.reason || 'Coupon removed — cart no longer qualifies')
+      } else if (result.discount !== null && result.discount !== coupon.discount && result.coupon) {
+        setCoupon({ code: result.coupon.code, discount: result.discount, coupon: result.coupon })
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [subtotal, coupon])
+
+  const totals = useMemo(
+    () => computeCartTotals(items, settings, coupon?.discount ?? 0),
+    [items, settings, coupon],
+  )
+
+  const value = useMemo(
+    () => ({
+      items,
+      count: items.reduce((s, i) => s + i.quantity, 0),
+      subtotal: totals.subtotal,
+      discount: totals.discount,
+      coupon,
+      couponChecking,
+      couponError,
+      shipping: totals.shipping,
+      total: totals.total,
+      hasPhysical: totals.hasPhysical,
+      freeShippingRemaining: totals.freeShippingRemaining,
+      isOpen,
+      setIsOpen,
+      addItem,
+      removeItem,
+      updateQty,
+      clearCart,
+      applyCoupon,
+      removeCoupon,
+      clearCartSilently,
+    }),
+    [items, totals, coupon, couponChecking, couponError, isOpen, addItem, removeItem, updateQty, clearCart, applyCoupon, removeCoupon, clearCartSilently],
+  )
+
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>
 }
 
 export function useCart() {

@@ -1,6 +1,8 @@
 import Footer from '@/components/Footer'
+import { usePageMeta } from '@/hooks/usePageMeta'
 
 export default function TermsPage() {
+  usePageMeta({ title: 'Terms of Service', description: 'SAIF STORE terms of service.' })
   return (
     <div className="animate-[pageIn_0.6s_ease] pt-28 px-6 lg:px-10 pb-20">
       <div className="max-w-2xl mx-auto">
