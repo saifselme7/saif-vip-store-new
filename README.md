@@ -1,130 +1,63 @@
 # SAIF STORE
 
-Premium streetwear & digital products e-commerce platform built with React, TypeScript, Tailwind CSS and Supabase — with a fully manual, transparent payment verification system (InstaPay / Vodafone Cash).
+Premium e-commerce storefront + admin dashboard built with React, Vite, TypeScript and Supabase. Black / cream / red brand identity.
 
 ## Features
 
-- **Storefront**: hero home, product listing with professional filters/sorting, rich product pages (gallery, variants, reviews, related), debounced search with suggestions, wishlist, quick view
-- **Cart & Checkout**: stock-aware persistent cart, server-validated coupons, multi-step checkout with shipping info for Egypt
-- **Manual Payment System**: InstaPay & Vodafone Cash to `01040324811` — customers upload transfer screenshots (private Supabase Storage), admins verify in a dedicated queue; nothing is ever auto-approved
-- **Orders**: real order workflow (pending → payment review → confirmed → … → delivered/cancelled), customer order timeline, payment re-submission on rejection, locked digital delivery until payment approval
-- **Admin Dashboard**: overview, analytics (real aggregates via RPC), products (variants + image management), inventory with audit log, orders, payment verification, customers, coupons, reviews, admin users, settings — all code-split
-- **Security**: hardened RLS, column-level profile grants + trigger so users can never self-promote, private payment-screenshot storage, server-side pricing/coupon/stock enforcement in transactional RPCs
+- **Storefront** — homepage rails (featured, new arrivals, best sellers, offers, digital), product listing with server-side filters + sorting, product detail pages with gallery/zoom, variants (size × color), reviews with moderation, wishlist, persistent stock-aware cart with drawer, debounced search with suggestions.
+- **Manual payments** — InstaPay & Vodafone Cash with receiving number `01040324811`. Customers upload a transfer screenshot (private Supabase Storage bucket); admins verify manually (approve / reject with reason / under review / cancel). Payments are never auto-approved.
+- **Atomic checkout** — the `place_order` RPC validates the cart against live stock with row locks, recomputes totals server-side, applies coupons, creates order + items + payment record + timeline event and reserves inventory in one transaction.
+- **Admin dashboard** — live KPIs, payment verification queue with zoomable screenshots, order management with timeline and internal notes, product management (variants, image manager, specs, duplication, bulk actions), inventory adjustments with an audit log, customers with real order stats, coupons, review moderation, sales analytics, and full site settings (payment number, method toggles, shipping, announcement, maintenance mode).
+- **Security** — role changes are blocked at the database level (column grants + trigger + RLS), payment screenshots are only accessible to their owner and admins, coupon codes are never exposed publicly.
 
-## Quick Start
+## Setup
 
-### 1. Install Dependencies
+### 1. Supabase
 
-```bash
-npm install
-```
+**New project** — run `supabase/setup.sql` in the SQL Editor.
 
-### 2. Configure Environment Variables
+**Existing project (upgrading an older SAIF STORE)** — run, in order:
+1. `supabase/migrations/2026-08-27-upgrade.sql`
+2. `supabase/functions.sql`
+3. `supabase/rls.sql`
+
+### 2. Environment
 
 ```bash
 cp .env.example .env
+# fill in your project URL + publishable (anon) key
 ```
 
-`.env.example` already points at the Supabase project:
-
-```env
-VITE_SUPABASE_URL=https://dgaxdbrohvxxarmbmxfv.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_u9agbn4QnN26jDXmJKHXAQ_6e5rEaFJ
-```
-
-Only the publishable (anon) key is used — no service-role key exists anywhere in this codebase.
-
-### 3. Set Up the Supabase Database
-
-Open the project SQL Editor (`https://supabase.com/dashboard/project/dgaxdbrohvxxarmbmxfv/sql/new`).
-
-**New project** — run one file:
-
-- `supabase/setup.sql` (schema + business-logic functions + RLS/storage policies + seed)
-
-**Existing project** (already ran the v1 setup) — run one file:
-
-- `supabase/upgrade_v2.sql` — idempotent migration: adds the `payments` ledger, `inventory_log`, new order statuses, coupon caps, site settings fields, all RPCs, the new RLS set and the `payment-screenshots` storage bucket
-
-Individual sources (if you prefer step-by-step): `supabase/schema.sql`, `supabase/functions.sql`, `supabase/rls.sql`, `supabase/seed.sql`.
-
-### 4. Enable Authentication
-
-1. Authentication → Providers → Email → enabled
-2. Set Site URL to `http://localhost:5173` (or your deployed URL)
-
-### 5. Run Locally
+### 3. Run
 
 ```bash
-npm run dev
+npm install
+npm run dev      # development
+npm run build    # production build (also type-checks)
+npm test         # unit + integration tests
 ```
 
-Open [http://localhost:5173](http://localhost:5173)
+### 4. Create an admin
 
-### 6. Tests & Production Build
-
-```bash
-npm run test     # vitest — checkout/coupon/stock/payment-transition logic
-npm run build    # tsc + vite build
-```
-
-### 7. Deploy to Vercel
-
-```bash
-npm i -g vercel
-vercel
-```
-
-Environment variables for the host:
-- `VITE_SUPABASE_URL=https://dgaxdbrohvxxarmbmxfv.supabase.co`
-- `VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_u9agbn4QnN26jDXmJKHXAQ_6e5rEaFJ`
-
-## Admin Access
-
-Create your first admin from the SQL editor (role writes are blocked everywhere else by design):
+Sign up normally, then promote yourself once in the SQL Editor:
 
 ```sql
-UPDATE profiles SET role = 'admin'
-WHERE id = (SELECT id FROM auth.users WHERE email = 'you@example.com');
+UPDATE profiles SET role = 'admin' WHERE email = 'you@example.com';
 ```
 
-After that, manage admins from **Admin → System → Admin Users** (goes through a protected RPC).
+(Regular users can never change roles — the database blocks it.)
 
-## Payment Flow
+## Payments flow
 
-**Customer**: checkout → choose InstaPay/Vodafone Cash → see the receiving number `01040324811` and exact total → transfer → enter payer number + amount → upload screenshot → submit. Order shows *Payment In Review*.
+1. Customer checks out → `place_order()` reserves stock and creates the order (`payment_review`) with a payment record (`awaiting_payment`).
+2. Customer transfers the exact total to the receiving number shown at checkout and uploads a screenshot → `submit_payment()` marks it `under_review`.
+3. Admin verifies in **Admin → Payment Verification** → `review_payment()` approves (order → `confirmed`), rejects (reason required, customer can resubmit) or cancels (stock is returned).
+4. Digital items get delivery details via `admin_set_fulfillment()`, visible to the customer only after payment approval.
 
-**Admin**: `/admin/payments` queue → open submission → inspect screenshot (signed 5-minute URL) → Approve (confirms order) / Reject (reason required, customer can re-submit) / Cancel (releases stock).
+## Testing
 
-**Guarantees**: order + items are created atomically in one `place_order` RPC with server-side pricing, coupon re-validation and stock reservation; screenshots live in a private bucket readable only by the owner and admins.
-
-## Project Structure
-
-```
-saif-store/
-├── public/                # Static assets
-├── src/
-│   ├── components/        # UI components (Header, CartDrawer, ProductCard, ui/)
-│   ├── components/admin/  # Admin layout (grouped sidebar)
-│   ├── context/           # Auth, App, Cart, Wishlist contexts
-│   ├── hooks/             # Data hooks (products, orders, categories, admin)
-│   ├── lib/               # Supabase client, checkout logic, storage, constants
-│   ├── pages/             # Storefront pages
-│   ├── pages/admin/       # Admin pages (lazy-loaded)
-│   └── types/             # Domain types
-├── supabase/
-│   ├── schema.sql         # Full schema (new projects)
-│   ├── functions.sql      # Business-logic RPCs
-│   ├── rls.sql            # RLS + storage policies
-│   ├── seed.sql           # Catalog & settings seed
-│   ├── setup.sql          # All of the above in one file
-│   └── upgrade_v2.sql     # Idempotent v1 → v2 migration
-├── package.json
-├── vite.config.ts
-├── tsconfig.json
-└── tailwind.config.js
-```
-
-## Tech Stack
-
-React 18 · TypeScript (strict) · Vite · Tailwind CSS · Supabase (Auth, PostgREST, Storage, RPC) · Vitest
+`npm test` runs:
+- unit tests (pricing, validation, payment state rules)
+- a jsdom smoke test (app renders with an unreachable backend)
+- **full database integration tests** — the real SQL files run on PGlite (PostgreSQL WASM) with Supabase `auth`/`storage` mocked: checkout atomicity, stock reservation & restore, coupon consumption, payment state transitions, RLS isolation, role-escalation protection and storage policies
+- the migration path from the previous schema (data survival + idempotency)

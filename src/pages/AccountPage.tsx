@@ -1,118 +1,204 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { LogOut, Package, Heart, Zap, LayoutDashboard } from 'lucide-react'
+import { LogOut, Package, User, Heart, Settings as SettingsIcon, Zap, ClipboardList, ShieldAlert } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
-import { useApp } from '@/context/AppContext'
-import { useOrders, latestPayment } from '@/hooks/useOrders'
-import { useWishlist } from '@/context/WishlistContext'
+import { useToast } from '@/context/ToastContext'
+import { useOrders } from '@/hooks/useOrders'
 import { usePageMeta } from '@/hooks/usePageMeta'
-import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS } from '@/lib/constants'
-import { formatDate } from '@/lib/utils'
-import ProductCard from '@/components/ProductCard'
+import { formatPrice, formatDate, cn, copyToClipboard } from '@/lib/utils'
+import { ORDER_STATUS_LABELS } from '@/lib/constants'
+import { OrderStatusBadge, PaymentStatusBadge } from '@/components/ui/StatusBadge'
+import { validateFullName, validatePhone, type FieldErrors } from '@/lib/validation'
+import Footer from '@/components/Footer'
 import Loading from '@/components/Loading'
-import { StatusBadge } from '@/components/ui/Badge'
+import EmptyState from '@/components/EmptyState'
 
-type Tab = 'overview' | 'orders' | 'wishlist' | 'digital' | 'settings'
+type Tab = 'overview' | 'orders' | 'digital' | 'settings'
 
 export default function AccountPage() {
-  const { user, profile, isAdmin, signOut, updateProfile } = useAuth()
-  const { addToast } = useApp()
-  const { orders, loading: ordersLoading } = useOrders()
-  const { items: wishlistItems, loading: wishlistLoading } = useWishlist()
+  const { user, profile, signOut, updateProfile } = useAuth()
+  const { addToast } = useToast()
+  const { orders, loading } = useOrders()
   const [tab, setTab] = useState<Tab>('overview')
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ full_name: '', phone: '', initialized: false })
+  const [form, setForm] = useState({
+    full_name: profile?.full_name || '',
+    phone: profile?.phone || '',
+  })
+  const [errors, setErrors] = useState<FieldErrors>({})
+  usePageMeta({ title: 'My Account', description: 'Manage your SAIF STORE account, orders and payments.' })
 
-  usePageMeta('My Account', 'Manage your SAIF STORE profile, orders and wishlist.')
+  const stats = useMemo(() => {
+    const totalSpent = orders
+      .filter(o => o.payment_status === 'approved')
+      .reduce((s, o) => s + (o.total || 0), 0)
+    const pendingPayments = orders.filter(
+      o => o.payment_status === 'awaiting_payment' || o.payment_status === 'rejected',
+    ).length
+    return {
+      totalOrders: orders.length,
+      totalSpent,
+      pendingPayments,
+    }
+  }, [orders])
 
-  if (!form.initialized && profile) {
-    setForm({ full_name: profile.full_name || '', phone: profile.phone || '', initialized: true })
-  }
+  const digitalItems = useMemo(
+    () =>
+      orders
+        .filter(o => o.payment_status === 'approved')
+        .flatMap(o => (o.items || []).filter(i => i.product_type === 'digital').map(i => ({ ...i, order: o }))),
+    [orders],
+  )
 
   async function handleSave() {
+    const errs: FieldErrors = {
+      name: validateFullName(form.full_name),
+      phone: validatePhone(form.phone),
+    }
+    setErrors(errs)
+    if (Object.values(errs).some(v => v)) return
+
     setSaving(true)
-    const { error } = await updateProfile({ full_name: form.full_name, phone: form.phone })
+    const { error } = await updateProfile({
+      full_name: form.full_name.trim(),
+      phone: form.phone.trim(),
+    })
     setSaving(false)
-    if (error) addToast(`Could not save profile: ${error.message}`, 'error')
-    else { addToast('Profile updated'); setEditing(false) }
+    if (error) addToast(error, 'error')
+    else {
+      addToast('Profile updated')
+      setEditing(false)
+    }
   }
 
-  const digitalOrders = orders.filter(o => o.items?.some(i => i.product_type === 'digital'))
-
-  const tabs: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
-    { id: 'overview', label: 'Overview', icon: <Package size={16} /> },
-    { id: 'orders', label: 'Orders', icon: <Package size={16} /> },
-    { id: 'wishlist', label: 'Wishlist', icon: <Heart size={16} /> },
-    { id: 'digital', label: 'Digital', icon: <Zap size={16} /> },
-    { id: 'settings', label: 'Settings', icon: <Package size={16} /> },
+  const TABS: { id: Tab; label: string; icon: typeof User }[] = [
+    { id: 'overview', label: 'Overview', icon: User },
+    { id: 'orders', label: 'Orders', icon: Package },
+    { id: 'digital', label: 'Digital', icon: Zap },
+    { id: 'settings', label: 'Settings', icon: SettingsIcon },
   ]
 
   return (
-    <div className="animate-[pageIn_0.5s_ease] px-4 sm:px-6 lg:px-10 pt-10 pb-20">
+    <div className="animate-[pageIn_0.6s_ease] pt-24 md:pt-28 px-5 lg:px-10 pb-20">
       <div className="max-w-5xl mx-auto">
-        <h1 className="text-4xl sm:text-5xl font-black tracking-tighter text-saif-text mb-10">Account</h1>
+        <h1 className="text-[clamp(34px,6vw,72px)] font-black tracking-tighter text-saif-text mb-10">Account</h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-8">
           {/* Sidebar */}
-          <div className="space-y-1">
-            <div className="p-4 border border-saif-border mb-3">
-              <p className="text-sm font-bold text-saif-text truncate">{profile?.full_name || 'Customer'}</p>
-              <p className="text-xs text-saif-dim mt-1 truncate">{user?.email}</p>
-              {isAdmin && <p className="text-[10px] text-saif-accent mt-1.5 uppercase tracking-widest font-bold">Admin</p>}
+          <aside className="space-y-2">
+            <div className="card p-4">
+              <div className="w-11 h-11 rounded-full bg-saif-accent/15 border border-saif-accent/30 flex items-center justify-center text-sm font-bold text-saif-accent mb-3">
+                {(profile?.full_name || user?.email || 'U').charAt(0).toUpperCase()}
+              </div>
+              <p className="text-sm font-semibold text-saif-text truncate">{profile?.full_name || 'User'}</p>
+              <p className="text-xs text-saif-dim truncate mt-0.5">{user?.email}</p>
+              <p className="text-[10px] text-saif-faint uppercase tracking-wider mt-2">{profile?.role}</p>
             </div>
-            {tabs.map(t => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                aria-pressed={tab === t.id}
-                className={`w-full flex items-center gap-3 p-3.5 border text-left text-sm font-medium transition-colors ${
-                  tab === t.id ? 'border-saif-text bg-white/5 text-saif-text' : 'border-saif-border text-saif-dim hover:text-saif-text'
-                }`}
+
+            <nav className="space-y-1" aria-label="Account sections">
+              {TABS.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  aria-current={tab === t.id ? 'page' : undefined}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm transition-colors text-left',
+                    tab === t.id ? 'bg-white/10 text-saif-text' : 'text-saif-dim hover:text-saif-text hover:bg-white/5',
+                  )}
+                >
+                  <t.icon size={15} />
+                  {t.label}
+                </button>
+              ))}
+              <Link
+                to="/wishlist"
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm transition-colors text-left text-saif-dim hover:text-saif-text hover:bg-white/5"
               >
-                {t.icon} {t.label}
-              </button>
-            ))}
-            {isAdmin && (
-              <Link to="/admin" className="w-full flex items-center gap-3 p-3.5 border border-saif-accent/40 text-saif-accent hover:bg-saif-accent/10 transition-colors text-sm font-medium">
-                <LayoutDashboard size={16} /> Admin Dashboard
+                <Heart size={15} />
+                Wishlist
               </Link>
-            )}
-            <button onClick={signOut} className="w-full flex items-center gap-3 p-3.5 border border-saif-border text-saif-accent hover:bg-white/5 transition-colors text-sm font-medium">
-              <LogOut size={16} /> Sign Out
-            </button>
-          </div>
+              {profile?.role === 'admin' && (
+                <Link
+                  to="/admin"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm transition-colors text-left text-saif-accent hover:bg-saif-accent/10"
+                >
+                  <ClipboardList size={15} />
+                  Admin Dashboard
+                </Link>
+              )}
+              <button
+                onClick={signOut}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm transition-colors text-left text-saif-dim hover:text-saif-accent hover:bg-white/5"
+              >
+                <LogOut size={15} />
+                Sign Out
+              </button>
+            </nav>
+          </aside>
 
           {/* Main */}
-          <div className="md:col-span-3 space-y-6">
+          <div className="space-y-8">
             {tab === 'overview' && (
               <>
-                <div className="grid grid-cols-3 gap-3">
-                  <StatCard label="Orders" value={String(orders.length)} />
-                  <StatCard label="Wishlist" value={String(wishlistItems.length)} />
-                  <StatCard label="Digital" value={String(digitalOrders.length)} />
+                {/* Stats */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <StatCard label="Orders" value={String(stats.totalOrders)} />
+                  <StatCard label="Total Spent" value={formatPrice(stats.totalSpent)} />
+                  <StatCard label="Digital Items" value={String(digitalItems.length)} />
+                  <StatCard
+                    label="Action Needed"
+                    value={String(stats.pendingPayments)}
+                    alert={stats.pendingPayments > 0}
+                  />
                 </div>
-                <div className="border border-saif-border p-6">
-                  <h2 className="text-sm font-bold uppercase tracking-widest text-saif-text mb-4">Recent Orders</h2>
-                  {ordersLoading ? <Loading /> : orders.length === 0 ? (
-                    <p className="text-sm text-saif-dim">No orders yet — <Link to="/products" className="text-saif-text underline">start shopping</Link>.</p>
+
+                {/* Payment attention banner */}
+                {stats.pendingPayments > 0 && (
+                  <Link
+                    to="/orders"
+                    className="block border border-yellow-500/40 bg-yellow-500/[0.04] p-4 rounded-sm hover:border-yellow-500/60 transition-colors"
+                  >
+                    <p className="text-sm text-yellow-400 font-semibold flex items-center gap-2">
+                      <ShieldAlert size={15} />
+                      {stats.pendingPayments} order{stats.pendingPayments > 1 ? 's' : ''} need payment attention
+                    </p>
+                    <p className="text-xs text-saif-dim mt-1">
+                      Submit your transfer proof so we can verify the payment.
+                    </p>
+                  </Link>
+                )}
+
+                {/* Recent orders */}
+                <div className="card p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text">Recent Orders</h2>
+                    <button onClick={() => setTab('orders')} className="text-xs text-saif-dim hover:text-saif-text transition-colors">
+                      View All
+                    </button>
+                  </div>
+                  {loading ? (
+                    <Loading />
+                  ) : orders.length === 0 ? (
+                    <p className="text-sm text-saif-dim">No orders yet — your history will appear here.</p>
                   ) : (
-                    <div className="space-y-3">
-                      {orders.slice(0, 5).map(order => {
-                        const payment = latestPayment(order)
-                        return (
-                          <Link key={order.id} to={`/orders/${order.id}`} className="flex items-center justify-between gap-3 p-3 border border-saif-border hover:bg-white/[0.03] transition-colors">
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-saif-text truncate">{order.order_number}</p>
-                              <p className="text-xs text-saif-dim">{formatDate(order.created_at)}</p>
-                            </div>
-                            <div className="flex gap-2 flex-shrink-0">
-                              {payment && <StatusBadge className={PAYMENT_STATUS_COLORS[payment.status]}>{PAYMENT_STATUS_LABELS[payment.status]}</StatusBadge>}
-                              <StatusBadge className={ORDER_STATUS_COLORS[order.status]}>{ORDER_STATUS_LABELS[order.status]}</StatusBadge>
-                            </div>
-                          </Link>
-                        )
-                      })}
+                    <div className="space-y-2">
+                      {orders.slice(0, 5).map(order => (
+                        <Link
+                          key={order.id}
+                          to={`/orders/${order.id}`}
+                          className="flex items-center justify-between gap-3 p-3 border border-saif-border hover:bg-white/5 transition-colors rounded-sm"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-saif-text">{order.order_number}</p>
+                            <p className="text-xs text-saif-dim">{formatDate(order.created_at)}</p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-sm font-semibold text-saif-text">{formatPrice(order.total)}</span>
+                            <PaymentStatusBadge status={order.payment_status} />
+                          </div>
+                        </Link>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -120,120 +206,181 @@ export default function AccountPage() {
             )}
 
             {tab === 'orders' && (
-              <div className="border border-saif-border p-6">
-                <h2 className="text-sm font-bold uppercase tracking-widest text-saif-text mb-4">All Orders</h2>
-                {ordersLoading ? <Loading /> : orders.length === 0 ? (
-                  <p className="text-sm text-saif-dim">No orders yet.</p>
+              <div className="card p-6">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-4">All Orders</h2>
+                {loading ? (
+                  <Loading />
+                ) : orders.length === 0 ? (
+                  <EmptyState
+                    icon={Package}
+                    title="No orders yet"
+                    description="Your order history will appear here."
+                    action={
+                      <Link to="/products" className="btn btn-sm btn-primary">
+                        Start Shopping
+                      </Link>
+                    }
+                  />
                 ) : (
-                  <div className="space-y-3">
-                    {orders.map(order => {
-                      const payment = latestPayment(order)
-                      return (
-                        <Link key={order.id} to={`/orders/${order.id}`} className="flex items-center justify-between gap-3 p-3 border border-saif-border hover:bg-white/[0.03] transition-colors">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-saif-text truncate">{order.order_number}</p>
-                            <p className="text-xs text-saif-dim">{formatDate(order.created_at)} · {order.items?.length || 0} items</p>
-                          </div>
-                          <div className="flex gap-2 flex-shrink-0">
-                            {payment && <StatusBadge className={PAYMENT_STATUS_COLORS[payment.status]}>{PAYMENT_STATUS_LABELS[payment.status]}</StatusBadge>}
-                            <StatusBadge className={ORDER_STATUS_COLORS[order.status]}>{ORDER_STATUS_LABELS[order.status]}</StatusBadge>
-                          </div>
-                        </Link>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {tab === 'wishlist' && (
-              <div>
-                <h2 className="text-sm font-bold uppercase tracking-widest text-saif-text mb-4">Wishlist</h2>
-                {wishlistLoading ? <Loading /> : wishlistItems.length === 0 ? (
-                  <p className="text-sm text-saif-dim">Your wishlist is empty.</p>
-                ) : (
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-5">
-                    {wishlistItems.map(p => <ProductCard key={p.id} product={p} />)}
+                  <div className="space-y-2">
+                    {orders.map(order => (
+                      <Link
+                        key={order.id}
+                        to={`/orders/${order.id}`}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 border border-saif-border hover:bg-white/5 transition-colors rounded-sm"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-saif-text">{order.order_number}</p>
+                          <p className="text-xs text-saif-dim">
+                            {formatDate(order.created_at)} · {ORDER_STATUS_LABELS[order.status]}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-sm font-semibold text-saif-text">{formatPrice(order.total)}</span>
+                          <OrderStatusBadge status={order.status} />
+                          <PaymentStatusBadge status={order.payment_status} />
+                        </div>
+                      </Link>
+                    ))}
                   </div>
                 )}
               </div>
             )}
 
             {tab === 'digital' && (
-              <div className="border border-saif-border p-6">
-                <h2 className="text-sm font-bold uppercase tracking-widest text-saif-text mb-4">Digital Purchases</h2>
-                {ordersLoading ? <Loading /> : digitalOrders.length === 0 ? (
-                  <p className="text-sm text-saif-dim">No digital orders yet — <Link to="/products?type=digital" className="text-saif-text underline">browse digital</Link>.</p>
+              <div className="card p-6">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text mb-1">Digital Purchases</h2>
+                <p className="text-xs text-saif-dim mb-5">
+                  Delivery details appear here once the order has been fulfilled.
+                </p>
+                {loading ? (
+                  <Loading />
+                ) : digitalItems.length === 0 ? (
+                  <EmptyState
+                    icon={Zap}
+                    title="No digital purchases"
+                    description="Approved digital orders and their delivery details will appear here."
+                    action={
+                      <Link to="/products?type=digital" className="btn btn-sm btn-primary">
+                        Browse Digital
+                      </Link>
+                    }
+                  />
                 ) : (
                   <div className="space-y-3">
-                    {digitalOrders.map(order => {
-                      const payment = latestPayment(order)
-                      return (
-                        <Link key={order.id} to={`/orders/${order.id}`} className="block p-4 border border-saif-border hover:bg-white/[0.03] transition-colors">
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="text-sm font-medium text-saif-text truncate">{order.order_number}</p>
-                            {payment && <StatusBadge className={PAYMENT_STATUS_COLORS[payment.status]}>{PAYMENT_STATUS_LABELS[payment.status]}</StatusBadge>}
+                    {digitalItems.map(item => (
+                      <div key={item.id} className="border border-saif-border p-4 rounded-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-saif-text">{item.product_name}</p>
+                            <p className="text-xs text-saif-dim mt-0.5">
+                              Order <span className="font-mono">{item.order.order_number}</span> ·{' '}
+                              {formatDate(item.order.created_at)}
+                            </p>
                           </div>
-                          <p className="text-xs text-saif-dim mt-1 truncate">
-                            {order.items?.filter(i => i.product_type === 'digital').map(i => i.product_name).join(', ')}
-                          </p>
-                          <p className="text-xs text-saif-dim mt-2">
-                            {payment?.status === 'approved'
-                              ? 'Approved — delivery details are on the order page.'
-                              : 'Delivery details unlock after payment approval.'}
-                          </p>
-                        </Link>
-                      )
-                    })}
+                          {item.fulfilled_at ? (
+                            <span className="badge bg-green-500/10 text-green-400 border-green-500/30">Delivered</span>
+                          ) : (
+                            <span className="badge bg-yellow-500/10 text-yellow-400 border-yellow-500/30">Pending</span>
+                          )}
+                        </div>
+                        {item.fulfillment_note && (
+                          <div className="mt-3 border border-green-500/30 bg-green-500/5 p-3 rounded-sm">
+                            <p className="text-xs text-saif-dim whitespace-pre-line">{item.fulfillment_note}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
             )}
 
             {tab === 'settings' && (
-              <div className="border border-saif-border p-6">
+              <div className="card p-6">
                 <div className="flex items-center justify-between mb-5">
-                  <h2 className="text-sm font-bold uppercase tracking-widest text-saif-text">Profile Settings</h2>
-                  <button onClick={() => setEditing(!editing)} className="text-xs text-saif-dim hover:text-saif-text transition-colors">
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text">Profile Settings</h2>
+                  <button
+                    onClick={() => {
+                      setEditing(!editing)
+                      setForm({ full_name: profile?.full_name || '', phone: profile?.phone || '' })
+                      setErrors({})
+                    }}
+                    className="text-xs text-saif-dim hover:text-saif-text transition-colors"
+                  >
                     {editing ? 'Cancel' : 'Edit'}
                   </button>
                 </div>
                 {editing ? (
-                  <div className="space-y-4 max-w-sm">
+                  <div className="space-y-4">
                     <div>
-                      <label htmlFor="acc-name" className="label">Full Name</label>
-                      <input id="acc-name" className="input" value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} />
+                      <label className="label" htmlFor="ac-name">Full Name</label>
+                      <input
+                        id="ac-name"
+                        type="text"
+                        className={cn('input', errors.name && 'input-error')}
+                        value={form.full_name}
+                        onChange={e => setForm({ ...form, full_name: e.target.value })}
+                      />
+                      {errors.name && <p className="field-error">{errors.name}</p>}
                     </div>
                     <div>
-                      <label htmlFor="acc-phone" className="label">Phone</label>
-                      <input id="acc-phone" type="tel" dir="ltr" className="input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+                      <label className="label" htmlFor="ac-phone">Phone</label>
+                      <input
+                        id="ac-phone"
+                        type="tel"
+                        className={cn('input', errors.phone && 'input-error')}
+                        value={form.phone}
+                        onChange={e => setForm({ ...form, phone: e.target.value })}
+                        placeholder="01012345678"
+                      />
+                      {errors.phone && <p className="field-error">{errors.phone}</p>}
                     </div>
-                    <button onClick={handleSave} disabled={saving} className="btn btn-primary text-xs">
+                    <button onClick={handleSave} className="btn btn-primary btn-sm" disabled={saving}>
                       {saving ? 'Saving…' : 'Save Changes'}
                     </button>
-                    <p className="text-xs text-saif-dim">Email and account role cannot be changed here.</p>
                   </div>
                 ) : (
-                  <dl className="space-y-3 text-sm">
-                    <div className="flex gap-6"><dt className="text-saif-dim w-24">Name</dt><dd className="text-saif-text">{profile?.full_name || 'Not set'}</dd></div>
-                    <div className="flex gap-6"><dt className="text-saif-dim w-24">Email</dt><dd className="text-saif-text">{user?.email}</dd></div>
-                    <div className="flex gap-6"><dt className="text-saif-dim w-24">Phone</dt><dd className="text-saif-text" dir="ltr">{profile?.phone || 'Not set'}</dd></div>
-                  </dl>
+                  <div className="space-y-2.5 text-sm">
+                    <p className="text-saif-dim">
+                      Name: <span className="text-saif-text">{profile?.full_name || 'Not set'}</span>
+                    </p>
+                    <p className="text-saif-dim">
+                      Email: <span className="text-saif-text">{user?.email}</span>
+                    </p>
+                    <p className="text-saif-dim">
+                      Phone: <span className="text-saif-text">{profile?.phone || 'Not set'}</span>
+                    </p>
+                    <div className="pt-3 border-t border-saif-border flex items-center justify-between gap-3">
+                      <p className="text-xs text-saif-dim">Account ID</p>
+                      <button
+                        className="text-xs font-mono text-saif-dim hover:text-saif-text transition-colors truncate max-w-[200px]"
+                        onClick={async () => {
+                          const ok = await copyToClipboard(user?.id || '')
+                          addToast(ok ? 'Account ID copied' : 'Copy failed', ok ? 'success' : 'error')
+                        }}
+                        title="Click to copy"
+                      >
+                        {user?.id}
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             )}
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   )
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({ label, value, alert }: { label: string; value: string; alert?: boolean }) {
   return (
-    <div className="border border-saif-border p-5 text-center">
-      <p className="text-2xl font-black text-saif-text">{value}</p>
-      <p className="text-[10px] uppercase tracking-widest text-saif-dim mt-1">{label}</p>
+    <div className={cn('card p-4', alert && 'border-yellow-500/40')}>
+      <p className={cn('text-xl font-bold', alert ? 'text-yellow-400' : 'text-saif-text')}>{value}</p>
+      <p className="text-[10px] text-saif-dim uppercase tracking-wider mt-1">{label}</p>
     </div>
   )
 }

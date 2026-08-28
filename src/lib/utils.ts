@@ -5,26 +5,17 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-/** Format money in the store's display style: "1,250 EGP". */
-export function formatPrice(price: number, currency = 'EGP') {
-  const n = Number(price) || 0
-  const formatted = new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
-    maximumFractionDigits: 2,
-  }).format(n)
-  return `${formatted} ${currency}`
-}
-
-export function formatDate(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-}
-
-export function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleString('en-US', {
-    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  })
+export function formatPrice(price: number | null | undefined, currency = 'EGP') {
+  const value = typeof price === 'number' && Number.isFinite(price) ? price : 0
+  try {
+    return new Intl.NumberFormat('en-EG', {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: value % 1 === 0 ? 0 : 2,
+    }).format(value)
+  } catch {
+    return `${currency} ${value.toFixed(2)}`
+  }
 }
 
 export function generateSlug(name: string) {
@@ -34,19 +25,45 @@ export function generateSlug(name: string) {
     .replace(/(^-|-$)/g, '')
 }
 
-export function debounce<A extends unknown[]>(fn: (...args: A) => void, ms: number): (...args: A) => void {
-  let t: ReturnType<typeof setTimeout> | undefined
-  return (...args: A) => {
-    if (t) clearTimeout(t)
-    t = setTimeout(() => fn(...args), ms)
-  }
+export function formatDate(date: string | Date | null | undefined, withTime = false) {
+  if (!date) return '—'
+  const d = typeof date === 'string' ? new Date(date) : date
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('en-EG', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {}),
+  })
 }
 
-export async function copyToClipboard(text: string): Promise<boolean> {
+export async function copyToClipboard(text: string) {
   try {
     await navigator.clipboard.writeText(text)
     return true
   } catch {
-    return false
+    // Fallback for older browsers / non-secure contexts
+    try {
+      const el = document.createElement('textarea')
+      el.value = text
+      el.style.position = 'fixed'
+      el.style.opacity = '0'
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+      return true
+    } catch {
+      return false
+    }
   }
+}
+
+export function discountPercent(price: number, compareAtPrice: number | null | undefined) {
+  if (!compareAtPrice || compareAtPrice <= price) return 0
+  return Math.round(((compareAtPrice - price) / compareAtPrice) * 100)
+}
+
+export function truncate(text: string, length: number) {
+  return text.length > length ? `${text.slice(0, length).trimEnd()}…` : text
 }

@@ -1,109 +1,98 @@
-import type { OrderStatus, PaymentMethod, PaymentStatus } from '@/types'
+import type { OrderStatus, PaymentStatus, PaymentMethod } from '@/types'
+
+export const STORE_NAME = 'SAIF STORE'
+
+/** Fallback receiving number; the live value comes from site_settings. */
+export const DEFAULT_PAYMENT_NUMBER = '01040324811'
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  pending: 'Pending Payment',
-  payment_review: 'Payment In Review',
+  pending: 'Pending',
+  payment_review: 'Payment Review',
   confirmed: 'Confirmed',
   processing: 'Processing',
-  ready: 'Ready',
   shipped: 'Shipped',
   delivered: 'Delivered',
   completed: 'Completed',
   cancelled: 'Cancelled',
-  rejected: 'Rejected',
   refunded: 'Refunded',
 }
 
-/** Order timeline steps shown to customers (happy path). */
-export const ORDER_TIMELINE: OrderStatus[] = [
-  'pending',
-  'payment_review',
-  'confirmed',
-  'processing',
-  'shipped',
-  'delivered',
-]
-
-export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
-  pending: 'text-yellow-400 border-yellow-400/40',
-  payment_review: 'text-amber-400 border-amber-400/40',
-  confirmed: 'text-blue-400 border-blue-400/40',
-  processing: 'text-purple-400 border-purple-400/40',
-  ready: 'text-cyan-400 border-cyan-400/40',
-  shipped: 'text-indigo-400 border-indigo-400/40',
-  delivered: 'text-green-400 border-green-400/40',
-  completed: 'text-emerald-400 border-emerald-400/40',
-  cancelled: 'text-red-400 border-red-400/40',
-  rejected: 'text-red-500 border-red-500/40',
-  refunded: 'text-orange-400 border-orange-400/40',
+export const ORDER_STATUS_STYLES: Record<OrderStatus, string> = {
+  pending: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
+  payment_review: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
+  confirmed: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+  processing: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
+  shipped: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30',
+  delivered: 'bg-green-500/10 text-green-400 border-green-500/30',
+  completed: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+  cancelled: 'bg-red-500/10 text-red-400 border-red-500/30',
+  refunded: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
 }
+
+export const ORDER_STATUSES = Object.keys(ORDER_STATUS_LABELS) as OrderStatus[]
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   awaiting_payment: 'Awaiting Payment',
+  payment_submitted: 'Payment Submitted',
   under_review: 'Under Review',
   approved: 'Approved',
   rejected: 'Rejected',
   cancelled: 'Cancelled',
 }
 
-export const PAYMENT_STATUS_COLORS: Record<PaymentStatus, string> = {
-  awaiting_payment: 'text-yellow-400 border-yellow-400/40',
-  under_review: 'text-amber-400 border-amber-400/40',
-  approved: 'text-green-400 border-green-400/40',
-  rejected: 'text-red-400 border-red-400/40',
-  cancelled: 'text-saif-dim border-saif-border',
+export const PAYMENT_STATUS_STYLES: Record<PaymentStatus, string> = {
+  awaiting_payment: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
+  payment_submitted: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+  under_review: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
+  approved: 'bg-green-500/10 text-green-400 border-green-500/30',
+  rejected: 'bg-red-500/10 text-red-400 border-red-500/30',
+  cancelled: 'bg-neutral-500/10 text-neutral-400 border-neutral-500/30',
 }
 
-export interface PaymentMethodMeta {
-  id: PaymentMethod
-  name: string
-  short: string
-  instructions: string[]
+export const PAYMENT_STATUSES = Object.keys(PAYMENT_STATUS_LABELS) as PaymentStatus[]
+
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  instapay: 'InstaPay',
+  vodafone_cash: 'Vodafone Cash',
 }
 
-export const PAYMENT_METHODS: PaymentMethodMeta[] = [
-  {
-    id: 'instapay',
-    name: 'InstaPay',
-    short: 'InstaPay',
-    instructions: [
-      'Open your InstaPay app and choose "Send Money".',
-      'Send the exact order total to the receiving number shown below.',
-      'Add your order number in the transfer note if possible.',
-      'Take a clear screenshot of the successful transfer receipt.',
-      'Upload the screenshot and submit — we verify manually within a few hours.',
-    ],
-  },
-  {
-    id: 'vodafone_cash',
-    name: 'Vodafone Cash',
-    short: 'VF Cash',
-    instructions: [
-      'Dial *9# or open the Ana Vodafone app.',
-      'Choose "Transfer Money" and send the exact order total to the number below.',
-      'Keep the confirmation SMS or take a screenshot of the receipt.',
-      'Upload the screenshot and submit — we verify manually within a few hours.',
-    ],
-  },
-]
+export const PAYMENT_METHODS: PaymentMethod[] = ['instapay', 'vodafone_cash']
 
-/** Fallback if site settings haven't loaded yet. The editable source of
- * truth is site_settings.payment_number (admin → settings). */
-export const DEFAULT_PAYMENT_NUMBER = '01040324811'
+export const PRODUCT_TYPE_LABELS: Record<string, string> = {
+  physical: 'Physical',
+  digital: 'Digital',
+}
 
+/** Egyptian governorates for the delivery step. */
 export const EGYPT_GOVERNORATES = [
-  'Cairo', 'Giza', 'Alexandria', 'Dakahlia', 'Red Sea', 'Beheira', 'Fayoum',
-  'Gharbia', 'Ismailia', 'Menofia', 'Minya', 'Qalyubia', 'New Valley', 'Suez',
-  'Aswan', 'Assiut', 'Beni Suef', 'Port Said', 'Damietta', 'Sharqia',
-  'South Sinai', 'Kafr El Sheikh', 'Matrouh', 'Luxor', 'Qena', 'North Sinai', 'Sohag',
+  'Cairo',
+  'Giza',
+  'Alexandria',
+  'Qalyubia',
+  'Port Said',
+  'Suez',
+  'Damietta',
+  'Dakahlia',
+  'Sharqia',
+  'Monufia',
+  'Gharbia',
+  'Beheira',
+  'Kafr El Sheikh',
+  'Ismailia',
+  'Fayoum',
+  'Beni Suef',
+  'Minya',
+  'Asyut',
+  'Sohag',
+  'Qena',
+  'Luxor',
+  'Aswan',
+  'Red Sea',
+  'New Valley',
+  'Matrouh',
+  'North Sinai',
+  'South Sinai',
 ]
 
-/** Allowed payment status transitions (client-side guidance only —
- * the database RPCs are the source of truth). */
-export const PAYMENT_TRANSITIONS: Record<PaymentStatus, PaymentStatus[]> = {
-  awaiting_payment: ['under_review', 'cancelled'],
-  under_review: ['approved', 'rejected', 'cancelled'],
-  approved: [],
-  rejected: [],
-  cancelled: [],
-}
+export const MAX_SCREENSHOT_SIZE_MB = 5
+export const ACCEPTED_SCREENSHOT_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']

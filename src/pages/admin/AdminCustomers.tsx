@@ -1,110 +1,167 @@
 import { useMemo, useState } from 'react'
-import { Search } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
-import { useAdminCustomers } from '@/hooks/useAdmin'
+import { Link } from 'react-router-dom'
+import { Users, ShoppingBag, Mail, Phone } from 'lucide-react'
+import { useAdminCustomers, useAdminOrders } from '@/hooks/admin/useAdminData'
+import { useApp } from '@/context/AppContext'
+import { useDebounce } from '@/hooks/useDebounce'
 import { usePageMeta } from '@/hooks/usePageMeta'
-import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '@/lib/constants'
 import { formatPrice, formatDate } from '@/lib/utils'
-import type { CustomerStat } from '@/lib/adminTypes'
-import type { Order } from '@/types'
-import Loading from '@/components/Loading'
-import EmptyState from '@/components/EmptyState'
+import { PageHeader, SearchInput, DataList, type Cell } from '@/components/admin/ui'
 import Modal from '@/components/ui/Modal'
-import { StatusBadge } from '@/components/ui/Badge'
+import Loading from '@/components/Loading'
+import { OrderStatusBadge, PaymentStatusBadge } from '@/components/ui/StatusBadge'
 
 export default function AdminCustomers() {
   const { customers, loading } = useAdminCustomers()
+  const { orders } = useAdminOrders()
+  const { settings } = useApp()
+  const currency = settings?.currency ?? 'EGP'
   const [search, setSearch] = useState('')
-  const [selected, setSelected] = useState<CustomerStat | null>(null)
-  const [orders, setOrders] = useState<Order[]>([])
-  const [ordersLoading, setOrdersLoading] = useState(false)
-
-  usePageMeta('Customers', 'Customer accounts and their order history.')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const debouncedSearch = useDebounce(search, 250)
+  usePageMeta({ title: 'Admin — Customers' })
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
+    const q = debouncedSearch.trim().toLowerCase()
     if (!q) return customers
-    return customers.filter(c =>
-      (c.full_name || '').toLowerCase().includes(q) || (c.phone || '').includes(q),
+    return customers.filter(
+      c =>
+        (c.full_name || '').toLowerCase().includes(q) ||
+        (c.email || '').toLowerCase().includes(q) ||
+        (c.phone || '').includes(q),
     )
-  }, [customers, search])
+  }, [customers, debouncedSearch])
 
-  async function openCustomer(c: CustomerStat) {
-    setSelected(c)
-    setOrdersLoading(true)
-    const { data } = await supabase
-      .from('orders')
-      .select('*, order_items(*)')
-      .eq('user_id', c.id)
-      .order('created_at', { ascending: false })
-    setOrders((data || []) as unknown as Order[])
-    setOrdersLoading(false)
+  const selected = customers.find(c => c.id === selectedId) ?? null
+  const customerOrders = orders.filter(o => o.user_id === selectedId)
+
+  if (loading) {
+    return (
+      <div>
+        <PageHeader title="Customers" />
+        <Loading />
+      </div>
+    )
   }
+
+  const rows: Cell[][] = filtered.map(c => [
+    {
+      label: 'Customer',
+      primary: true,
+      content: (
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center text-xs font-bold text-saif-dim flex-shrink-0">
+            {(c.full_name || 'U').charAt(0).toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <p className="font-medium text-saif-text truncate">{c.full_name || 'Unnamed'}</p>
+            <p className="text-xs text-saif-dim truncate">{c.email || '—'}</p>
+          </div>
+        </div>
+      ),
+    },
+    { label: 'Phone', content: <span className="text-saif-dim font-mono text-xs">{c.phone || '—'}</span> },
+    { label: 'Orders', content: <span className="text-saif-text font-semibold tabular-nums">{c.orders_count}</span> },
+    {
+      label: 'Total Spent',
+      content: <span className="text-saif-text font-semibold">{formatPrice(c.total_spent, currency)}</span>,
+    },
+    {
+      label: 'Last Order',
+      hideOnMobile: true,
+      content: <span className="text-xs text-saif-dim">{c.last_order_at ? formatDate(c.last_order_at) : '—'}</span>,
+    },
+    { label: 'Joined', hideOnMobile: true, content: <span className="text-xs text-saif-dim">{formatDate(c.created_at)}</span> },
+    {
+      label: '',
+      content: (
+        <button className="btn btn-sm" onClick={() => setSelectedId(c.id)}>
+          Details
+        </button>
+      ),
+    },
+  ])
 
   return (
     <div className="animate-[pageIn_0.4s_ease]">
-      <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-saif-text mb-6">Customers</h1>
+      <PageHeader title="Customers" description={`${customers.length} registered customers`} />
 
-      <div className="relative max-w-md mb-6">
-        <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-saif-dim" />
-        <input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name or phone…" aria-label="Search customers" className="input pl-10 text-sm" />
+      <div className="mb-6">
+        <SearchInput value={search} onChange={setSearch} placeholder="Search name, email, phone…" className="max-w-sm" />
       </div>
 
-      {loading ? <Loading /> : filtered.length === 0 ? (
-        <EmptyState title="No customers yet" description="Registered customers appear here with their order stats." />
-      ) : (
-        <div className="border border-saif-border overflow-x-auto">
-          <table className="w-full text-sm min-w-[680px]">
-            <thead>
-              <tr className="border-b border-saif-border text-left">
-                {['Customer', 'Phone', 'Joined', 'Orders', 'Total Spent', 'Last Order'].map(h => (
-                  <th key={h} className="p-4 text-[10px] uppercase tracking-wider text-saif-dim font-semibold">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(c => (
-                <tr key={c.id} onClick={() => openCustomer(c)} className="border-b border-saif-border hover:bg-white/[0.03] cursor-pointer transition-colors">
-                  <td className="p-4 font-medium text-saif-text">{c.full_name || 'Unnamed'}</td>
-                  <td className="p-4 text-saif-dim" dir="ltr">{c.phone || '—'}</td>
-                  <td className="p-4 text-saif-dim text-xs">{formatDate(c.created_at)}</td>
-                  <td className="p-4 text-saif-text">{c.order_count}</td>
-                  <td className="p-4 text-saif-text font-semibold">{formatPrice(c.total_spent)}</td>
-                  <td className="p-4 text-saif-dim text-xs">{c.last_order_at ? formatDate(c.last_order_at) : '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataList
+        columns={['Customer', 'Phone', 'Orders', 'Total Spent', 'Last Order', 'Joined', '']}
+        rows={rows}
+        empty={filtered.length === 0}
+      />
 
       {/* Customer detail */}
-      <Modal open={!!selected} onClose={() => setSelected(null)} title={selected?.full_name || 'Customer'} wide>
+      <Modal
+        open={!!selected}
+        onClose={() => setSelectedId(null)}
+        title={selected?.full_name || 'Customer'}
+        wide
+      >
         {selected && (
-          <div className="space-y-5">
+          <div className="space-y-6">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <MiniStat label="Orders" value={String(selected.order_count)} />
-              <MiniStat label="Total Spent" value={formatPrice(selected.total_spent)} />
-              <MiniStat label="Joined" value={formatDate(selected.created_at)} />
-              <MiniStat label="Phone" value={selected.phone || '—'} />
+              <div className="border border-saif-border rounded-sm p-3">
+                <p className="text-lg font-bold text-saif-text">{selected.orders_count}</p>
+                <p className="text-[10px] uppercase tracking-wider text-saif-dim">Orders</p>
+              </div>
+              <div className="border border-saif-border rounded-sm p-3">
+                <p className="text-lg font-bold text-saif-text">{formatPrice(selected.total_spent, currency)}</p>
+                <p className="text-[10px] uppercase tracking-wider text-saif-dim">Spent (paid)</p>
+              </div>
+              <div className="border border-saif-border rounded-sm p-3">
+                <p className="text-sm font-bold text-saif-text mt-1">{formatDate(selected.last_order_at)}</p>
+                <p className="text-[10px] uppercase tracking-wider text-saif-dim">Last order</p>
+              </div>
+              <div className="border border-saif-border rounded-sm p-3">
+                <p className="text-sm font-bold text-saif-text mt-1">{formatDate(selected.created_at)}</p>
+                <p className="text-[10px] uppercase tracking-wider text-saif-dim">Joined</p>
+              </div>
             </div>
+
+            <div className="space-y-2 text-sm">
+              {selected.email && (
+                <p className="flex items-center gap-2 text-saif-dim">
+                  <Mail size={13} /> {selected.email}
+                </p>
+              )}
+              {selected.phone && (
+                <p className="flex items-center gap-2 text-saif-dim">
+                  <Phone size={13} /> <span dir="ltr">{selected.phone}</span>
+                </p>
+              )}
+            </div>
+
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-widest text-saif-text mb-3">Order History</h3>
-              {ordersLoading ? <Loading /> : orders.length === 0 ? (
-                <p className="text-sm text-saif-dim">No orders from this customer.</p>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-saif-text mb-3 flex items-center gap-2">
+                <ShoppingBag size={13} className="text-saif-accent" /> Order History
+              </h3>
+              {customerOrders.length === 0 ? (
+                <p className="text-sm text-saif-dim py-4 text-center border border-saif-border rounded-sm">
+                  No orders yet.
+                </p>
               ) : (
-                <div className="space-y-2">
-                  {orders.map(o => (
-                    <div key={o.id} className="border border-saif-border p-3.5 flex items-center justify-between gap-3">
+                <div className="divide-y divide-saif-border border border-saif-border rounded-sm max-h-72 overflow-y-auto">
+                  {customerOrders.map(o => (
+                    <Link
+                      key={o.id}
+                      to={`/admin/orders/${o.id}`}
+                      className="flex items-center justify-between gap-3 p-3 hover:bg-white/[0.03] transition-colors"
+                    >
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-saif-text truncate">{o.order_number}</p>
-                        <p className="text-xs text-saif-dim">{formatDate(o.created_at)} · {o.items?.length || 0} items</p>
+                        <p className="text-xs font-mono text-saif-text">{o.order_number}</p>
+                        <p className="text-[11px] text-saif-dim">{formatDate(o.created_at)} · {formatPrice(o.total, currency)}</p>
                       </div>
-                      <div className="flex items-center gap-3 flex-shrink-0">
-                        <span className="text-sm font-semibold text-saif-text">{formatPrice(o.total)}</span>
-                        <StatusBadge className={ORDER_STATUS_COLORS[o.status]}>{ORDER_STATUS_LABELS[o.status]}</StatusBadge>
+                      <div className="flex gap-1.5 flex-shrink-0">
+                        <OrderStatusBadge status={o.status} />
+                        <PaymentStatusBadge status={o.payment_status} />
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
@@ -112,15 +169,6 @@ export default function AdminCustomers() {
           </div>
         )}
       </Modal>
-    </div>
-  )
-}
-
-function MiniStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border border-saif-border p-3">
-      <p className="text-[10px] uppercase tracking-widest text-saif-dim">{label}</p>
-      <p className="text-sm font-bold text-saif-text mt-1 truncate" dir="auto">{value}</p>
     </div>
   )
 }

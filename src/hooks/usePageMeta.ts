@@ -1,44 +1,49 @@
 import { useEffect } from 'react'
 
-const BASE = 'SAIF STORE'
+interface MetaOptions {
+  title: string
+  description?: string
+  image?: string
+  type?: string
+}
 
-/** Lightweight SEO: document title + meta description + canonical. */
-export function usePageMeta(title?: string, description?: string) {
+function upsertMeta(selector: string, attr: string, value: string, key: string) {
+  let el = document.head.querySelector<HTMLMetaElement>(selector)
+  if (!el) {
+    el = document.createElement('meta')
+    el.setAttribute(attr, key)
+    document.head.appendChild(el)
+  }
+  el.setAttribute('content', value)
+}
+
+function upsertLink(rel: string, href: string) {
+  let el = document.head.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`)
+  if (!el) {
+    el = document.createElement('link')
+    el.setAttribute('rel', rel)
+    document.head.appendChild(el)
+  }
+  el.setAttribute('href', href)
+}
+
+/** Lightweight per-page SEO metadata (title, description, Open Graph, canonical). */
+export function usePageMeta({ title, description, image, type = 'website' }: MetaOptions) {
   useEffect(() => {
-    const fullTitle = title ? `${title} — ${BASE}` : BASE
+    const fullTitle = title.includes('SAIF STORE') ? title : `${title} — SAIF STORE`
     document.title = fullTitle
 
     if (description) {
-      let meta = document.querySelector<HTMLMetaElement>('meta[name="description"]')
-      if (!meta) {
-        meta = document.createElement('meta')
-        meta.name = 'description'
-        document.head.appendChild(meta)
-      }
-      meta.content = description
-      let og = document.querySelector<HTMLMetaElement>('meta[property="og:description"]')
-      if (!og) {
-        og = document.createElement('meta')
-        og.setAttribute('property', 'og:description')
-        document.head.appendChild(og)
-      }
-      og.content = description
+      upsertMeta('meta[name="description"]', 'name', description, 'description')
+      upsertMeta('meta[property="og:description"]', 'property', description, 'og:description')
     }
+    upsertMeta('meta[property="og:title"]', 'property', fullTitle, 'og:title')
+    upsertMeta('meta[property="og:type"]', 'property', type, 'og:type')
+    if (image) upsertMeta('meta[property="og:image"]', 'property', image, 'og:image')
+    upsertLink('canonical', window.location.href)
 
-    let ogTitle = document.querySelector<HTMLMetaElement>('meta[property="og:title"]')
-    if (!ogTitle) {
-      ogTitle = document.createElement('meta')
-      ogTitle.setAttribute('property', 'og:title')
-      document.head.appendChild(ogTitle)
+    return () => {
+      document.title = 'SAIF STORE'
     }
-    ogTitle.content = fullTitle
-
-    let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]')
-    if (!canonical) {
-      canonical = document.createElement('link')
-      canonical.rel = 'canonical'
-      document.head.appendChild(canonical)
-    }
-    canonical.href = window.location.origin + window.location.pathname
-  }, [title, description])
+  }, [title, description, image, type])
 }

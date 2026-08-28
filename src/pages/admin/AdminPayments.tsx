@@ -1,286 +1,527 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { CheckCircle2, XCircle, Eye, RefreshCw, Phone, Ban } from 'lucide-react'
-import { usePaymentQueue, reviewPayment } from '@/hooks/useAdmin'
+import { Link, useSearchParams } from 'react-router-dom'
+import {
+  CreditCard,
+  ShieldCheck,
+  X,
+  Eye,
+  AlertTriangle,
+  Clock,
+  CheckCircle2,
+  Undo2,
+  ExternalLink,
+} from 'lucide-react'
+import { useAdminPayments } from '@/hooks/admin/useAdminData'
 import { useApp } from '@/context/AppContext'
+import { useToast } from '@/context/ToastContext'
+import { useDebounce } from '@/hooks/useDebounce'
 import { usePageMeta } from '@/hooks/usePageMeta'
-import { PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS } from '@/lib/constants'
-import { formatPrice, formatDateTime } from '@/lib/utils'
-import { getScreenshotUrl } from '@/lib/storage'
-import Loading from '@/components/Loading'
-import EmptyState from '@/components/EmptyState'
-import Modal from '@/components/ui/Modal'
+import { reviewPayment } from '@/lib/api'
+import { createScreenshotSignedUrl, paymentMethodLabel } from '@/lib/payments'
+import { formatPrice, formatDate, cn, copyToClipboard } from '@/lib/utils'
+import { PAYMENT_STATUSES, PAYMENT_STATUS_LABELS } from '@/lib/constants'
+import { PaymentStatusBadge } from '@/components/ui/StatusBadge'
+import { PageHeader, SearchInput, FilterTabs, EmptyPanel } from '@/components/admin/ui'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
-import { StatusBadge } from '@/components/ui/Badge'
+import Loading from '@/components/Loading'
 import type { Payment } from '@/types'
 
-type TabId = 'review' | 'approved' | 'rejected' | 'all'
-
 export default function AdminPayments() {
-  const { payments, loading, refetch } = usePaymentQueue()
-  const { addToast } = useApp()
-  const [searchParams] = useSearchParams()
-  const [tab, setTab] = useState<TabId>('review')
-  const [openId, setOpenId] = useState<string | null>(searchParams.get('open'))
-  const [busy, setBusy] = useState(false)
-  const [rejecting, setRejecting] = useState(false)
-  const [rejectReason, setRejectReason] = useState('')
-  const [confirmAction, setConfirmAction] = useState<'approve' | 'cancel' | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const focusId = searchParams.get('focus')
+  const { settings } = useApp()
+  const { addToast } = useToast()
+  const currency = settings?.currency ?? 'EGP'
+
+  const [statusFilter, setStatusFilter] = useState<string>('under_review')
+  const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 250)
+  const [selectedId, setSelectedId] = useState<string | null>(focusId)
+  const [zoomOpen, setZoomOpen] = useState(false)
   const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null)
-  const [screenshotLoading, setScreenshotLoading] = useState(false)
+  const [rejectOpen, setRejectOpen] = useState(false)
+  const [rejectionReason, setRejectionReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<'approve' | 'cancel' | 'under_review' | null>(null)
 
-  usePageMeta('Payment Verification', 'Admin payment queue.')
+  usePageMeta({ title: 'Admin — Payment Verification' })
 
-  const selected: Payment | undefined = payments.find(p => p.id === openId)
+  const { payments, loading, refetch } = useAdminPayments()
 
-  // Load the signed screenshot URL whenever the selected payment changes.
-  useEffect(() => {
-    setScreenshotUrl(null)
-    if (!selected?.screenshot_path) return
-    let cancelled = false
-    setScreenshotLoading(true)
-    getScreenshotUrl(selected.screenshot_path).then(url => {
-      if (!cancelled) {
-        setScreenshotUrl(url)
-        setScreenshotLoading(false)
-      }
-    })
-    return () => { cancelled = true }
-  }, [selected?.id, selected?.screenshot_path])
-
+  // Default to the under-review queue; "all" shows everything.
   const filtered = useMemo(() => {
-    switch (tab) {
-      case 'review': return payments.filter(p => p.status === 'under_review')
-      case 'approved': return payments.filter(p => p.status === 'approved')
-      case 'rejected': return payments.filter(p => p.status === 'rejected')
-      default: return payments
+    let list = [...payments]
+    if (statusFilter && statusFilter !== 'all') list = list.filter(p => p.payment_status === statusFilter)
+    const q = debouncedSearch.trim().toLowerCase()
+    if (q) {
+      list = list.filter(
+        p =>
+          p.order?.order_number?.toLowerCase().includes(q) ||
+          p.order?.customer_name?.toLowerCase().includes(q) ||
+          p.order?.customer_phone?.includes(q) ||
+          (p.payer_identifier || '').includes(q),
+      )
     }
-  }, [payments, tab])
+    return list
+  }, [payments, statusFilter, debouncedSearch])
 
-  async function runAction(action: 'approve' | 'reject' | 'hold' | 'cancel') {
-    if (!selected) return
-    if (action === 'reject' && !rejecting) {
-      setRejecting(true)
+  const selected = useMemo(
+    () => payments.find(p => p.id === selectedId) ?? null,
+    [payments, selectedId],
+  )
+
+  useEffect(() => {
+    if (focusId) setSelectedId(focusId)
+  }, [focusId])
+
+  useEffect(() => {
+    if (!selected?.screenshot_path) {
+      setScreenshotUrl(null)
       return
     }
-    setBusy(true)
-    const { error } = await reviewPayment(selected.id, action, undefined, action === 'reject' ? rejectReason : undefined)
-    setBusy(false)
-    if (error) {
-      addToast(error.message || 'Action failed', 'error')
-    } else {
-      addToast(
-        action === 'approve' ? 'Payment approved — order confirmed' :
-        action === 'reject' ? 'Payment rejected' :
-        action === 'cancel' ? 'Payment cancelled — order cancelled & stock released' :
-        'Marked as under review',
-      )
-      setRejecting(false)
-      setRejectReason('')
-      setConfirmAction(null)
-      if (action !== 'hold') setOpenId(null)
-      await refetch()
+    createScreenshotSignedUrl(selected.screenshot_path, 600).then(setScreenshotUrl)
+  }, [selected?.screenshot_path])
+
+  function selectPayment(id: string) {
+    setSelectedId(id)
+    if (focusId) {
+      searchParams.delete('focus')
+      setSearchParams(searchParams, { replace: true })
     }
   }
 
-  const tabs: Array<{ id: TabId; label: string; count: number }> = [
-    { id: 'review', label: 'Needs Review', count: payments.filter(p => p.status === 'under_review').length },
-    { id: 'approved', label: 'Approved', count: payments.filter(p => p.status === 'approved').length },
-    { id: 'rejected', label: 'Rejected', count: payments.filter(p => p.status === 'rejected').length },
-    { id: 'all', label: 'All', count: payments.length },
-  ]
+  async function act(
+    decision: 'approved' | 'rejected' | 'under_review' | 'cancelled',
+    rejectionReason?: string,
+  ) {
+    if (!selected) return
+    setBusy(true)
+    const { error } = await reviewPayment(
+      selected.id,
+      decision,
+      null,
+      rejectionReason?.trim() || null,
+    )
+    setBusy(false)
+    if (error) {
+      addToast(error, 'error')
+      return
+    }
+    const label = PAYMENT_STATUS_LABELS[decision]
+    addToast(`Payment marked as ${label}`)
+    setRejectOpen(false)
+    setRejectionReason('')
+    setConfirmAction(null)
+    refetch()
+  }
+
+  const counts = useMemo(() => {
+    const map: Record<string, number> = { all: payments.length }
+    for (const s of PAYMENT_STATUSES) map[s] = payments.filter(p => p.payment_status === s).length
+    return map
+  }, [payments])
 
   return (
     <div className="animate-[pageIn_0.4s_ease]">
-      <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-saif-text mb-2">Payment Verification</h1>
-      <p className="text-sm text-saif-dim mb-6">Manual verification queue — approve only after matching the screenshot to the receiving number and amount.</p>
-
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
-        {tabs.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            aria-pressed={tab === t.id}
-            className={`px-3.5 py-2 text-xs border whitespace-nowrap transition-colors ${
-              tab === t.id ? 'border-saif-text text-saif-text font-semibold' : 'border-saif-border text-saif-dim hover:text-saif-text'
-            }`}
-          >
-            {t.label} ({t.count})
+      <PageHeader
+        title="Payment Verification"
+        description="Review InstaPay / Vodafone Cash transfers before confirming orders."
+        actions={
+          <button className="btn btn-sm" onClick={refetch}>
+            Refresh
           </button>
-        ))}
-        <button onClick={refetch} className="ml-auto px-3 py-2 text-xs text-saif-dim hover:text-saif-text flex items-center gap-1.5" aria-label="Refresh queue">
-          <RefreshCw size={12} /> Refresh
-        </button>
+        }
+      />
+
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Order #, customer, phone, payer…"
+          className="flex-1"
+        />
       </div>
 
-      {loading ? <Loading /> : filtered.length === 0 ? (
-        <EmptyState title="Queue is clear" description="No payment submissions in this view." />
+      <div className="mb-6">
+        <FilterTabs
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { value: 'under_review', label: 'Under Review', count: counts.under_review ?? 0 },
+            { value: 'awaiting_payment', label: 'Awaiting Customer', count: counts.awaiting_payment ?? 0 },
+            { value: 'rejected', label: 'Rejected', count: counts.rejected ?? 0 },
+            { value: 'approved', label: 'Approved', count: counts.approved ?? 0 },
+            { value: 'cancelled', label: 'Cancelled', count: counts.cancelled ?? 0 },
+            { value: 'all', label: 'All', count: counts.all ?? 0 },
+          ]}
+          ariaLabel="Payment status filter"
+        />
+      </div>
+
+      {loading ? (
+        <Loading />
       ) : (
-        <div className="space-y-3">
-          {filtered.map(p => {
-            const amountMatch = p.transferred_amount != null && Math.abs(Number(p.transferred_amount) - Number(p.expected_amount)) <= 0.01
-            return (
-              <button
-                key={p.id}
-                onClick={() => setOpenId(p.id)}
-                className="w-full text-left border border-saif-border p-4 sm:p-5 hover:border-saif-text/40 hover:bg-white/[0.02] transition-colors"
-              >
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-bold text-saif-text">{p.orders?.order_number || '—'}</p>
-                      <StatusBadge className={PAYMENT_STATUS_COLORS[p.status]}>{PAYMENT_STATUS_LABELS[p.status]}</StatusBadge>
-                      <span className="text-[10px] uppercase tracking-wider text-saif-dim border border-saif-border px-1.5 py-0.5">
-                        {p.payment_method === 'instapay' ? 'InstaPay' : 'Vodafone Cash'}
-                      </span>
+        <div className="grid grid-cols-1 xl:grid-cols-[380px_1fr] gap-6">
+          {/* Queue */}
+          <div className="space-y-2 max-h-[calc(100vh-14rem)] overflow-y-auto pr-1">
+            {filtered.length === 0 ? (
+              <EmptyPanel
+                title="Nothing in this queue"
+                description={statusFilter === 'under_review' ? 'No payments are waiting for review.' : undefined}
+              />
+            ) : (
+              filtered.map(p => (
+                <PaymentQueueCard
+                  key={p.id}
+                  payment={p}
+                  selected={p.id === selectedId}
+                  onSelect={() => selectPayment(p.id)}
+                  currency={currency}
+                />
+              ))
+            )}
+          </div>
+
+          {/* Detail panel */}
+          <div>
+            {selected ? (
+              <section className="card p-6">
+                <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+                  <div>
+                    <div className="flex items-center gap-3 flex-wrap mb-1">
+                      <h2 className="text-lg font-bold text-saif-text">
+                        {selected.order?.order_number || 'Order'}
+                      </h2>
+                      <PaymentStatusBadge status={selected.payment_status} />
                     </div>
-                    <p className="text-xs text-saif-dim mt-1.5">
-                      {p.orders?.customer_name || 'Customer'} · <span dir="ltr">{p.payer_identifier || '—'}</span>
-                      {p.orders?.customer_phone ? <> · <span dir="ltr">{p.orders.customer_phone}</span></> : null}
+                    <p className="text-xs text-saif-dim">
+                      Submitted {formatDate(selected.created_at, true)}
                     </p>
-                    <p className="text-xs text-saif-dim mt-0.5">Submitted {formatDateTime(p.created_at)}</p>
                   </div>
-                  <div className="flex items-center gap-4 flex-shrink-0 text-sm">
-                    <div className="text-right">
-                      <p className="text-xs text-saif-dim">Expected</p>
-                      <p className="font-bold text-saif-text">{formatPrice(p.expected_amount)}</p>
+                  <Link
+                    to={`/admin/orders/${selected.order_id}`}
+                    className="btn btn-sm btn-ghost"
+                  >
+                    <ExternalLink size={12} /> Open Order
+                  </Link>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Left: amounts & customer */}
+                  <div className="space-y-5">
+                    <div>
+                      <h3 className="text-[10px] font-bold uppercase tracking-wider text-saif-dim mb-2.5">Transfer</h3>
+                      <dl className="space-y-2 text-xs border border-saif-border rounded-sm p-4">
+                        <div className="flex justify-between gap-3">
+                          <dt className="text-saif-dim">Method</dt>
+                          <dd className="text-saif-text font-semibold">{paymentMethodLabel(selected.payment_method)}</dd>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                          <dt className="text-saif-dim">Expected amount</dt>
+                          <dd className="text-saif-text font-semibold">{formatPrice(selected.expected_amount, currency)}</dd>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                          <dt className="text-saif-dim">Transferred</dt>
+                          <dd
+                            className={cn(
+                              'font-semibold',
+                              selected.transferred_amount === null
+                                ? 'text-saif-dim'
+                                : Number(selected.transferred_amount) < Number(selected.expected_amount)
+                                  ? 'text-yellow-400'
+                                  : Number(selected.transferred_amount) > Number(selected.expected_amount)
+                                    ? 'text-blue-400'
+                                    : 'text-green-400',
+                            )}
+                          >
+                            {selected.transferred_amount === null
+                              ? '— not submitted —'
+                              : formatPrice(selected.transferred_amount, currency)}
+                          </dd>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                          <dt className="text-saif-dim">Payer</dt>
+                          <dd className="text-saif-text font-mono">{selected.payer_identifier || '—'}</dd>
+                        </div>
+                      </dl>
+                      {selected.transferred_amount !== null &&
+                        Number(selected.transferred_amount) !== Number(selected.expected_amount) && (
+                          <p className="text-xs text-yellow-400 mt-2 flex items-center gap-1.5">
+                            <AlertTriangle size={12} />
+                            Amount {Number(selected.transferred_amount) < Number(selected.expected_amount) ? 'below' : 'above'} the
+                            expected total — verify carefully before approving.
+                          </p>
+                        )}
                     </div>
-                    <div className="text-right">
-                      <p className="text-xs text-saif-dim">Transferred</p>
-                      <p className={`font-bold ${amountMatch ? 'text-green-400' : 'text-saif-accent'}`}>
-                        {p.transferred_amount != null ? formatPrice(p.transferred_amount) : '—'}
+
+                    <div>
+                      <h3 className="text-[10px] font-bold uppercase tracking-wider text-saif-dim mb-2.5">Customer</h3>
+                      <div className="text-xs border border-saif-border rounded-sm p-4 space-y-1">
+                        <p className="text-sm text-saif-text">{selected.order?.customer_name}</p>
+                        {selected.order?.customer_phone && (
+                          <button
+                            className="text-saif-dim hover:text-saif-text transition-colors font-mono"
+                            onClick={async () => {
+                              const ok = await copyToClipboard(selected.order?.customer_phone || '')
+                              addToast(ok ? 'Phone copied' : 'Copy failed', ok ? 'success' : 'error')
+                            }}
+                            title="Click to copy"
+                          >
+                            {selected.order.customer_phone}
+                          </button>
+                        )}
+                        <p className="text-saif-dim">{selected.order?.customer_email}</p>
+                        {selected.customer_note && (
+                          <p className="text-saif-dim pt-2 border-t border-saif-border mt-2">
+                            Note: {selected.customer_note}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {selected.rejection_reason && (
+                      <p className="text-xs text-red-400 border border-red-500/30 bg-red-500/5 p-3 rounded-sm">
+                        Previously rejected: {selected.rejection_reason}
                       </p>
-                    </div>
-                    <Eye size={16} className="text-saif-dim" />
+                    )}
+                    {selected.admin_note && (
+                      <p className="text-xs text-saif-dim border border-saif-border p-3 rounded-sm">
+                        Admin note: {selected.admin_note}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Right: screenshot */}
+                  <div>
+                    <h3 className="text-[10px] font-bold uppercase tracking-wider text-saif-dim mb-2.5">
+                      Transfer Screenshot
+                    </h3>
+                    {selected.screenshot_path ? (
+                      screenshotUrl ? (
+                        <button
+                          onClick={() => setZoomOpen(true)}
+                          className="block w-full border border-saif-border rounded-sm overflow-hidden group hover:border-saif-text transition-colors"
+                          aria-label="Enlarge screenshot"
+                        >
+                          <img
+                            src={screenshotUrl}
+                            alt="Payment transfer screenshot"
+                            className="w-full max-h-80 object-contain bg-saif-panel"
+                          />
+                          <span className="flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-wider text-saif-dim group-hover:text-saif-text transition-colors py-2 border-t border-saif-border">
+                            <Eye size={11} /> Click to enlarge
+                          </span>
+                        </button>
+                      ) : (
+                        <div className="h-64 skeleton rounded-sm" />
+                      )
+                    ) : (
+                      <div className="border border-dashed border-saif-border rounded-sm p-8 text-center">
+                        <p className="text-xs text-saif-dim">
+                          No screenshot submitted yet — the customer hasn&apos;t completed the payment step.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </button>
-            )
-          })}
+
+                {/* Actions */}
+                <div className="flex flex-wrap gap-2 mt-6 pt-5 border-t border-saif-border">
+                  {selected.payment_status !== 'approved' && selected.payment_status !== 'cancelled' && (
+                    <>
+                      <button
+                        className="btn btn-sm btn-primary"
+                        onClick={() => setConfirmAction('approve')}
+                        disabled={busy}
+                      >
+                        <ShieldCheck size={13} /> Approve Payment
+                      </button>
+                      <button
+                        className="btn btn-sm btn-danger"
+                        onClick={() => setRejectOpen(true)}
+                        disabled={busy}
+                      >
+                        <X size={13} /> Reject Payment
+                      </button>
+                      {selected.payment_status !== 'under_review' && (
+                        <button
+                          className="btn btn-sm"
+                          onClick={() => setConfirmAction('under_review')}
+                          disabled={busy}
+                        >
+                          <Clock size={13} /> Mark Under Review
+                        </button>
+                      )}
+                      <button
+                        className="btn btn-sm btn-ghost"
+                        onClick={() => setConfirmAction('cancel')}
+                        disabled={busy}
+                      >
+                        <Undo2 size={13} /> Cancel Payment
+                      </button>
+                    </>
+                  )}
+                  {selected.payment_status === 'approved' && (
+                    <p className="text-xs text-green-400 flex items-center gap-2">
+                      <CheckCircle2 size={14} />
+                      Approved {selected.verified_at ? formatDate(selected.verified_at, true) : ''}
+                    </p>
+                  )}
+                </div>
+              </section>
+            ) : (
+              <EmptyPanel
+                title="Select a payment"
+                description="Choose a submission from the queue to review the transfer details and screenshot."
+              />
+            )}
+          </div>
         </div>
       )}
 
-      {/* ---------- Verification panel ---------- */}
-      <Modal open={!!selected} onClose={() => { setOpenId(null); setRejecting(false); setRejectReason('') }} title="Payment Verification" wide>
-        {selected && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Screenshot */}
-            <div>
-              <p className="label">Transfer Screenshot</p>
-              <div className="border border-saif-border bg-[#111] min-h-[240px] flex items-center justify-center">
-                {screenshotLoading ? (
-                  <p className="text-xs text-saif-dim p-6">Loading screenshot…</p>
-                ) : screenshotUrl ? (
-                  <a href={screenshotUrl} target="_blank" rel="noreferrer" className="block">
-                    <img src={screenshotUrl} alt="Payment transfer screenshot" className="max-h-[420px] w-auto object-contain" />
-                  </a>
-                ) : (
-                  <p className="text-xs text-saif-dim p-6 text-center">Screenshot unavailable.<br />It may have been removed from storage.</p>
-                )}
-              </div>
-              <p className="text-[10px] text-saif-dim mt-2">Link expires in 5 minutes. Click to open full size.</p>
-            </div>
+      {/* Screenshot zoom */}
+      {zoomOpen && screenshotUrl && (
+        <div
+          className="fixed inset-0 z-[250] bg-black/95 flex items-center justify-center p-4 md:p-10"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Payment screenshot"
+          onClick={() => setZoomOpen(false)}
+        >
+          <button className="absolute top-5 right-5 text-saif-dim hover:text-saif-text p-2" aria-label="Close">
+            <X size={26} />
+          </button>
+          <img src={screenshotUrl} alt="Payment screenshot (full size)" className="max-w-full max-h-full object-contain" />
+        </div>
+      )}
 
-            {/* Details */}
-            <div className="space-y-4">
-              <div className="border border-saif-border divide-y divide-[rgba(245,240,232,0.08)] text-sm">
-                <DetailRow label="Order">{selected.orders?.order_number || '—'}</DetailRow>
-                <DetailRow label="Order Status">{selected.orders?.status || '—'}</DetailRow>
-                <DetailRow label="Customer">{selected.orders?.customer_name || '—'}</DetailRow>
-                <DetailRow label="Phone"><span dir="ltr">{selected.orders?.customer_phone || '—'}</span></DetailRow>
-                <DetailRow label="Method">{selected.payment_method === 'instapay' ? 'InstaPay' : 'Vodafone Cash'}</DetailRow>
-                <DetailRow label="Expected">
-                  <span className="font-bold">{formatPrice(selected.expected_amount)}</span>
-                </DetailRow>
-                <DetailRow label="Transferred">
-                  <span className={`font-bold ${selected.transferred_amount != null && Math.abs(Number(selected.transferred_amount) - Number(selected.expected_amount)) <= 0.01 ? 'text-green-400' : 'text-saif-accent'}`}>
-                    {selected.transferred_amount != null ? formatPrice(selected.transferred_amount) : '—'}
-                  </span>
-                </DetailRow>
-                <DetailRow label="Payer Number"><span dir="ltr" className="flex items-center gap-1.5"><Phone size={11} /> {selected.payer_identifier || '—'}</span></DetailRow>
-                <DetailRow label="Submitted">{formatDateTime(selected.created_at)}</DetailRow>
-                {selected.customer_note && <DetailRow label="Customer Note">{selected.customer_note}</DetailRow>}
-                {selected.rejection_reason && <DetailRow label="Rejection Reason"><span className="text-red-400">{selected.rejection_reason}</span></DetailRow>}
-                {selected.admin_note && <DetailRow label="Admin Note">{selected.admin_note}</DetailRow>}
-                {selected.verified_at && <DetailRow label="Reviewed At">{formatDateTime(selected.verified_at)}</DetailRow>}
-              </div>
-
-              {/* Actions */}
-              {selected.status === 'under_review' && (
-                <div className="space-y-3">
-                  {rejecting ? (
-                    <div className="border border-red-500/30 p-4 space-y-3">
-                      <p className="label">Rejection Reason <span className="text-saif-accent">*</span></p>
-                      <textarea
-                        rows={2}
-                        value={rejectReason}
-                        onChange={e => setRejectReason(e.target.value)}
-                        className="input resize-none"
-                        placeholder="Shown to the customer — e.g. amount mismatch, unreadable screenshot…"
-                      />
-                      <div className="flex gap-2">
-                        <button onClick={() => setRejecting(false)} className="btn text-[10px] flex-1" disabled={busy}>Back</button>
-                        <button
-                          onClick={() => runAction('reject')}
-                          disabled={busy || rejectReason.trim().length < 5}
-                          className="btn btn-danger text-[10px] flex-1"
-                        >
-                          {busy ? 'Working…' : 'Confirm Rejection'}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      <button onClick={() => setConfirmAction('approve')} className="btn btn-primary text-[10px]">
-                        <CheckCircle2 size={13} className="mr-1.5" /> Approve
-                      </button>
-                      <button onClick={() => setRejecting(true)} className="btn btn-danger text-[10px]">
-                        <XCircle size={13} className="mr-1.5" /> Reject
-                      </button>
-                      <button onClick={() => runAction('hold')} disabled={busy} className="btn text-[10px] col-span-2">
-                        Keep Under Review
-                      </button>
-                    </div>
-                  )}
-                  <button onClick={() => setConfirmAction('cancel')} disabled={busy} className="w-full text-[10px] text-saif-dim hover:text-saif-accent transition-colors flex items-center justify-center gap-1.5 py-1">
-                    <Ban size={11} /> Cancel payment & order (restocks items)
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* Confirmation for irreversible actions */}
+      {/* Reject dialog with required reason */}
       <ConfirmDialog
-        open={confirmAction === 'approve'}
-        title="Approve this payment?"
-        message={`This confirms the order ${selected?.orders?.order_number || ''} and records you as the verifier. Only approve after checking the screenshot against the expected amount ${selected ? formatPrice(selected.expected_amount) : ''}.`}
-        confirmLabel="Approve Payment"
-        busy={busy}
-        onConfirm={() => runAction('approve')}
-        onCancel={() => setConfirmAction(null)}
-      />
-      <ConfirmDialog
-        open={confirmAction === 'cancel'}
-        title="Cancel payment and order?"
-        message="The order will be cancelled and its reserved stock released. The customer can no longer pay for it."
-        confirmLabel="Cancel Order"
+        open={rejectOpen}
+        onClose={() => setRejectOpen(false)}
+        onConfirm={() => act('rejected', rejectionReason)}
+        title="Reject this payment?"
+        confirmLabel="Reject Payment"
         danger
         busy={busy}
-        onConfirm={() => runAction('cancel')}
-        onCancel={() => setConfirmAction(null)}
+        message={
+          <div>
+            <p className="mb-3">The customer will see the reason and can resubmit correct proof.</p>
+            <label className="label" htmlFor="rej-reason">
+              Rejection reason (required)
+            </label>
+            <textarea
+              id="rej-reason"
+              className="input text-xs resize-none"
+              rows={3}
+              value={rejectionReason}
+              onChange={e => setRejectionReason(e.target.value)}
+              placeholder="e.g. transferred amount doesn't match the order total"
+              autoFocus
+            />
+          </div>
+        }
+      />
+
+      {/* Approve confirmation */}
+      <ConfirmDialog
+        open={confirmAction === 'approve'}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={() => act('approved')}
+        title="Approve this payment?"
+        confirmLabel="Approve & Confirm Order"
+        busy={busy}
+        message={
+          <div>
+            <p className="mb-2">
+              Approving marks the payment as verified, records you as the verifier and moves the order to{' '}
+              <span className="text-saif-text font-semibold">Confirmed</span>.
+            </p>
+            {selected?.transferred_amount !== null &&
+              selected?.transferred_amount !== undefined &&
+              Number(selected.transferred_amount) !== Number(selected.expected_amount) && (
+                <p className="text-xs text-yellow-400">
+                  Warning: the transferred amount does not match the expected total.
+                </p>
+              )}
+          </div>
+        }
+      />
+
+      {/* Cancel confirmation */}
+      <ConfirmDialog
+        open={confirmAction === 'cancel'}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={() => act('cancelled')}
+        title="Cancel this payment?"
+        confirmLabel="Cancel Payment & Order"
+        danger
+        busy={busy}
+        message="The payment is cancelled, the order is cancelled and the reserved stock is returned."
+      />
+
+      {/* Under review confirmation */}
+      <ConfirmDialog
+        open={confirmAction === 'under_review'}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={() => act('under_review')}
+        title="Mark as under review?"
+        confirmLabel="Mark Under Review"
+        busy={busy}
+        message="The payment returns to the review queue. Any rejection reason is cleared."
       />
     </div>
   )
 }
 
-function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+function PaymentQueueCard({
+  payment,
+  selected,
+  onSelect,
+  currency,
+}: {
+  payment: Payment & { order?: { order_number: string; customer_name: string; customer_phone: string | null } }
+  selected: boolean
+  onSelect: () => void
+  currency: string
+}) {
+  const amountMismatch =
+    payment.transferred_amount !== null &&
+    Number(payment.transferred_amount) !== Number(payment.expected_amount)
+
   return (
-    <div className="flex items-start justify-between gap-4 px-4 py-2.5">
-      <span className="text-xs uppercase tracking-wider text-saif-dim flex-shrink-0 pt-0.5">{label}</span>
-      <span className="text-saif-text text-right min-w-0">{children}</span>
-    </div>
+    <button
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={cn(
+        'w-full text-left border p-4 rounded-sm transition-all',
+        selected ? 'border-saif-accent/60 bg-saif-accent/[0.04]' : 'border-saif-border hover:border-saif-dim',
+      )}
+    >
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <span className="font-mono text-xs font-semibold text-saif-text">{payment.order?.order_number}</span>
+        <PaymentStatusBadge status={payment.payment_status} />
+      </div>
+      <p className="text-xs text-saif-dim truncate mb-1">
+        {payment.order?.customer_name}
+        {payment.order?.customer_phone ? ` · ${payment.order.customer_phone}` : ''}
+      </p>
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <span className="text-saif-dim">
+          {paymentMethodLabel(payment.payment_method)} ·{' '}
+          <span className={amountMismatch ? 'text-yellow-400' : 'text-saif-text'}>
+            {payment.transferred_amount === null
+              ? formatPrice(payment.expected_amount, currency)
+              : formatPrice(payment.transferred_amount, currency)}
+          </span>
+        </span>
+        <span className="text-[10px] text-saif-faint">{formatDate(payment.created_at)}</span>
+      </div>
+      {amountMismatch && (
+        <p className="text-[10px] text-yellow-400 mt-1.5 flex items-center gap-1">
+          <AlertTriangle size={10} /> amount differs from expected {formatPrice(payment.expected_amount, currency)}
+        </p>
+      )}
+    </button>
   )
 }

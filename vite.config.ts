@@ -10,15 +10,15 @@ export default defineConfig({
     },
   },
   server: {
-    host: true,
-    port: 5173,
+    host: '0.0.0.0',
+    // Allow the sandbox preview proxy host in addition to localhost.
     allowedHosts: true,
   },
   build: {
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
+          react: ['react', 'react-dom', 'react-router-dom'],
           supabase: ['@supabase/supabase-js'],
           icons: ['lucide-react'],
         },

@@ -1,75 +1,84 @@
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
-import type { User } from '@supabase/supabase-js'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { Database } from '@/lib/database.types'
 import type { Profile } from '@/types'
 
-/** Only fields a user may change about their own profile.
- * `role` is intentionally absent — it is protected at the database
- * level (column grants + trigger) and never accepted from clients. */
-export type ProfileUpdate = Pick<Profile, 'full_name' | 'phone' | 'avatar_url' | 'address'>
-
 interface AuthContextType {
-  user: User | null
+  user: import('@supabase/supabase-js').User | null
   profile: Profile | null
   isAdmin: boolean
   loading: boolean
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>
+  signUp: (email: string, password: string, fullName: string) => Promise<{ error: string | null }>
+  signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
-  updateProfile: (data: Partial<ProfileUpdate>) => Promise<{ error: Error | null }>
+  updateProfile: (data: { full_name?: string; phone?: string; avatar_url?: string }) => Promise<{ error: string | null }>
   refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<import('@supabase/supabase-js').User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
-
-  const fetchProfile = useCallback(async (userId: string) => {
-    const { data } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
-    setProfile((data as Profile) ?? null)
-    setLoading(false)
-  }, [])
+  const mounted = useRef(true)
 
   useEffect(() => {
+    mounted.current = true
+
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted.current) return
       setUser(session?.user ?? null)
       if (session?.user) fetchProfile(session.user.id)
       else setLoading(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted.current) return
       setUser(session?.user ?? null)
-      if (session?.user) {
-        fetchProfile(session.user.id)
-      } else {
+      if (session?.user) fetchProfile(session.user.id)
+      else {
         setProfile(null)
         setLoading(false)
       }
-      // Profile rows created by the DB trigger after email confirmation.
-      if (event === 'USER_UPDATED' && session?.user) fetchProfile(session.user.id)
     })
 
-    return () => subscription.unsubscribe()
-  }, [fetchProfile])
+    return () => {
+      mounted.current = false
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  async function fetchProfile(userId: string) {
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+    if (!mounted.current) return
+    setProfile((data as Profile) ?? null)
+    setLoading(false)
+  }
+
+  async function refreshProfile() {
+    if (user) await fetchProfile(user.id)
+  }
 
   async function signUp(email: string, password: string, fullName: string) {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName } },
+      options: {
+        data: { full_name: fullName },
+      },
     })
-    // The handle_new_user trigger creates the profile row with the
-    // customer role; no client-side role writing, ever.
-    return { error: error as Error | null }
+    if (error) return { error: error.message }
+    if (data.user && data.session) {
+      // The handle_new_user trigger creates the profile row server-side.
+      // Refresh it so the UI has the role immediately after signup.
+      await fetchProfile(data.user.id)
+    }
+    return { error: null }
   }
 
   async function signIn(email: string, password: string) {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return { error: error as Error | null }
+    return { error: error?.message ?? null }
   }
 
   async function signOut() {
@@ -78,33 +87,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null)
   }
 
-  async function updateProfile(data: Partial<ProfileUpdate>) {
-    if (!user) return { error: new Error('Not authenticated') }
-    const safe: Partial<ProfileUpdate> = {}
-    if (data.full_name !== undefined) safe.full_name = data.full_name
-    if (data.phone !== undefined) safe.phone = data.phone
-    if (data.avatar_url !== undefined) safe.avatar_url = data.avatar_url
-    if (data.address !== undefined) safe.address = data.address
-    const { error } = await supabase
-      .from('profiles')
-      .update(safe as unknown as Database['public']['Tables']['profiles']['Update'])
-      .eq('id', user.id)
-    if (!error) setProfile(prev => (prev ? { ...prev, ...safe } : prev))
-    return { error: error as Error | null }
+  /**
+   * Only safe, non-privileged columns can be updated. The `role` column
+   * is protected by column-level database grants and a trigger.
+   */
+  async function updateProfile(data: { full_name?: string; phone?: string; avatar_url?: string }) {
+    if (!user) return { error: 'Not authenticated' }
+    const { error } = await supabase.from('profiles').update(data).eq('id', user.id)
+    if (error) return { error: error.message }
+    setProfile(prev => (prev ? { ...prev, ...data } : prev))
+    return { error: null }
   }
 
-  const refreshProfile = useCallback(async () => {
-    if (user) await fetchProfile(user.id)
-  }, [user, fetchProfile])
-
-  return (
-    <AuthContext.Provider value={{
-      user, profile, isAdmin: profile?.role === 'admin', loading,
-      signUp, signIn, signOut, updateProfile, refreshProfile,
-    }}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({
+      user,
+      profile,
+      isAdmin: profile?.role === 'admin',
+      loading,
+      signUp,
+      signIn,
+      signOut,
+      updateProfile,
+      refreshProfile,
+    }),
+    [user, profile, loading],
   )
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {
