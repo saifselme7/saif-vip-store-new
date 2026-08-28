@@ -29,6 +29,12 @@ ALTER TABLE site_settings ENABLE ROW LEVEL SECURITY;
 -- 2) A trigger raises if a non-admin changes the role.
 -- 3) RLS restricts rows to the owner (admins see all).
 -- ------------------------------------------------------------
+-- Legacy policy names from the original project (must be removed so they
+-- do not OR-combine with the new policies)
+DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
+
 DROP POLICY IF EXISTS "Profiles select own or admin" ON profiles;
 CREATE POLICY "Profiles select own or admin"
   ON profiles FOR SELECT
@@ -75,6 +81,8 @@ CREATE POLICY "Products public read active"
   ON products FOR SELECT
   TO authenticated, anon
   USING (status = 'active' OR public.is_admin());
+
+DROP POLICY IF EXISTS "Products admin all" ON products;
 
 DROP POLICY IF EXISTS "Products admin insert" ON products;
 CREATE POLICY "Products admin insert"
@@ -139,6 +147,8 @@ CREATE POLICY "Cart items through cart"
 -- Orders are created exclusively through the place_order RPC,
 -- so there is no direct customer INSERT policy.
 -- ------------------------------------------------------------
+DROP POLICY IF EXISTS "Orders own" ON orders;
+
 DROP POLICY IF EXISTS "Orders select own or admin" ON orders;
 CREATE POLICY "Orders select own or admin"
   ON orders FOR SELECT
@@ -164,6 +174,8 @@ CREATE POLICY "Orders admin insert"
 -- ------------------------------------------------------------
 -- ORDER ITEMS
 -- ------------------------------------------------------------
+DROP POLICY IF EXISTS "Order items through order" ON order_items;
+
 DROP POLICY IF EXISTS "Order items select through order" ON order_items;
 CREATE POLICY "Order items select through order"
   ON order_items FOR SELECT
@@ -189,6 +201,8 @@ DROP POLICY IF EXISTS "Order items admin update" ON order_items;
 -- order). All mutations happen through RPCs that verify
 -- permissions — no direct customer write policies.
 -- ------------------------------------------------------------
+DROP POLICY IF EXISTS "Payments own read" ON payments;
+
 DROP POLICY IF EXISTS "Payments select own or admin" ON payments;
 CREATE POLICY "Payments select own or admin"
   ON payments FOR SELECT
@@ -250,6 +264,9 @@ CREATE POLICY "Coupons admin all"
 -- REVIEWS
 -- ------------------------------------------------------------
 DROP POLICY IF EXISTS "Reviews public read approved" ON reviews;
+DROP POLICY IF EXISTS "Reviews own read" ON reviews;
+DROP POLICY IF EXISTS "Reviews own write" ON reviews;
+DROP POLICY IF EXISTS "Reviews read approved or own" ON reviews;
 CREATE POLICY "Reviews read approved or own"
   ON reviews FOR SELECT
   TO authenticated, anon
@@ -310,6 +327,12 @@ ON CONFLICT (id) DO UPDATE
 -- Payment screenshots: customers may upload only into their own
 -- folder (payment-screenshots/<user_id>/...) and may read only
 -- their own files. Admins can read everything in the bucket.
+-- (Also remove legacy sibling policies that granted owner update/delete.)
+DROP POLICY IF EXISTS "Screenshots owner upload" ON storage.objects;
+DROP POLICY IF EXISTS "Screenshots owner or admin read" ON storage.objects;
+DROP POLICY IF EXISTS "Screenshots owner update" ON storage.objects;
+DROP POLICY IF EXISTS "Screenshots owner delete" ON storage.objects;
+
 DROP POLICY IF EXISTS "Payment screenshots customer upload" ON storage.objects;
 CREATE POLICY "Payment screenshots customer upload"
   ON storage.objects FOR INSERT

@@ -30,7 +30,9 @@ function upsertLink(rel: string, href: string) {
 /** Lightweight per-page SEO metadata (title, description, Open Graph, canonical). */
 export function usePageMeta({ title, description, image, type = 'website' }: MetaOptions) {
   useEffect(() => {
-    const fullTitle = title.includes('SAIF STORE') ? title : `${title} — SAIF STORE`
+    // Defensive: a page must never crash the whole app over metadata.
+    const safeTitle = title ?? 'SAIF STORE'
+    const fullTitle = safeTitle.includes('SAIF STORE') ? safeTitle : `${safeTitle} — SAIF STORE`
     document.title = fullTitle
 
     if (description) {

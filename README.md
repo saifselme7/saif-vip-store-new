@@ -16,10 +16,14 @@ Premium e-commerce storefront + admin dashboard built with React, Vite, TypeScri
 
 **New project** — run `supabase/setup.sql` in the SQL Editor.
 
-**Existing project (upgrading an older SAIF STORE)** — run, in order:
-1. `supabase/migrations/2026-08-27-upgrade.sql`
-2. `supabase/functions.sql`
-3. `supabase/rls.sql`
+**Existing project / Admin Dashboard broken?** — run, in this exact order:
+1. `supabase/diagnostics/check_schema.sql` — read-only state report (tells you which lineage your database is in)
+2. `supabase/migrations/2026-08-28-admin-reconcile.sql` — additive, idempotent; converges BOTH known lineages (original v1 and the sibling v2 where payments used `status` and `review_payment` took `p_action`)
+3. `supabase/functions.sql`
+4. `supabase/rls.sql`
+5. `supabase/diagnostics/verify_admin.sql` — read-only verification (every row should say OK)
+
+The reconciliation never drops tables and never deletes rows; superseded duplicate payment rows are only *marked* cancelled. Re-running any step is safe.
 
 ### 2. Environment
 

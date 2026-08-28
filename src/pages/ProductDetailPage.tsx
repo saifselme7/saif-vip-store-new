@@ -35,6 +35,13 @@ export default function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1)
   const [tab, setTab] = useState<Tab>('description')
 
+  // All hooks run unconditionally BEFORE any early return (Rules of Hooks).
+  // `variants` and the size/color facets are safe to derive from a nullable
+  // product — the guards below still short-circuit the actual rendering.
+  const variants = product?.variants ?? []
+  const sizes = useMemo(() => [...new Set(variants.map(v => v.size).filter(Boolean))] as string[], [variants])
+  const colors = useMemo(() => [...new Set(variants.map(v => v.color).filter(Boolean))] as string[], [variants])
+
   const currency = settings?.currency ?? 'EGP'
 
   useEffect(() => {
@@ -102,7 +109,6 @@ export default function ProductDetailPage() {
     )
   }
 
-  const variants = product.variants ?? []
   const selectedVariant = variants.find(v => v.id === selectedVariantId) ?? null
   const isDigital = product.product_type === 'digital'
   const inWishlist = isInWishlist(product.id)
@@ -111,9 +117,6 @@ export default function ProductDetailPage() {
   const discount = discountPercent(product.price, product.compare_at_price)
   const soldOut = !isDigital && availableStock <= 0
   const specs = (product.specifications ?? {}) as Record<string, string>
-
-  const sizes = useMemo(() => [...new Set(variants.map(v => v.size).filter(Boolean))] as string[], [variants])
-  const colors = useMemo(() => [...new Set(variants.map(v => v.color).filter(Boolean))] as string[], [variants])
 
   function handleAddToCart(openDrawer = true) {
     if (!product) return

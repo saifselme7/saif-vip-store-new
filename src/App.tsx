@@ -14,6 +14,7 @@ import ScrollToTop from '@/components/ScrollToTop'
 import CartDrawer from '@/components/CartDrawer'
 import Loading from '@/components/Loading'
 import MaintenanceScreen from '@/components/MaintenanceScreen'
+import ErrorBoundary from '@/components/ErrorBoundary'
 import HomePage from '@/pages/HomePage'
 import ProductsPage from '@/pages/ProductsPage'
 import ProductDetailPage from '@/pages/ProductDetailPage'
@@ -97,6 +98,7 @@ export default function App() {
                 <CursorFollower />
                 <ScrollToTop />
                 <main id="main">
+                  <ErrorBoundary>
                   <Suspense fallback={<div className="pt-28"><Loading /></div>}>
                     <Routes>
                       <Route path="/" element={<HomePage />} />
@@ -148,6 +150,7 @@ export default function App() {
                       <Route path="*" element={<NotFoundPage />} />
                     </Routes>
                   </Suspense>
+                  </ErrorBoundary>
                 </main>
               </StorefrontGate>
             </CartProvider>
