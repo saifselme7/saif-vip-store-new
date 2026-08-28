@@ -6,13 +6,17 @@ import { useCart } from '@/context/CartContext'
 import { useToast } from '@/context/ToastContext'
 import { useApp } from '@/context/AppContext'
 import { formatPrice, discountPercent } from '@/lib/utils'
+import { useI18n } from '@/i18n'
+import { configText, type SpotlightConfig } from '@/hooks/useHomepageSections'
 import type { Product } from '@/types'
 
 /**
  * The editorial product moment — one product presented like a campaign.
  * Uses the first featured (or best-selling) product from the database.
  */
-export default function EditorialMoment({ product }: { product: Product | null }) {
+export default function EditorialMoment({ product, config }: { product: Product | null; config?: unknown }) {
+  const { t, lang } = useI18n()
+  const cfg = (config ?? {}) as SpotlightConfig
   const { addItem, setIsOpen } = useCart()
   const { addToast } = useToast()
   const { settings } = useApp()
@@ -56,7 +60,7 @@ export default function EditorialMoment({ product }: { product: Product | null }
             <p className="eyebrow">
               <span className="text-saif-accent tabular-nums">03</span>
               <span className="w-3 h-px bg-saif-border" aria-hidden="true" />
-              The Spotlight
+              {configText(cfg, 'heading', lang) ?? t('spotlight.eyebrow')}
             </p>
           </Reveal>
 
@@ -101,10 +105,10 @@ export default function EditorialMoment({ product }: { product: Product | null }
           <Reveal variant="scale" delay={400} duration={700}>
             <div className="mt-10 flex flex-col sm:flex-row gap-3">
               <button onClick={handleAddToCart} data-magnetic className="btn btn-primary">
-                {needsSelection && !defaultVariant ? 'Choose Options' : 'Add to Bag'}
+                {needsSelection && !defaultVariant ? (configText(cfg, 'choose_text', lang) ?? t('spotlight.chooseOptions')) : t('product.addToBag')}
               </button>
               <Link to={`/products/${product.slug}`} className="btn">
-                View Product <ArrowRight size={14} aria-hidden="true" />
+                {configText(cfg, 'cta_text', lang) ?? t('spotlight.cta')} <ArrowRight size={14} aria-hidden="true" />
               </Link>
             </div>
           </Reveal>

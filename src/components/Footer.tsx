@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Instagram, Twitter, Youtube, Mail, Phone, ArrowUpRight } from 'lucide-react'
 import { useApp } from '@/context/AppContext'
+import { useI18n } from '@/i18n'
 
 const SOCIAL_ICONS: Record<string, typeof Instagram> = {
   instagram: Instagram,
@@ -11,6 +12,7 @@ const SOCIAL_ICONS: Record<string, typeof Instagram> = {
 
 export default function Footer() {
   const { settings } = useApp()
+  const { t, lang } = useI18n()
   const socialLinks = (settings?.social_links ?? {}) as Record<string, string>
   const socialEntries = Object.entries(socialLinks).filter(([, url]) => !!url)
 
@@ -41,8 +43,9 @@ export default function Footer() {
               </sup>
             </Link>
             <p className="mt-5 text-sm text-saif-dim max-w-xs leading-relaxed text-balance">
-              {settings?.store_description ||
-                'Premium fashion and digital products. Carefully curated for the modern individual.'}
+              {(lang === 'ar' && settings?.store_description_ar
+                ? settings.store_description_ar
+                : settings?.store_description) || t('footer.description')}
             </p>
             {socialEntries.length > 0 && (
               <div className="flex gap-2.5 mt-6">
@@ -66,14 +69,14 @@ export default function Footer() {
           </div>
 
           <nav aria-label="Shop links">
-            <h4 className="text-[11px] font-semibold text-saif-text mb-5 tracking-[0.2em] uppercase">Shop</h4>
+            <h4 className="text-[11px] font-semibold text-saif-text mb-5 tracking-[0.2em] uppercase">{t('footer.shop')}</h4>
             <ul className="space-y-1">
               {[
-                ['All Products', '/products'],
-                ['Streetwear', '/products?type=physical'],
-                ['Digital Products', '/products?type=digital'],
-                ['Special Offers', '/products?onSale=true'],
-                ['Best Sellers', '/products?bestseller=true'],
+                [t('footer.allProducts'), '/products'],
+                [t('footer.streetwear'), '/products?type=physical'],
+                [t('footer.digital'), '/products?type=digital'],
+                [t('footer.offers'), '/products?onSale=true'],
+                [t('footer.bestSellers'), '/products?bestseller=true'],
               ].map(([label, to]) => (
                 <li key={to}>
                   <Link
@@ -88,14 +91,14 @@ export default function Footer() {
           </nav>
 
           <nav aria-label="Support links">
-            <h4 className="text-[11px] font-semibold text-saif-text mb-5 tracking-[0.2em] uppercase">Support</h4>
+            <h4 className="text-[11px] font-semibold text-saif-text mb-5 tracking-[0.2em] uppercase">{t('footer.support')}</h4>
             <ul className="space-y-1">
               {[
-                ['Shipping & Returns', '/shipping'],
-                ['FAQ', '/faq'],
-                ['Contact', '/contact'],
-                ['About', '/about'],
-                ['Track Order', '/orders'],
+                [t('footer.shippingReturns'), '/shipping'],
+                [t('footer.faq'), '/faq'],
+                [t('footer.contact'), '/contact'],
+                [t('footer.about'), '/about'],
+                [t('footer.trackOrder'), '/orders'],
               ].map(([label, to]) => (
                 <li key={to}>
                   <Link
@@ -110,7 +113,7 @@ export default function Footer() {
           </nav>
 
           <div>
-            <h4 className="text-[11px] font-semibold text-saif-text mb-5 tracking-[0.2em] uppercase">Get in Touch</h4>
+            <h4 className="text-[11px] font-semibold text-saif-text mb-5 tracking-[0.2em] uppercase">{t('footer.getInTouch')}</h4>
             <ul className="space-y-1">
               {settings?.contact_email && (
                 <li>
@@ -135,7 +138,7 @@ export default function Footer() {
                 </li>
               )}
               <li className="text-sm text-saif-dim leading-relaxed pt-2 max-w-[16rem]">
-                Payments verified manually via InstaPay & Vodafone Cash.
+                {t('footer.paymentsNote')}
               </li>
             </ul>
           </div>
@@ -143,21 +146,22 @@ export default function Footer() {
 
         <div className="border-t border-saif-border pt-8 flex flex-col-reverse md:flex-row justify-between items-center gap-4">
           <p className="text-xs text-saif-faint">
-            {settings?.footer_text || `© ${new Date().getFullYear()} SAIF STORE. All rights reserved.`}
+            {(lang === 'ar' && settings?.footer_text_ar ? settings.footer_text_ar : settings?.footer_text) ||
+              `© ${new Date().getFullYear()} SAIF STORE. ${t('footer.rights')}`}
           </p>
           <div className="flex gap-7">
             <Link
               to="/privacy"
               className="inline-flex items-center gap-1 text-xs text-saif-dim hover:text-saif-text transition-colors min-h-[44px] md:min-h-0 py-2 md:py-0"
             >
-              Privacy
+              {t('footer.privacy')}
               <ArrowUpRight size={11} className="text-saif-faint" aria-hidden="true" />
             </Link>
             <Link
               to="/terms"
               className="inline-flex items-center gap-1 text-xs text-saif-dim hover:text-saif-text transition-colors min-h-[44px] md:min-h-0 py-2 md:py-0"
             >
-              Terms
+              {t('footer.terms')}
               <ArrowUpRight size={11} className="text-saif-faint" aria-hidden="true" />
             </Link>
           </div>

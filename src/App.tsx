@@ -4,6 +4,7 @@ import { AuthProvider } from '@/context/AuthContext'
 import { CartProvider } from '@/context/CartContext'
 import { AppProvider, useApp } from '@/context/AppContext'
 import { ToastProvider } from '@/context/ToastContext'
+import { LanguageProvider } from '@/i18n'
 import { useAuth } from '@/context/AuthContext'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
@@ -51,6 +52,7 @@ const AdminCoupons = lazy(() => import('@/pages/admin/AdminCoupons'))
 const AdminReviews = lazy(() => import('@/pages/admin/AdminReviews'))
 const AdminAnalytics = lazy(() => import('@/pages/admin/AdminAnalytics'))
 const AdminSettings = lazy(() => import('@/pages/admin/AdminSettings'))
+const AdminSiteBuilder = lazy(() => import('@/pages/admin/AdminSiteBuilder'))
 
 function AdminFallback() {
   return (
@@ -88,6 +90,7 @@ function StorefrontChrome() {
 export default function App() {
   return (
     <BrowserRouter>
+      <LanguageProvider>
       <AuthProvider>
         <AppProvider>
           <ToastProvider>
@@ -145,6 +148,7 @@ export default function App() {
                         <Route path="reviews" element={<AdminReviews />} />
                         <Route path="analytics" element={<AdminAnalytics />} />
                         <Route path="settings" element={<AdminSettings />} />
+                        <Route path="site" element={<AdminSiteBuilder />} />
                       </Route>
 
                       <Route path="*" element={<NotFoundPage />} />
@@ -157,6 +161,7 @@ export default function App() {
           </ToastProvider>
         </AppProvider>
       </AuthProvider>
+      </LanguageProvider>
     </BrowserRouter>
   )
 }

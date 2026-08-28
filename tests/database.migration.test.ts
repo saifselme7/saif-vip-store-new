@@ -41,13 +41,16 @@ beforeAll(async () => {
     FROM orders o CROSS JOIN products p WHERE o.order_number LIKE 'SAIF-OLD-%';
   `)
 
-  // 2) Run the upgrade migration + new functions + policies
+  // 2) Run the upgrade migrations + new functions + policies
   await db.exec(readSql('migrations/2026-08-27-upgrade.sql'))
   await db.exec(`
     GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
     GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
   `)
   await db.exec(readSql('functions.sql'))
+  await db.exec(readSql('migrations/2026-08-29-bilingual-cms.sql'))
+  // Supabase's default privileges: new tables get anon/authenticated grants.
+  await db.exec('GRANT SELECT, INSERT, UPDATE, DELETE ON homepage_sections TO authenticated; GRANT SELECT, INSERT, UPDATE, DELETE ON homepage_sections TO anon;')
   await db.exec(readSql('rls.sql'))
 }, 120_000)
 
@@ -99,6 +102,41 @@ describe('migration from the old schema', () => {
     }
   })
 
+  it('adds the bilingual + CMS objects (2026-08-29)', async () => {
+    const cols = await db.query<{ column_name: string }>(
+      `SELECT column_name FROM information_schema.columns
+       WHERE table_schema='public' AND table_name='products'
+         AND column_name IN ('name_ar','description_ar','specifications_ar','seo_title_ar')`)
+    expect(cols.rows.map(r => r.column_name).sort()).toEqual(['description_ar', 'name_ar', 'seo_title_ar', 'specifications_ar'])
+    const cat = await db.query<{ c: string }>(
+      `SELECT COUNT(*) AS c FROM information_schema.columns
+       WHERE table_schema='public' AND table_name='categories' AND column_name='name_ar'`)
+    expect(Number(cat.rows[0].c)).toBe(1)
+    const hs = await db.query<{ c: string }>(
+      "SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_schema='public' AND table_name='homepage_sections'")
+    expect(Number(hs.rows[0].c)).toBe(1)
+    const seeded = await db.query<{ c: string }>('SELECT COUNT(*) AS c FROM homepage_sections')
+    expect(Number(seeded.rows[0].c)).toBe(13)
+  })
+
+  it('protects homepage_sections: public read, admin-only write', async () => {
+    // anon can read
+    const anonRead = await asUser(db, null, 'SELECT COUNT(*) AS c FROM homepage_sections', undefined, 'anon')
+    expect(Number(anonRead.rows[0].c)).toBe(13)
+    // anon/customer UPDATE is silently filtered to zero rows by RLS (data unchanged)
+    await asUser(db, null, "UPDATE homepage_sections SET is_enabled = false", undefined, 'anon')
+    await asUser(db, ALICE, "UPDATE homepage_sections SET is_enabled = false")
+    const stillEnabled = await db.query<{ c: string }>(
+      "SELECT COUNT(*) AS c FROM homepage_sections WHERE is_enabled = true")
+    expect(Number(stillEnabled.rows[0].c)).toBe(13)
+    // anon INSERT is rejected by WITH CHECK
+    await expect(
+      asUser(db, null, "INSERT INTO homepage_sections (section_key) VALUES ('hacker')", undefined, 'anon'),
+    ).rejects.toThrow()
+    // admin can write
+    await asUser(db, ADMIN, "UPDATE homepage_sections SET is_enabled = true WHERE section_key = 'hero'")
+  })
+
   it('creates the storage buckets', async () => {
     const r = await db.query<{ id: string; public: boolean }>('SELECT id, public FROM storage.buckets ORDER BY id')
     const ids = r.rows.map(b => b.id)
@@ -142,6 +180,7 @@ describe('migration from the old schema', () => {
 
   it('is idempotent — running the migration twice is safe', async () => {
     await db.exec(readSql('migrations/2026-08-27-upgrade.sql'))
+    await db.exec(readSql('migrations/2026-08-29-bilingual-cms.sql'))
     const orders = await db.query<{ c: string }>('SELECT COUNT(*) AS c FROM orders')
     expect(Number(orders.rows[0].c)).toBe(5)
   })

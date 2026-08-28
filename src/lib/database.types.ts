@@ -37,8 +37,10 @@ export interface Database {
         Row: {
           id: string
           name: string
+          name_ar: string | null
           slug: string
           description: string | null
+          description_ar: string | null
           image: string | null
           sort_order: number
           is_active: boolean
@@ -47,8 +49,10 @@ export interface Database {
         Insert: {
           id?: string
           name: string
+          name_ar?: string | null
           slug: string
           description?: string | null
+          description_ar?: string | null
           image?: string | null
           sort_order?: number
           is_active?: boolean
@@ -56,8 +60,10 @@ export interface Database {
         }
         Update: {
           name?: string
+          name_ar?: string | null
           slug?: string
           description?: string | null
+          description_ar?: string | null
           image?: string | null
           sort_order?: number
           is_active?: boolean
@@ -85,7 +91,16 @@ export interface Database {
           bestseller: boolean
           tags: string[]
           specifications: Json
+          specifications_ar: Json
           delivery_info: string | null
+          delivery_info_ar: string | null
+          name_ar: string | null
+          short_description_ar: string | null
+          description_ar: string | null
+          seo_title: string | null
+          seo_title_ar: string | null
+          seo_description: string | null
+          seo_description_ar: string | null
           metadata: Json
           created_at: string
           updated_at: string
@@ -96,6 +111,15 @@ export interface Database {
           slug: string
           description?: string
           short_description?: string
+          description_ar?: string | null
+          short_description_ar?: string | null
+          name_ar?: string | null
+          specifications_ar?: Json
+          delivery_info_ar?: string | null
+          seo_title?: string | null
+          seo_title_ar?: string | null
+          seo_description?: string | null
+          seo_description_ar?: string | null
           price?: number
           compare_at_price?: number | null
           product_type?: Database['public']['Enums']['product_type']
@@ -134,7 +158,16 @@ export interface Database {
           bestseller?: boolean
           tags?: string[]
           specifications?: Json
+          specifications_ar?: Json
           delivery_info?: string | null
+          delivery_info_ar?: string | null
+          name_ar?: string | null
+          short_description_ar?: string | null
+          description_ar?: string | null
+          seo_title?: string | null
+          seo_title_ar?: string | null
+          seo_description?: string | null
+          seo_description_ar?: string | null
           metadata?: Json
           updated_at?: string
         }
@@ -607,8 +640,23 @@ export interface Database {
           payment_instructions: string | null
           hero_title: string | null
           hero_subtitle: string | null
+          hero_title_ar: string | null
+          hero_subtitle_ar: string | null
           hero_image: string | null
           footer_text: string | null
+          footer_text_ar: string | null
+          store_description_ar: string | null
+          default_language: string
+          available_languages: string[]
+          announcement_enabled: boolean
+          announcement_ar: string | null
+          announcement_link: string | null
+          announcement_link_text: string | null
+          shipping_info: string | null
+          shipping_info_ar: string | null
+          seo_title: string | null
+          seo_description: string | null
+          og_image: string | null
           created_at: string
           updated_at: string
         }
@@ -633,8 +681,23 @@ export interface Database {
           payment_instructions?: string | null
           hero_title?: string | null
           hero_subtitle?: string | null
+          hero_title_ar?: string | null
+          hero_subtitle_ar?: string | null
           hero_image?: string | null
           footer_text?: string | null
+          footer_text_ar?: string | null
+          store_description_ar?: string | null
+          default_language?: string
+          available_languages?: string[]
+          announcement_enabled?: boolean
+          announcement_ar?: string | null
+          announcement_link?: string | null
+          announcement_link_text?: string | null
+          shipping_info?: string | null
+          shipping_info_ar?: string | null
+          seo_title?: string | null
+          seo_description?: string | null
+          og_image?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -660,6 +723,45 @@ export interface Database {
           hero_subtitle?: string | null
           hero_image?: string | null
           footer_text?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      },
+      homepage_sections: {
+        Row: {
+          id: string
+          section_key: string
+          is_enabled: boolean
+          position: number
+          title_en: string | null
+          title_ar: string | null
+          subtitle_en: string | null
+          subtitle_ar: string | null
+          config: Json
+          updated_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          section_key: string
+          is_enabled?: boolean
+          position?: number
+          title_en?: string | null
+          title_ar?: string | null
+          subtitle_en?: string | null
+          subtitle_ar?: string | null
+          config?: Json
+          updated_at?: string
+          created_at?: string
+        }
+        Update: {
+          is_enabled?: boolean
+          position?: number
+          title_en?: string | null
+          title_ar?: string | null
+          subtitle_en?: string | null
+          subtitle_ar?: string | null
+          config?: Json
           updated_at?: string
         }
         Relationships: []

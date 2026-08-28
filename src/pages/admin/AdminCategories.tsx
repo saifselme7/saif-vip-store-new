@@ -12,14 +12,16 @@ import Loading from '@/components/Loading'
 
 interface CategoryForm {
   name: string
+  name_ar: string
   slug: string
   description: string
+  description_ar: string
   image: string
   sort_order: string
   is_active: boolean
 }
 
-const EMPTY: CategoryForm = { name: '', slug: '', description: '', image: '', sort_order: '0', is_active: true }
+const EMPTY: CategoryForm = { name: '', name_ar: '', slug: '', description: '', description_ar: '', image: '', sort_order: '0', is_active: true }
 
 export default function AdminCategories() {
   const { categories, loading, create, update, remove } = useAdminCategories()
@@ -41,8 +43,10 @@ export default function AdminCategories() {
     setEditing(c.id)
     setForm({
       name: c.name,
+      name_ar: (c as { name_ar?: string | null }).name_ar ?? '',
       slug: c.slug,
       description: c.description || '',
+      description_ar: (c as { description_ar?: string | null }).description_ar ?? '',
       image: c.image || '',
       sort_order: String(c.sort_order),
       is_active: c.is_active,
@@ -56,8 +60,10 @@ export default function AdminCategories() {
     }
     const payload = {
       name: form.name.trim(),
+      name_ar: form.name_ar.trim() || null,
       slug: (form.slug.trim() || generateSlug(form.name)).toLowerCase(),
       description: form.description.trim() || null,
+      description_ar: form.description_ar.trim() || null,
       image: form.image.trim() || null,
       sort_order: Number(form.sort_order || 0),
       is_active: form.is_active,
@@ -163,7 +169,7 @@ export default function AdminCategories() {
       <Modal open={editing !== undefined} onClose={() => setEditing(undefined)} title={editing ? 'Edit Category' : 'New Category'}>
         <div className="space-y-4">
           <div>
-            <label className="label" htmlFor="ct-name">Name *</label>
+            <label className="label" htmlFor="ct-name">Name (English) *</label>
             <input
               id="ct-name"
               className="input"
@@ -172,12 +178,26 @@ export default function AdminCategories() {
             />
           </div>
           <div>
+            <label className="label" htmlFor="ct-name-ar" dir="rtl">Name (Arabic)</label>
+            <input
+              id="ct-name-ar"
+              className="input"
+              dir="rtl"
+              value={form.name_ar}
+              onChange={e => setForm({ ...form, name_ar: e.target.value })}
+            />
+          </div>
+          <div>
             <label className="label" htmlFor="ct-slug">Slug</label>
             <input id="ct-slug" className="input font-mono text-xs" value={form.slug} onChange={e => setForm({ ...form, slug: e.target.value })} />
           </div>
           <div>
-            <label className="label" htmlFor="ct-desc">Description</label>
+            <label className="label" htmlFor="ct-desc">Description (English)</label>
             <textarea id="ct-desc" className="input resize-none" rows={2} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+          </div>
+          <div>
+            <label className="label" htmlFor="ct-desc-ar" dir="rtl">Description (Arabic)</label>
+            <textarea id="ct-desc-ar" className="input resize-none" dir="rtl" rows={2} value={form.description_ar} onChange={e => setForm({ ...form, description_ar: e.target.value })} />
           </div>
           <div>
             <label className="label" htmlFor="ct-img">Image URL</label>

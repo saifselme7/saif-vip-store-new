@@ -21,6 +21,7 @@ ALTER TABLE inventory_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE site_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE homepage_sections ENABLE ROW LEVEL SECURITY;
 
 -- ------------------------------------------------------------
 -- PROFILES
@@ -280,6 +281,21 @@ CREATE POLICY "Reviews own insert"
 DROP POLICY IF EXISTS "Reviews admin manage" ON reviews;
 CREATE POLICY "Reviews admin manage"
   ON reviews FOR ALL
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
+
+-- ------------------------------------------------------------
+-- HOMEPAGE SECTIONS (CMS content — public read, admin write)
+-- ------------------------------------------------------------
+DROP POLICY IF EXISTS "Homepage sections public read" ON homepage_sections;
+CREATE POLICY "Homepage sections public read"
+  ON homepage_sections FOR SELECT
+  TO authenticated, anon
+  USING (true);
+
+DROP POLICY IF EXISTS "Homepage sections admin write" ON homepage_sections;
+CREATE POLICY "Homepage sections admin write"
+  ON homepage_sections FOR ALL
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
 

@@ -9,22 +9,25 @@ import { cn } from '@/lib/utils'
 import { PageHeader } from '@/components/admin/ui'
 import Loading from '@/components/Loading'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { useI18n } from '@/i18n'
 import type { SiteSettings } from '@/types'
 
-type Tab = 'general' | 'shipping' | 'payment' | 'homepage' | 'social' | 'advanced'
+type Tab = 'general' | 'localization' | 'shipping' | 'payment' | 'homepage' | 'social' | 'advanced'
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'general', label: 'General' },
-  { id: 'shipping', label: 'Shipping' },
-  { id: 'payment', label: 'Payment' },
-  { id: 'homepage', label: 'Homepage' },
-  { id: 'social', label: 'Social' },
-  { id: 'advanced', label: 'Advanced' },
+const TABS: { id: Tab; labelKey: string }[] = [
+  { id: 'general', labelKey: 'admin.settings.tabs.general' },
+  { id: 'localization', labelKey: 'admin.settings.tabs.localization' },
+  { id: 'shipping', labelKey: 'admin.settings.tabs.shipping' },
+  { id: 'payment', labelKey: 'admin.settings.tabs.payments' },
+  { id: 'homepage', labelKey: 'admin.settings.tabs.storefront' },
+  { id: 'social', labelKey: 'admin.settings.tabs.footer' },
+  { id: 'advanced', labelKey: 'admin.settings.tabs.advanced' },
 ]
 
 export default function AdminSettings() {
   const { refreshSettings } = useApp()
   const { addToast } = useToast()
+  const { t } = useI18n()
   const [settings, setSettings] = useState<SiteSettings | null>(null)
   const [form, setForm] = useState<Record<string, unknown>>({})
   const [social, setSocial] = useState({ instagram: '', twitter: '', youtube: '' })
@@ -131,17 +134,17 @@ export default function AdminSettings() {
       />
 
       <div className="flex gap-1.5 overflow-x-auto pb-1 mb-6" role="group" aria-label="Settings sections">
-        {TABS.map(t => (
+        {TABS.map(tabDef => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            aria-pressed={tab === t.id}
+            key={tabDef.id}
+            onClick={() => setTab(tabDef.id)}
+            aria-pressed={tab === tabDef.id}
             className={cn(
               'px-3 py-1.5 text-xs border rounded-full transition-colors whitespace-nowrap',
-              tab === t.id ? 'border-saif-text bg-saif-text text-black font-semibold' : 'border-saif-border text-saif-dim hover:text-saif-text',
+              tab === tabDef.id ? 'border-saif-text bg-saif-text text-black font-semibold' : 'border-saif-border text-saif-dim hover:text-saif-text',
             )}
           >
-            {t.label}
+            {t(tabDef.labelKey)}
           </button>
         ))}
       </div>
@@ -197,6 +200,65 @@ export default function AdminSettings() {
             <label className="label" htmlFor="st-footer">Footer Text</label>
             <input id="st-footer" className="input" value={String(form.footer_text ?? '')} onChange={e => set('footer_text', e.target.value)} />
           </div>
+        </section>
+      )}
+
+      {tab === 'localization' && (
+        <section className="card p-6 space-y-5">
+          <div>
+            <label className="label" htmlFor="st-lang">{t('admin.settings.defaultLanguage')}</label>
+            <select
+              id="st-lang"
+              className="input"
+              value={String(form.default_language ?? 'en')}
+              onChange={e => set('default_language', e.target.value)}
+            >
+              <option value="en" className="bg-black">English</option>
+              <option value="ar" className="bg-black">العربية (Egyptian Arabic)</option>
+            </select>
+          </div>
+          <div>
+            <label className="label" htmlFor="st-currency">{t('admin.settings.currency')}</label>
+            <select
+              id="st-currency"
+              className="input"
+              value={String(form.currency ?? 'EGP')}
+              onChange={e => set('currency', e.target.value)}
+            >
+              <option value="EGP" className="bg-black">EGP — Egyptian Pound</option>
+              <option value="USD" className="bg-black">USD — US Dollar</option>
+              <option value="EUR" className="bg-black">EUR — Euro</option>
+              <option value="SAR" className="bg-black">SAR — Saudi Riyal</option>
+              <option value="AED" className="bg-black">AED — UAE Dirham</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="label" htmlFor="st-desc-ar" dir="rtl">{t('admin.settings.descriptionAr')}</label>
+              <textarea
+                id="st-desc-ar"
+                className="input resize-none"
+                dir="rtl"
+                rows={2}
+                value={String(form.store_description_ar ?? '')}
+                onChange={e => set('store_description_ar', e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor="st-hero-ar" dir="rtl">{t('admin.settings.heroAr')}</label>
+              <textarea
+                id="st-hero-ar"
+                className="input resize-none"
+                dir="rtl"
+                rows={2}
+                value={String(form.hero_subtitle_ar ?? '')}
+                onChange={e => set('hero_subtitle_ar', e.target.value)}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-saif-faint border border-saif-border p-3 rounded-sm leading-relaxed">
+            {t('admin.settings.availableLanguagesHint')}
+          </p>
         </section>
       )}
 

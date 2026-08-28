@@ -6,6 +6,7 @@ import { useCategories } from '@/hooks/useCategories'
 import { useToast } from '@/context/ToastContext'
 import { useApp } from '@/context/AppContext'
 import { usePageMeta } from '@/hooks/usePageMeta'
+import { useI18n } from '@/i18n'
 import { generateSlug, cn } from '@/lib/utils'
 import { validateScreenshotFile } from '@/lib/validation'
 import { PRODUCT_IMAGES_BUCKET } from '@/lib/payments'
@@ -26,6 +27,7 @@ interface VariantDraft {
 
 interface FormState {
   name: string
+  name_ar: string
   slug: string
   category_id: string
   product_type: 'physical' | 'digital'
@@ -38,13 +40,17 @@ interface FormState {
   low_stock_threshold: string
   sku: string
   short_description: string
+  short_description_ar: string
   description: string
+  description_ar: string
   delivery_info: string
+  delivery_info_ar: string
   tags: string
 }
 
 const EMPTY_FORM: FormState = {
   name: '',
+  name_ar: '',
   slug: '',
   category_id: '',
   product_type: 'physical',
@@ -57,8 +63,11 @@ const EMPTY_FORM: FormState = {
   low_stock_threshold: '5',
   sku: '',
   short_description: '',
+  short_description_ar: '',
   description: '',
+  description_ar: '',
   delivery_info: '',
+  delivery_info_ar: '',
   tags: '',
 }
 
@@ -69,6 +78,7 @@ export default function AdminProductForm() {
   const { categories } = useCategories()
   const { addToast } = useToast()
   const { settings } = useApp()
+  const { t } = useI18n()
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [images, setImages] = useState<string[]>([])
@@ -104,6 +114,7 @@ export default function AdminProductForm() {
         const p = data as Product
         setForm({
           name: p.name,
+          name_ar: (p as { name_ar?: string | null }).name_ar ?? '',
           slug: p.slug,
           category_id: p.category_id || '',
           product_type: p.product_type,
@@ -116,8 +127,11 @@ export default function AdminProductForm() {
           low_stock_threshold: String(p.low_stock_threshold),
           sku: p.sku || '',
           short_description: p.short_description || '',
+          short_description_ar: (p as { short_description_ar?: string | null }).short_description_ar ?? '',
           description: p.description || '',
+          description_ar: (p as { description_ar?: string | null }).description_ar ?? '',
           delivery_info: p.delivery_info || '',
+          delivery_info_ar: (p as { delivery_info_ar?: string | null }).delivery_info_ar ?? '',
           tags: (p.tags || []).join(', '),
         })
         setImages(p.images || [])
@@ -245,6 +259,7 @@ export default function AdminProductForm() {
 
     const payload = {
       name: form.name.trim(),
+      name_ar: form.name_ar.trim() || null,
       slug: form.slug.trim(),
       category_id: form.category_id || null,
       product_type: form.product_type,
@@ -257,8 +272,11 @@ export default function AdminProductForm() {
       low_stock_threshold: Number(form.low_stock_threshold || 0),
       sku: form.sku.trim() || null,
       short_description: form.short_description.trim(),
+      short_description_ar: form.short_description_ar.trim() || null,
       description: form.description.trim(),
+      description_ar: form.description_ar.trim() || null,
       delivery_info: form.product_type === 'digital' ? form.delivery_info.trim() || null : null,
+      delivery_info_ar: form.product_type === 'digital' ? form.delivery_info_ar.trim() || null : null,
       tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
       specifications: specs,
       images,
@@ -436,8 +454,8 @@ export default function AdminProductForm() {
                 Best Seller
               </label>
             </div>
-            <div className="md:col-span-2">
-              <label className="label" htmlFor="pf-short">Short Description</label>
+            <div>
+              <label className="label" htmlFor="pf-short">Short Description (English)</label>
               <input
                 id="pf-short"
                 className="input"
@@ -446,14 +464,35 @@ export default function AdminProductForm() {
                 placeholder="One-line summary shown on cards"
               />
             </div>
-            <div className="md:col-span-2">
-              <label className="label" htmlFor="pf-desc">Full Description</label>
+            <div>
+              <label className="label" htmlFor="pf-short-ar" dir="rtl">Short Description (Arabic)</label>
+              <input
+                id="pf-short-ar"
+                className="input"
+                dir="rtl"
+                value={form.short_description_ar}
+                onChange={e => set('short_description_ar', e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor="pf-desc">Full Description (English)</label>
               <textarea
                 id="pf-desc"
                 className="input resize-none"
                 rows={5}
                 value={form.description}
                 onChange={e => set('description', e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor="pf-desc-ar" dir="rtl">Full Description (Arabic)</label>
+              <textarea
+                id="pf-desc-ar"
+                className="input resize-none"
+                dir="rtl"
+                rows={5}
+                value={form.description_ar}
+                onChange={e => set('description_ar', e.target.value)}
               />
             </div>
             <div className="md:col-span-2">
@@ -509,6 +548,17 @@ export default function AdminProductForm() {
                 onChange={e => set('delivery_info', e.target.value)}
                 placeholder="Shown to the customer after payment approval — e.g. how and when the item is delivered."
               />
+              <div className="mt-4">
+                <label className="label" htmlFor="pf-delivery-ar" dir="rtl">Digital Delivery Information (Arabic)</label>
+                <textarea
+                  id="pf-delivery-ar"
+                  className="input resize-none"
+                  dir="rtl"
+                  rows={3}
+                  value={form.delivery_info_ar}
+                  onChange={e => set('delivery_info_ar', e.target.value)}
+                />
+              </div>
               <p className="text-xs text-saif-dim mt-1.5">
                 Delivery details are only revealed after the payment is approved.
               </p>

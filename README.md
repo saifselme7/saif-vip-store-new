@@ -20,8 +20,9 @@ Premium e-commerce storefront + admin dashboard built with React, Vite, TypeScri
 1. `supabase/diagnostics/check_schema.sql` — read-only state report (tells you which lineage your database is in)
 2. `supabase/migrations/2026-08-28-admin-reconcile.sql` — additive, idempotent; converges BOTH known lineages (original v1 and the sibling v2 where payments used `status` and `review_payment` took `p_action`)
 3. `supabase/functions.sql`
-4. `supabase/rls.sql`
-5. `supabase/diagnostics/verify_admin.sql` — read-only verification (every row should say OK)
+4. `supabase/migrations/2026-08-29-bilingual-cms.sql` — bilingual content fields + homepage CMS
+5. `supabase/rls.sql`
+6. `supabase/diagnostics/verify_admin.sql` — read-only verification (every row should say OK)
 
 The reconciliation never drops tables and never deletes rows; superseded duplicate payment rows are only *marked* cancelled. Re-running any step is safe.
 

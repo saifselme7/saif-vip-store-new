@@ -1,17 +1,28 @@
 import Reveal from '@/components/motion/Reveal'
+import { useI18n } from '@/i18n'
+import { configText, type BrandConfig } from '@/hooks/useHomepageSections'
 
-const FACTS = [
+interface Props {
+  heading?: string | null
+  description?: string | null
+  config?: Record<string, unknown> | null
+}
+
+export default function BrandStatement({ heading, description, config }: Props) {
+  const { t, lang } = useI18n()
+  const cfg = (config ?? {}) as BrandConfig
+  const FACTS = [
   {
-    title: 'Physical drops',
-    text: 'Heavyweight fabrics, careful printing — built to outlast trends.',
+    title: configText(cfg, 'fact1_title', lang) ?? t('brand.fact1Title'),
+    text: configText(cfg, 'fact1_text', lang) ?? t('brand.fact1Text'),
   },
   {
-    title: 'Digital essentials',
-    text: 'Boosts and digital goods, delivered after your payment is verified.',
+    title: configText(cfg, 'fact2_title', lang) ?? t('brand.fact2Title'),
+    text: configText(cfg, 'fact2_text', lang) ?? t('brand.fact2Text'),
   },
   {
-    title: 'Verified by humans',
-    text: 'Every InstaPay / Vodafone Cash transfer is checked by our team.',
+    title: configText(cfg, 'fact3_title', lang) ?? t('brand.fact3Title'),
+    text: configText(cfg, 'fact3_text', lang) ?? t('brand.fact3Text'),
   },
 ]
 
@@ -19,7 +30,7 @@ const FACTS = [
  * Brand statement — the editorial pause after the hero. Serif italic accent
  * type against the grotesque wordmark is part of the signature language.
  */
-export default function BrandStatement() {
+
   return (
     <section className="relative px-5 lg:px-10 py-24 md:py-36" aria-labelledby="brand-statement">
       <div className="max-w-4xl mx-auto text-center">
@@ -27,22 +38,21 @@ export default function BrandStatement() {
           <p className="eyebrow justify-center mb-8">
             <span className="text-saif-accent tabular-nums">01</span>
             <span className="w-3 h-px bg-saif-border" aria-hidden="true" />
-            The Brand
+            {t('brand.eyebrow')}
           </p>
         </Reveal>
 
         <Reveal variant="up" duration={900}>
           <h2 id="brand-statement" className="text-[clamp(34px,6vw,76px)] leading-[1.04] tracking-tight text-balance">
-            <span className="font-display italic font-normal text-saif-text">Made to be worn.</span>{' '}
-            <span className="font-black text-saif-text">Or judged.</span>{' '}
-            <span className="font-display italic font-normal text-saif-accent">Or both.</span>
+            {heading ?? <><span className="font-display italic font-normal text-saif-text">{t('brand.seg1')}</span>{' '}
+            <span className="font-black text-saif-text">{t('brand.seg2')}</span>{' '}
+            <span className="font-display italic font-normal text-saif-accent">{t('brand.seg3')}</span></>}
           </h2>
         </Reveal>
 
         <Reveal variant="fade" delay={220} duration={1000}>
           <p className="mt-8 text-sm md:text-[15px] text-saif-dim leading-relaxed max-w-xl mx-auto text-balance">
-            SAIF STORE curates premium streetwear alongside digital culture essentials — one standard for
-            both worlds: real quality, honest information, and payments verified by people, not promises.
+            {description ?? t('brand.description')}
           </p>
         </Reveal>
 

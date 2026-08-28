@@ -51,8 +51,10 @@ FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 CREATE TABLE categories (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   name TEXT NOT NULL,
+  name_ar TEXT,
   slug TEXT NOT NULL UNIQUE,
   description TEXT,
+  description_ar TEXT,
   image TEXT,
   sort_order INTEGER DEFAULT 0,
   is_active BOOLEAN DEFAULT TRUE,
@@ -82,7 +84,16 @@ CREATE TABLE products (
   bestseller BOOLEAN DEFAULT FALSE,
   tags TEXT[] DEFAULT '{}',
   specifications JSONB DEFAULT '{}',
+  specifications_ar JSONB DEFAULT '{}',
   delivery_info TEXT,
+  delivery_info_ar TEXT,
+  name_ar TEXT,
+  short_description_ar TEXT,
+  description_ar TEXT,
+  seo_title TEXT,
+  seo_title_ar TEXT,
+  seo_description TEXT,
+  seo_description_ar TEXT,
   metadata JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -251,6 +262,23 @@ CREATE TABLE inventory_logs (
 );
 
 -- ------------------------------------------------------------
+-- HOMEPAGE SECTIONS (CMS: order / visibility / bilingual content)
+-- ------------------------------------------------------------
+CREATE TABLE homepage_sections (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  section_key TEXT NOT NULL UNIQUE,
+  is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  position INTEGER NOT NULL DEFAULT 0,
+  title_en TEXT,
+  title_ar TEXT,
+  subtitle_en TEXT,
+  subtitle_ar TEXT,
+  config JSONB NOT NULL DEFAULT '{}',
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ------------------------------------------------------------
 -- REVIEWS
 -- ------------------------------------------------------------
 CREATE TABLE reviews (
@@ -288,8 +316,23 @@ CREATE TABLE site_settings (
   payment_instructions TEXT,
   hero_title TEXT,
   hero_subtitle TEXT,
+  hero_title_ar TEXT,
+  hero_subtitle_ar TEXT,
   hero_image TEXT,
   footer_text TEXT,
+  footer_text_ar TEXT,
+  store_description_ar TEXT,
+  default_language TEXT DEFAULT 'en' CHECK (default_language IN ('en', 'ar')),
+  available_languages TEXT[] DEFAULT ARRAY['en','ar'],
+  announcement_enabled BOOLEAN DEFAULT TRUE,
+  announcement_ar TEXT,
+  announcement_link TEXT,
+  announcement_link_text TEXT,
+  shipping_info TEXT,
+  shipping_info_ar TEXT,
+  seo_title TEXT,
+  seo_description TEXT,
+  og_image TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -322,6 +365,8 @@ CREATE INDEX idx_reviews_product ON reviews(product_id);
 CREATE INDEX idx_reviews_status ON reviews(status);
 CREATE INDEX idx_reviews_user ON reviews(user_id);
 CREATE INDEX idx_coupons_active ON coupons(is_active);
+CREATE UNIQUE INDEX idx_homepage_sections_key ON homepage_sections(section_key);
+CREATE INDEX idx_homepage_sections_position ON homepage_sections(position);
 
 -- ------------------------------------------------------------
 -- updated_at TRIGGERS
@@ -347,6 +392,8 @@ CREATE TRIGGER orders_updated_at BEFORE UPDATE ON orders
 CREATE TRIGGER payments_updated_at BEFORE UPDATE ON payments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER site_settings_updated_at BEFORE UPDATE ON site_settings
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER homepage_sections_updated_at BEFORE UPDATE ON homepage_sections
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ------------------------------------------------------------

@@ -2,18 +2,25 @@ import { Link } from 'react-router-dom'
 import { ArrowUpRight, Package, Zap } from 'lucide-react'
 import Reveal from '@/components/motion/Reveal'
 import SectionHeader from '@/components/SectionHeader'
+import { useI18n } from '@/i18n'
+import { configText, type CategoriesConfig } from '@/hooks/useHomepageSections'
 import type { Category, Product } from '@/types'
 
 interface CategoryExperienceProps {
   categories: Category[]
   products: Product[]
+  title?: string | null
+  description?: string | null
+  config?: Record<string, unknown> | null
 }
 
 /**
  * Editorial category moment: two large panels — Streetwear vs Digital —
  * followed by the live category index. All counts are real database data.
  */
-export default function CategoryExperience({ categories, products }: CategoryExperienceProps) {
+export default function CategoryExperience({ categories, products, title, description, config }: CategoryExperienceProps) {
+  const { t, lang } = useI18n()
+  const cfg = (config ?? {}) as CategoriesConfig
   const physical = products.filter(p => p.product_type === 'physical')
   const digital = products.filter(p => p.product_type === 'digital')
   const physicalImage = physical.find(p => p.thumbnail)?.thumbnail
@@ -29,9 +36,9 @@ export default function CategoryExperience({ categories, products }: CategoryExp
       <div className="max-w-7xl mx-auto">
         <SectionHeader
           index="02"
-          eyebrow="Categories"
-          title="Two worlds. One standard."
-          description="Heavyweight streetwear shipped across Egypt, and digital essentials delivered after verification."
+          eyebrow={t('categories.eyebrow')}
+          title={title ?? t('categories.title')}
+          description={description ?? t('categories.description')}
         />
 
         {/* Split panels */}
@@ -40,7 +47,8 @@ export default function CategoryExperience({ categories, products }: CategoryExp
             to="/products?type=physical"
             image={physicalImage}
             icon={Package}
-            label="Streetwear"
+            label={configText(cfg, 'streetwear_label', lang) ?? t('categories.streetwear')}
+            ctaText={configText(cfg, 'cta_text', lang) ?? t('categories.cta')}
             count={physical.length}
             note="Shipped across Egypt"
             delay={0}
@@ -49,7 +57,8 @@ export default function CategoryExperience({ categories, products }: CategoryExp
             to="/products?type=digital"
             image={digitalImage}
             icon={Zap}
-            label="Digital"
+            label={configText(cfg, 'digital_label', lang) ?? t('categories.digital')}
+            ctaText={configText(cfg, 'cta_text', lang) ?? t('categories.cta')}
             count={digital.length}
             note="No shipping — delivered after verification"
             accent
@@ -95,6 +104,7 @@ function Panel({
   note,
   accent,
   delay,
+  ctaText,
 }: {
   to: string
   image?: string | null
@@ -104,7 +114,9 @@ function Panel({
   note: string
   accent?: boolean
   delay: number
+  ctaText: string
 }) {
+  const { t } = useI18n()
   return (
     <Reveal variant="mask" delay={delay} duration={1100}>
       <Link
@@ -140,14 +152,14 @@ function Panel({
         <div className="absolute bottom-0 inset-x-0 p-6 md:p-9">
           <p className="flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.25em] text-saif-accent">
             <Icon size={13} aria-hidden="true" />
-            {count} {count === 1 ? 'product' : 'products'}
+            {t.plural('categories.products', count)}
           </p>
           <h3 className="mt-3 text-[clamp(34px,5vw,64px)] font-black tracking-tighter leading-[0.95] text-saif-text">
             {label}
           </h3>
           <p className="mt-3 text-sm text-saif-dim">{note}</p>
           <span className="link-underline inline-flex items-center gap-2 mt-5">
-            Explore
+            {ctaText}
             <span className="w-0 group-hover:w-4 h-px bg-saif-accent transition-all duration-500" aria-hidden="true" />
           </span>
         </div>

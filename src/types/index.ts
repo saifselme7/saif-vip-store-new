@@ -8,6 +8,8 @@ export type Product = Tables<'products'> & {
   variants?: ProductVariant[]
 }
 
+export type HomepageSection = Tables<'homepage_sections'>
+
 export type ProductVariant = Tables<'product_variants'>
 
 export type Category = Tables<'categories'>

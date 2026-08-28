@@ -2,12 +2,15 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, Zap } from 'lucide-react'
 import Reveal, { RevealLine } from '@/components/motion/Reveal'
 import { useParallax } from '@/hooks/useParallax'
+import { useI18n } from '@/i18n'
+import { configText, type HeroConfig } from '@/hooks/useHomepageSections'
 
 interface HeroSectionProps {
   heroTitle: string
   heroSubtitle: string
   /** Ambient campaign image (first featured/best product). Optional. */
   heroImage?: string | null
+  config?: unknown
 }
 
 /**
@@ -15,7 +18,9 @@ interface HeroSectionProps {
  * gradient, editorial line-mask wordmark, staggered entrance, parallax depth.
  * The essential brand messaging and CTAs are preserved.
  */
-export default function HeroSection({ heroTitle, heroSubtitle, heroImage }: HeroSectionProps) {
+export default function HeroSection({ heroTitle, heroSubtitle, heroImage, config }: HeroSectionProps) {
+  const { t, lang, isRTL } = useI18n()
+  const cfg = (config ?? {}) as HeroConfig
   const parallaxRef = useParallax<HTMLDivElement>(90)
   const glowRef = useParallax<HTMLDivElement>(-50)
 
@@ -35,7 +40,8 @@ export default function HeroSection({ heroTitle, heroSubtitle, heroImage }: Hero
             <img
               src={heroImage}
               alt=""
-              className="w-full h-full object-cover opacity-[0.2] scale-[1.04]"
+              style={{ opacity: (cfg.overlay ?? 20) / 100 }}
+              className="w-full h-full object-cover scale-[1.04]"
               loading="eager"
               decoding="async"
             />
@@ -56,11 +62,11 @@ export default function HeroSection({ heroTitle, heroSubtitle, heroImage }: Hero
       <div className="relative z-10 w-full max-w-7xl mx-auto px-5 lg:px-10 pt-32 pb-28 md:pt-36 md:pb-32">
         <Reveal variant="fade" duration={900}>
           <p className="eyebrow justify-center text-center">
-            Streetwear
+            {configText(cfg, 'eyebrow', lang) ?? t('home.trustEgypt')}
             <span className="w-1.5 h-1.5 rotate-45 bg-saif-accent flex-shrink-0" aria-hidden="true" />
-            Digital
+            {configText(cfg, 'eyebrow_mid', lang) ?? t('hero.digitalProducts')}
             <span className="w-1.5 h-1.5 rotate-45 bg-saif-accent flex-shrink-0" aria-hidden="true" />
-            Curated
+            {configText(cfg, 'eyebrow_end', lang) ?? t('home.trustEgypt')}
           </p>
         </Reveal>
 
@@ -80,11 +86,11 @@ export default function HeroSection({ heroTitle, heroSubtitle, heroImage }: Hero
 
         <Reveal variant="scale" delay={800} duration={800}>
           <div className="mt-11 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
-            <Link to="/products" data-magnetic className="btn btn-primary w-full sm:w-auto">
-              Shop Now <ArrowRight size={14} aria-hidden="true" />
+            <Link to={cfg.cta1_dest || '/products'} data-magnetic className="btn btn-primary w-full sm:w-auto">
+              {configText(cfg, 'cta1_text', lang) ?? t('hero.shopNow')} <ArrowRight size={14} className={isRTL ? 'rotate-180' : ''} aria-hidden="true" />
             </Link>
-            <Link to="/products?type=digital" className="btn w-full sm:w-auto">
-              <Zap size={14} className="text-saif-accent" aria-hidden="true" /> Digital Products
+            <Link to={cfg.cta2_dest || '/products?type=digital'} className="btn w-full sm:w-auto">
+              <Zap size={14} className="text-saif-accent" aria-hidden="true" /> {configText(cfg, 'cta2_text', lang) ?? t('hero.digitalProducts')}
             </Link>
           </div>
         </Reveal>
@@ -95,7 +101,7 @@ export default function HeroSection({ heroTitle, heroSubtitle, heroImage }: Hero
         className="absolute bottom-6 left-1/2 -translate-x-1/2 hidden md:flex flex-col items-center gap-3 z-10"
         aria-hidden="true"
       >
-        <span className="text-[10px] font-semibold uppercase tracking-[0.35em] text-saif-faint">Scroll</span>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.35em] text-saif-faint">{t('hero.scroll')}</span>
         <span className="w-px h-10 bg-saif-text/60 overflow-hidden">
           <span className="block w-full h-full bg-saif-accent animate-scroll-pulse" />
         </span>

@@ -10,6 +10,8 @@ import { formatPrice, discountPercent, cn } from '@/lib/utils'
 import type { Product } from '@/types'
 import QuickViewModal from './product/QuickViewModal'
 import RatingStars from './ui/RatingStars'
+import { useI18n } from '@/i18n'
+import { localizeProduct } from '@/lib/bilingual'
 
 interface Props {
   product: Product
@@ -18,6 +20,8 @@ interface Props {
 
 function ProductCard({ product, priorityImage }: Props) {
   const { user } = useAuth()
+  const { t, lang, formatPrice } = useI18n()
+  const loc = localizeProduct(product, lang)
   const { add, remove, isInWishlist } = useWishlist()
   const { addToast } = useToast()
   const { addItem, setIsOpen } = useCart()
@@ -38,17 +42,17 @@ function ProductCard({ product, priorityImage }: Props) {
     e.preventDefault()
     e.stopPropagation()
     if (!user) {
-      addToast('Sign in to save items to your wishlist', 'info')
+      addToast(t('product.signInForWishlist'), 'info')
       return
     }
     setHeartAnimating(true)
     setTimeout(() => setHeartAnimating(false), 450)
     if (inWishlist) {
       const ok = await remove(product.id)
-      if (ok) addToast('Removed from wishlist')
+      if (ok) addToast(t('product.removedFromWishlist'))
     } else {
       const ok = await add(product.id)
-      if (ok) addToast('Saved to wishlist')
+      if (ok) addToast(t('product.addedToWishlist'))
     }
   }
 
@@ -62,10 +66,10 @@ function ProductCard({ product, priorityImage }: Props) {
     }
     const result = addItem(product, defaultVariant, 1)
     if (result.ok) {
-      addToast(`${product.name} added to bag`)
+      addToast(t('product.addedToBag', { name: loc.name }))
       setIsOpen(true)
     } else {
-      addToast(result.message || 'Could not add to bag', 'error')
+      addToast(result.message || t('product.couldNotAdd'), 'error')
     }
   }
 
@@ -80,13 +84,13 @@ function ProductCard({ product, priorityImage }: Props) {
       <Link
         to={`/products/${product.slug}`}
         className="group block relative"
-        aria-label={`${product.name}${soldOut ? ' — sold out' : ''}`}
+        aria-label={`${loc.name}${soldOut ? ` — ${t('product.soldOut')}` : ''}`}
       >
         {/* ---------- Image ---------- */}
         <div className="relative aspect-[3/4] overflow-hidden bg-saif-panel rounded-sm">
           <img
             src={primaryImage}
-            alt={product.name}
+            alt={loc.name}
             loading={priorityImage ? 'eager' : 'lazy'}
             decoding="async"
             className={cn(
@@ -115,7 +119,7 @@ function ProductCard({ product, priorityImage }: Props) {
             {soldOut && <span className="badge bg-black/85 backdrop-blur-sm text-saif-text border-saif-text/40">Sold out</span>}
             {lowStock && (
               <span className="badge bg-black/80 backdrop-blur-sm text-yellow-400 border-yellow-500/40">
-                Only {product.stock} left
+                {t('product.onlyLeft', { count: product.stock })}
               </span>
             )}
           </div>
@@ -124,7 +128,7 @@ function ProductCard({ product, priorityImage }: Props) {
           <div className="absolute top-2.5 right-2.5 flex flex-col gap-2">
             <button
               onClick={toggleWishlist}
-              aria-label={inWishlist ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}
+              aria-label={inWishlist ? t('a11y.removeItem', { name: loc.name }) : `${t('product.addToBag')} — ${loc.name}`}
               aria-pressed={inWishlist}
               className={cn(
                 'w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300',
@@ -144,7 +148,7 @@ function ProductCard({ product, priorityImage }: Props) {
             </button>
             <button
               onClick={openQuickView}
-              aria-label={`Quick view ${product.name}`}
+              aria-label={`${t('product.quickView')} — ${loc.name}`}
               className="w-11 h-11 rounded-full bg-black/60 backdrop-blur-sm text-saif-text hover:bg-black flex items-center justify-center max-lg:hidden lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100 transition-all duration-300"
             >
               <Eye size={17} />
@@ -156,16 +160,16 @@ function ProductCard({ product, priorityImage }: Props) {
             <>
               <button
                 onClick={handleAddToCart}
-                aria-label={`Add ${product.name} to bag`}
+                aria-label={`${t('product.addToBag')} — ${loc.name}`}
                 className="hidden lg:flex absolute bottom-0 inset-x-0 items-center justify-center gap-2 bg-saif-text text-black text-[11px] font-bold uppercase tracking-[0.14em] h-12 translate-y-full group-hover:translate-y-0 group:focus-within:translate-y-0 transition-transform duration-500 ease-saif hover:bg-saif-accent"
               >
                 <ShoppingBag size={14} aria-hidden="true" />
-                {product.variants?.length ? 'Quick Add' : 'Add to Bag'}
+                {product.variants?.length ? t('product.quickAdd') : t('product.addToBag')}
               </button>
               {/* Touch: persistent compact add button */}
               <button
                 onClick={handleAddToCart}
-                aria-label={`Add ${product.name} to bag`}
+                aria-label={`${t('product.addToBag')} — ${loc.name}`}
                 className="lg:hidden absolute bottom-3 right-3 w-11 h-11 rounded-full bg-saif-text text-black flex items-center justify-center active:scale-90 active:bg-saif-accent transition-transform duration-200 shadow-lg"
               >
                 <ShoppingBag size={17} aria-hidden="true" />
@@ -181,27 +185,29 @@ function ProductCard({ product, priorityImage }: Props) {
             )}
           >
             {isDigital ? <Zap size={10} aria-hidden="true" /> : <Package size={10} aria-hidden="true" />}
-            {isDigital ? 'Digital' : 'Apparel'}
+            {isDigital ? t('product.digital') : t('product.physical')}
           </span>
         </div>
 
         {/* ---------- Info ---------- */}
         <div className="mt-4">
-          {product.categories?.name && (
+          {product.categories && (
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-saif-faint">
-              {product.categories.name}
+              {(lang === 'ar' && (product.categories as { name_ar?: string | null }).name_ar?.trim()
+                ? (product.categories as { name_ar?: string | null }).name_ar
+                : product.categories.name) || ''}
             </p>
           )}
           <h3 className="mt-1.5 text-sm font-medium text-saif-text group-hover:text-saif-accent transition-colors duration-300 line-clamp-1">
-            {product.name}
+            {loc.name}
           </h3>
           <div className="mt-2 flex items-baseline justify-between gap-3 flex-wrap">
             <div className="flex items-baseline gap-2.5 min-w-0">
-              <span className="text-[15px] font-semibold text-saif-text tabular-nums">
+              <span className="text-[15px] font-semibold text-saif-text tabular-nums ltr-iso">
                 {formatPrice(product.price)}
               </span>
               {product.compare_at_price && product.compare_at_price > product.price && (
-                <span className="text-xs text-saif-faint line-through tabular-nums">
+                <span className="text-xs text-saif-faint line-through tabular-nums ltr-iso">
                   {formatPrice(product.compare_at_price)}
                 </span>
               )}

@@ -46,6 +46,7 @@ function originalRlsSql(): string {
 async function applyReconciliation(db: PGlite) {
   await db.exec(readSql('migrations/2026-08-28-admin-reconcile.sql'))
   await db.exec(readSql('functions.sql'))
+  await db.exec(readSql('migrations/2026-08-29-bilingual-cms.sql'))
   await db.exec(readSql('rls.sql'))
 }
 

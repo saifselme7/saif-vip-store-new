@@ -6,13 +6,15 @@
 
 -- Site settings
 INSERT INTO site_settings (
-  store_name, store_description, contact_email, contact_phone, currency,
+  store_name, store_description, store_description_ar, contact_email, contact_phone, currency,
   shipping_fee, free_shipping_threshold, payment_number,
   instapay_enabled, vodafone_cash_enabled, payment_instructions,
-  announcement, hero_title, hero_subtitle, footer_text
+  announcement, announcement_ar, announcement_enabled, hero_title, hero_subtitle,
+  hero_title_ar, hero_subtitle_ar, footer_text, footer_text_ar, default_language, seo_title, seo_description
 ) VALUES (
   'SAIF STORE',
   'Premium streetwear and digital products, curated in Egypt.',
+  'ستريت وير ومنتجات رقمية بريميوم، مختارة بعناية في مصر.',
   'hello@saifstore.com',
   '01040324811',
   'EGP',
@@ -23,25 +25,35 @@ INSERT INTO site_settings (
   true,
   'Transfer the exact order total, then upload a screenshot of the confirmation. Payments are verified manually, usually within a few hours.',
   'Free shipping on orders over EGP 1,500',
+  'شحن مجاني على الطلبات أكتر من 1,500 جنيه',
+  true,
   'SAIF STORE',
   'Premium streetwear and digital products. Carefully curated.',
-  '© SAIF STORE. All rights reserved.'
+  'SAIF STORE',
+  'ستريت وير ومنتجات رقمية بريميوم. مختارين بعناية.',
+  '© SAIF STORE. All rights reserved.',
+  '© SAIF STORE. كل الحقوق محفوظة.',
+  'en',
+  'SAIF STORE — Premium Streetwear & Digital Products',
+  'Premium streetwear and digital products, curated in Egypt. Manual payment via InstaPay & Vodafone Cash.'
 );
 
 -- Categories
-INSERT INTO categories (name, slug, description, sort_order, is_active) VALUES
-  ('T-Shirts', 't-shirts', 'Premium heavyweight cotton tees', 1, true),
-  ('Hoodies', 'hoodies', 'Oversized and classic hoodies', 2, true),
-  ('Streetwear', 'streetwear', 'Bottoms and layered pieces', 3, true),
-  ('Accessories', 'accessories', 'Caps, bags, beanies and more', 4, true),
-  ('Digital Products', 'digital-products', 'Digital goods and licenses', 5, true),
-  ('Social Media Services', 'social-media', 'Boost packages delivered after confirmation', 6, true);
+INSERT INTO categories (name, name_ar, slug, description, description_ar, sort_order, is_active) VALUES
+  ('T-Shirts', 'تيشيرتات', 't-shirts', 'Premium heavyweight cotton tees', 'تيشيرتات قطن تقيلة بريميوم', 1, true),
+  ('Hoodies', 'هوديز', 'hoodies', 'Oversized and classic hoodies', 'هودي أوفرسايز وكلاسيك', 2, true),
+  ('Streetwear', 'ستريت وير', 'streetwear', 'Bottoms and layered pieces', 'بناطيل وقطع طبقات', 3, true),
+  ('Accessories', 'أكسسوارات', 'accessories', 'Caps, bags, beanies and more', 'كابات وشنط وباني وأكتر', 4, true),
+  ('Digital Products', 'منتجات رقمية', 'digital-products', 'Digital goods and licenses', 'منتجات وخدمات رقمية', 5, true),
+  ('Social Media Services', 'خدمات سوشيال ميديا', 'social-media', 'Boost packages delivered after confirmation', 'باقات بوست بتوصلك بعد التأكيد', 6, true);
 
 -- Physical products
-INSERT INTO products (name, slug, description, short_description, price, compare_at_price, product_type, category_id, images, thumbnail, stock, low_stock_threshold, sku, status, featured, bestseller, tags, specifications) VALUES
+INSERT INTO products (name, slug, description, short_description, description_ar, short_description_ar, price, compare_at_price, product_type, category_id, images, thumbnail, stock, low_stock_threshold, sku, status, featured, bestseller, tags, specifications) VALUES
   ('Off by Design Tee', 'off-by-design-tee',
    'Made to be worn. Or judged. Or both. Premium 240gsm heavyweight cotton with a minimal screen-printed design. Pre-shrunk, boxy fit, built to outlast trends.',
    '240gsm heavyweight cotton tee.',
+   'اتعملت عشان تتلبس. أو تحكم عليها. أو الاتنين. قطن تقيل 240 جرام بطبعة سكرين بسيطة. مقاس بوكسي مسبق التقليص، معمولة تعيش أطول من الترند.',
+   'تيشيرت قطن تقيل 240 جرام.',
    850.00, 1050.00, 'physical', (SELECT id FROM categories WHERE slug = 't-shirts'),
    ARRAY['https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=900&q=80', 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=900&q=80'],
    'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=900&q=80',
@@ -50,6 +62,8 @@ INSERT INTO products (name, slug, description, short_description, price, compare
   ('Layered Signal Tee', 'layered-signal-tee',
    'A quiet tee with a loud grid. Mid-weight ring-spun cotton with a small chest hit and drop shoulder.',
    'Mid-weight ring-spun cotton tee.',
+   'تيشيرت هادي بشبكة عالية الصوت. قطن رينج سبون متوسط بياقة مرتخية وطبعة صغيرة على الصدر.',
+   'تيشيرت قطن رينج سبون متوسط.',
    720.00, NULL, 'physical', (SELECT id FROM categories WHERE slug = 't-shirts'),
    ARRAY['https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=900&q=80'],
    'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=900&q=80',
@@ -58,6 +72,8 @@ INSERT INTO products (name, slug, description, short_description, price, compare
   ('Command K Hoodie', 'command-k-hoodie',
    'The shortcut to comfort. 400gsm brushed fleece hoodie with kangaroo pocket, tonal embroidery and ribbed cuffs.',
    '400gsm brushed fleece hoodie.',
+   'الشورت كت للراحة. هودي فليس مبرّد 400 جرام بجيب كنغر وتطريز تونال وأساور مضلعة.',
+   'هودي فليس مبرّد 400 جرام.',
    1450.00, 1750.00, 'physical', (SELECT id FROM categories WHERE slug = 'hoodies'),
    ARRAY['https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=900&q=80', 'https://images.unsplash.com/photo-1578768079052-aa76e52ff62e?w=900&q=80'],
    'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=900&q=80',
@@ -66,6 +82,8 @@ INSERT INTO products (name, slug, description, short_description, price, compare
   ('Monochrome Joggers', 'monochrome-joggers',
    'A declaration of intent. Relaxed fit joggers in heavy cotton twill with elastic cuffs and side pockets.',
    'Heavy twill relaxed joggers.',
+   'إعلان نوايا. جوجر مقاس مريح من تويل قطن تقيل بأساور مطاطة وجيوب جانبية.',
+   'جوجر تويل تقيل بمقاس مريح.',
    1100.00, 1400.00, 'physical', (SELECT id FROM categories WHERE slug = 'streetwear'),
    ARRAY['https://images.unsplash.com/photo-1517438476312-10d79c077509?w=900&q=80'],
    'https://images.unsplash.com/photo-1517438476312-10d79c077509?w=900&q=80',
@@ -74,6 +92,8 @@ INSERT INTO products (name, slug, description, short_description, price, compare
   ('Static Cargo Pants', 'static-cargo-pants',
    'Utility silhouette with six pockets and adjustable hem. Cut from durable ripstop cotton.',
    'Ripstop utility cargo pants.',
+   'قصة يوتيليتي بستة جيوب وطرف قابل للتعديل. من قطن ريب ستوب المتين.',
+   'بنطلون كارجو ريب ستوب يوتيليتي.',
    1250.00, NULL, 'physical', (SELECT id FROM categories WHERE slug = 'streetwear'),
    ARRAY['https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=900&q=80'],
    'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=900&q=80',
@@ -82,6 +102,8 @@ INSERT INTO products (name, slug, description, short_description, price, compare
   ('Kerned Confidence Cap', 'kerned-confidence-cap',
    'Designed with enough spacing to keep your thoughts aligned. Structured 6-panel cap with embroidered logo and brass clasp.',
    'Structured 6-panel cap.',
+   'مصمم بمسافات كفاية تخلي أفكارك مرتبة. كاب سداسي مبني بستايل قوي بشعار مطرز وقفل نحاس.',
+   'كاب سداسي بستايل قوي.',
    650.00, NULL, 'physical', (SELECT id FROM categories WHERE slug = 'accessories'),
    ARRAY['https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=900&q=80'],
    'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=900&q=80',
@@ -90,6 +112,8 @@ INSERT INTO products (name, slug, description, short_description, price, compare
   ('Positive Space Tote', 'positive-space-tote',
    'For those who believe in leaving room to breathe. 16oz heavy canvas tote with contrast stitching and inner pocket.',
    '16oz heavy canvas tote.',
+   'للي بيؤمن إن لازم تسيك مساحة تتنفس. شنطة كانفاس تقيلة 16 أونصة بخياطة متباينة وجيب داخلي.',
+   'شنطة كانفاس تقيلة 16 أونصة.',
    500.00, 650.00, 'physical', (SELECT id FROM categories WHERE slug = 'accessories'),
    ARRAY['https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=900&q=80'],
    'https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=900&q=80',
@@ -98,6 +122,8 @@ INSERT INTO products (name, slug, description, short_description, price, compare
   ('Red Beanie', 'red-beanie',
    'Warmth with an edge. Ribbed knit beanie in signature SAIF red with woven label.',
    'Ribbed knit beanie.',
+   'دفا بشخصية. باني مضلع بأحمر SAIF المميز بليبل منسوج.',
+   'باني مضلع.',
    550.00, NULL, 'physical', (SELECT id FROM categories WHERE slug = 'accessories'),
    ARRAY['https://images.unsplash.com/photo-1576871337632-b9aef4c17ab9?w=900&q=80'],
    'https://images.unsplash.com/photo-1576871337632-b9aef4c17ab9?w=900&q=80',
@@ -105,10 +131,12 @@ INSERT INTO products (name, slug, description, short_description, price, compare
    '{"Material": "Acrylic ribbed knit"}'::jsonb);
 
 -- Digital products
-INSERT INTO products (name, slug, description, short_description, price, compare_at_price, product_type, category_id, images, thumbnail, stock, low_stock_threshold, sku, status, featured, bestseller, tags, metadata, delivery_info) VALUES
+INSERT INTO products (name, slug, description, short_description, description_ar, short_description_ar, price, compare_at_price, product_type, category_id, images, thumbnail, stock, low_stock_threshold, sku, status, featured, bestseller, tags, metadata, delivery_info) VALUES
   ('TikTok Followers — 1K', 'tiktok-followers-1k',
    'A 1,000-follower boost package for your TikTok profile. No password required — only your username. Delivery starts after your order is confirmed.',
    '1,000 TikTok followers.',
+   'باقة 1000 متابع لحسابك على تيك توك. من غير باسورد — بس اليوزر نيم. التسليم بيبدأ بعد ما طلبك يتأكد.',
+   '1000 متابع تيك توك.',
    220.00, NULL, 'digital', (SELECT id FROM categories WHERE slug = 'social-media'),
    ARRAY['https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=900&q=80'],
    'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=900&q=80',
@@ -118,6 +146,8 @@ INSERT INTO products (name, slug, description, short_description, price, compare
   ('TikTok Followers — 5K', 'tiktok-followers-5k',
    'A 5,000-follower boost package for your TikTok profile. No password required — only your username. Delivery starts after your order is confirmed.',
    '5,000 TikTok followers.',
+   'باقة 5000 متابع لحسابك على تيك توك. من غير باسورد — بس اليوزر نيم. التسليم بيبدأ بعد ما طلبك يتأكد.',
+   '5000 متابع تيك توك.',
    950.00, 1100.00, 'digital', (SELECT id FROM categories WHERE slug = 'social-media'),
    ARRAY['https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=900&q=80'],
    'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=900&q=80',
@@ -127,6 +157,8 @@ INSERT INTO products (name, slug, description, short_description, price, compare
   ('Instagram Likes — 500', 'instagram-likes-500',
    'A 500-like package for an Instagram post of your choice. Just send the post link after checkout. Delivery starts after your order is confirmed.',
    '500 Instagram likes.',
+   'باقة 500 لايك لبوست انستجرام من اختيارك. ابعت لينك البوست بس بعد الطلب. التسليم بيبدأ بعد ما طلبك يتأكد.',
+   '500 لايك انستجرام.',
    150.00, NULL, 'digital', (SELECT id FROM categories WHERE slug = 'social-media'),
    ARRAY['https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=900&q=80'],
    'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=900&q=80',
@@ -136,6 +168,8 @@ INSERT INTO products (name, slug, description, short_description, price, compare
   ('Instagram Followers — 1K', 'instagram-followers-1k',
    'A 1,000-follower boost package for your Instagram profile. No password required — only your username. Delivery starts after your order is confirmed.',
    '1,000 Instagram followers.',
+   'باقة 1000 متابع لحسابك على انستجرام. من غير باسورد — بس اليوزر نيم. التسليم بيبدأ بعد ما طلبك يتأكد.',
+   '1000 متابع انستجرام.',
    260.00, NULL, 'digital', (SELECT id FROM categories WHERE slug = 'social-media'),
    ARRAY['https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=900&q=80'],
    'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=900&q=80',
@@ -145,6 +179,8 @@ INSERT INTO products (name, slug, description, short_description, price, compare
   ('YouTube Views — 10K', 'youtube-views-10k',
    'A 10,000-view package for one YouTube video, delivered gradually for a natural pace. Delivery starts after your order is confirmed.',
    '10,000 YouTube views.',
+   'باقة 10,000 مشاهدة لفيديو واحد على يوتيوب، بتتسلم تدريجي بشكل طبيعي. التسليم بيبدأ بعد ما طلبك يتأكد.',
+   '10,000 مشاهدة يوتيوب.',
    420.00, 500.00, 'digital', (SELECT id FROM categories WHERE slug = 'social-media'),
    ARRAY['https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=900&q=80'],
    'https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=900&q=80',
@@ -154,6 +190,8 @@ INSERT INTO products (name, slug, description, short_description, price, compare
   ('SAIF Wallpaper Pack', 'saif-wallpaper-pack',
    'A curated pack of 12 high-resolution SAIF STORE wallpapers for desktop and mobile (4K, PNG). Delivered instantly to your email after confirmation.',
    '12 × 4K wallpapers.',
+   'باقة من 12 خلفية SAIF STORE عالية الدقة للموبايل واللابتوب (4K بصيغة PNG). بتوصلك على إيميلك فورًا بعد التأكيد.',
+   '12 خلفية بدقة 4K.',
    120.00, NULL, 'digital', (SELECT id FROM categories WHERE slug = 'digital-products'),
    ARRAY['https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=900&q=80'],
    'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=900&q=80',

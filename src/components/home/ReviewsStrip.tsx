@@ -2,6 +2,7 @@ import Reveal from '@/components/motion/Reveal'
 import SectionHeader from '@/components/SectionHeader'
 import RatingStars from '@/components/ui/RatingStars'
 import { formatDate } from '@/lib/utils'
+import { useI18n } from '@/i18n'
 import type { Review } from '@/types'
 
 type ReviewWithProduct = Review & { products?: { name: string } | null }
@@ -10,7 +11,18 @@ type ReviewWithProduct = Review & { products?: { name: string } | null }
  * Social proof — real, approved database reviews only. Renders nothing when
  * no reviews exist (never fabricates).
  */
-export default function ReviewsStrip({ reviews }: { reviews: ReviewWithProduct[] }) {
+export default function ReviewsStrip({
+  reviews,
+  title,
+  description,
+  config,
+}: {
+  reviews: ReviewWithProduct[]
+  title?: string | null
+  description?: string | null
+  config?: unknown
+}) {
+  const { t } = useI18n()
   if (reviews.length === 0) return null
 
   return (
@@ -18,9 +30,9 @@ export default function ReviewsStrip({ reviews }: { reviews: ReviewWithProduct[]
       <div className="max-w-7xl mx-auto">
         <SectionHeader
           index="09"
-          eyebrow="Word on the Street"
-          title="What customers say."
-          description="Approved reviews from verified orders — moderated by our team."
+          eyebrow={t('reviews.eyebrow')}
+          title={title ?? t('reviews.title')}
+          description={description ?? t('reviews.description')}
         />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">

@@ -57,6 +57,36 @@
     user-select: none;
   }
 
+  /* ------------------------------------------------------------
+   * RTL / Arabic typography
+   * ------------------------------------------------------------ */
+  html[dir='rtl'] body {
+    font-family: 'IBM Plex Sans Arabic', 'Inter', system-ui, sans-serif;
+  }
+  /* Arabic display headings: no letter-spacing, comfortable leading */
+  html[dir='rtl'] .tracking-tighter,
+  html[dir='rtl'] .tracking-tight,
+  html[dir='rtl'] .tracking-wider,
+  html[dir='rtl'] .tracking-widest,
+  html[dir='rtl'] .tracking-\[0\.3em\],
+  html[dir='rtl'] .tracking-\[0\.25em\],
+  html[dir='rtl'] .tracking-\[0\.2em\],
+  html[dir='rtl'] .tracking-\[0\.15em\],
+  html[dir='rtl'] .tracking-\[0\.14em\],
+  html[dir='rtl'] .tracking-\[0\.12em\] {
+    letter-spacing: 0;
+  }
+  html[dir='rtl'] .font-display {
+    font-family: 'IBM Plex Sans Arabic', 'Instrument Serif', serif;
+    font-style: normal;
+  }
+  /* Keep Latin technical strings (order numbers, phones, amounts) LTR inside RTL text */
+  html[dir='rtl'] .ltr-iso {
+    direction: ltr;
+    unicode-bidi: isolate;
+    display: inline-block;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     html {
       scroll-behavior: auto;
@@ -294,6 +324,36 @@
   .line-mask.is-visible > span {
     transform: translate3d(0, 0, 0);
   }
+  /* ------------------------------------------------------------
+   * RTL / Arabic typography
+   * ------------------------------------------------------------ */
+  html[dir='rtl'] body {
+    font-family: 'IBM Plex Sans Arabic', 'Inter', system-ui, sans-serif;
+  }
+  /* Arabic display headings: no letter-spacing, comfortable leading */
+  html[dir='rtl'] .tracking-tighter,
+  html[dir='rtl'] .tracking-tight,
+  html[dir='rtl'] .tracking-wider,
+  html[dir='rtl'] .tracking-widest,
+  html[dir='rtl'] .tracking-\[0\.3em\],
+  html[dir='rtl'] .tracking-\[0\.25em\],
+  html[dir='rtl'] .tracking-\[0\.2em\],
+  html[dir='rtl'] .tracking-\[0\.15em\],
+  html[dir='rtl'] .tracking-\[0\.14em\],
+  html[dir='rtl'] .tracking-\[0\.12em\] {
+    letter-spacing: 0;
+  }
+  html[dir='rtl'] .font-display {
+    font-family: 'IBM Plex Sans Arabic', 'Instrument Serif', serif;
+    font-style: normal;
+  }
+  /* Keep Latin technical strings (order numbers, phones, amounts) LTR inside RTL text */
+  html[dir='rtl'] .ltr-iso {
+    direction: ltr;
+    unicode-bidi: isolate;
+    display: inline-block;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .line-mask > span {
       transform: none !important;
@@ -330,6 +390,15 @@
 @keyframes drawerIn {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
+}
+
+@keyframes drawerInRtl {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+html[dir='rtl'] .animate-drawerIn {
+  animation: drawerInRtl 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes scaleIn {

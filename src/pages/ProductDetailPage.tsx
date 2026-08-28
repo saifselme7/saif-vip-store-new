@@ -18,10 +18,13 @@ import Footer from '@/components/Footer'
 import Loading from '@/components/Loading'
 import EmptyState from '@/components/EmptyState'
 import Reveal from '@/components/motion/Reveal'
+import { useI18n } from '@/i18n'
+import { localizeProduct } from '@/lib/bilingual'
 
 type Tab = 'description' | 'specifications' | 'shipping'
 
 export default function ProductDetailPage() {
+  const { t, lang, formatPrice, isRTL } = useI18n()
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
   const { product, loading } = useProduct(slug || '')
@@ -43,6 +46,7 @@ export default function ProductDetailPage() {
   const colors = useMemo(() => [...new Set(variants.map(v => v.color).filter(Boolean))] as string[], [variants])
 
   const currency = settings?.currency ?? 'EGP'
+  const loc = localizeProduct(product, lang)
 
   useEffect(() => {
     setSelectedVariantId(null)
@@ -51,8 +55,8 @@ export default function ProductDetailPage() {
   }, [slug])
 
   usePageMeta({
-    title: product ? product.name : 'Product',
-    description: product?.short_description || product?.description?.slice(0, 150),
+    title: loc.seoTitle || (product ? loc.name : t('product.notFound')),
+    description: loc.seoDescription || loc.shortDescription || loc.description?.slice(0, 150) || undefined,
     image: product?.thumbnail ?? undefined,
     type: 'product',
   })
@@ -66,8 +70,8 @@ export default function ProductDetailPage() {
     script.textContent = JSON.stringify({
       '@context': 'https://schema.org',
       '@type': 'Product',
-      name: product.name,
-      description: product.short_description || product.description,
+      name: loc.name,
+      description: loc.shortDescription || loc.description,
       image: product.images,
       sku: product.sku,
       brand: { '@type': 'Brand', name: 'SAIF STORE' },
@@ -96,11 +100,11 @@ export default function ProductDetailPage() {
     return (
       <div className="pt-28 px-5">
         <EmptyState
-          title="Product not found"
-          description="This product may have been removed or is unavailable."
+          title={t('product.notFound')}
+          description={t('product.notFoundDesc')}
           action={
             <Link to="/products" className="btn btn-sm">
-              Back to Shop
+              {t('product.backToShop')}
             </Link>
           }
         />
@@ -116,12 +120,12 @@ export default function ProductDetailPage() {
   const unitPrice = selectedVariant?.price ?? product.price
   const discount = discountPercent(product.price, product.compare_at_price)
   const soldOut = !isDigital && availableStock <= 0
-  const specs = (product.specifications ?? {}) as Record<string, string>
+  const specs = loc.specifications
 
   function handleAddToCart(openDrawer = true) {
     if (!product) return
     if (!isDigital && variants.length > 0 && !selectedVariant) {
-      addToast('Please select an option first', 'error')
+      addToast(t('product.selectOptionFirst'), 'error')
       return
     }
     const result = addItem(product, selectedVariant, quantity)
@@ -136,7 +140,7 @@ export default function ProductDetailPage() {
   function handleBuyNow() {
     if (!product) return
     if (!isDigital && variants.length > 0 && !selectedVariant) {
-      addToast('Please select an option first', 'error')
+      addToast(t('product.selectOptionFirst'), 'error')
       return
     }
     const result = addItem(product, selectedVariant, quantity)
@@ -149,15 +153,15 @@ export default function ProductDetailPage() {
 
   async function toggleWishlist() {
     if (!user || !product) {
-      addToast('Sign in to save items to your wishlist', 'info')
+      addToast(t('product.signInForWishlist'), 'info')
       return
     }
     if (inWishlist) {
       const ok = await remove(product.id)
-      if (ok) addToast('Removed from wishlist')
+      if (ok) addToast(t('product.removedFromWishlist'))
     } else {
       const ok = await add(product.id)
-      if (ok) addToast('Saved to wishlist')
+      if (ok) addToast(t('product.addedToWishlist'))
     }
   }
 
@@ -220,7 +224,7 @@ export default function ProductDetailPage() {
                 <button
                   onClick={toggleWishlist}
                   className="w-10 h-10 border border-saif-border flex items-center justify-center hover:border-saif-text transition-colors rounded-sm"
-                  aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+                  aria-label={inWishlist ? t('product.removedFromWishlist') : t('product.addedToWishlist')}
                   aria-pressed={inWishlist}
                 >
                   <Heart size={17} className={inWishlist ? 'fill-saif-accent text-saif-accent' : 'text-saif-text'} />
@@ -228,7 +232,7 @@ export default function ProductDetailPage() {
                 <button
                   onClick={handleShare}
                   className="w-10 h-10 border border-saif-border flex items-center justify-center hover:border-saif-text transition-colors rounded-sm"
-                  aria-label="Share product"
+                  aria-label={t('product.share')}
                 >
                   <Share2 size={16} className="text-saif-text" />
                 </button>
@@ -236,7 +240,7 @@ export default function ProductDetailPage() {
             </div>
 
             <div className="flex items-center flex-wrap gap-3 mt-5">
-              <span className="text-2xl font-bold text-saif-text">{formatPrice(unitPrice, currency)}</span>
+              <span className="text-2xl font-bold text-saif-text ltr-iso">{formatPrice(unitPrice)}</span>
               {product.compare_at_price && product.compare_at_price > unitPrice && (
                 <>
                   <span className="text-base text-saif-dim line-through">
@@ -255,19 +259,19 @@ export default function ProductDetailPage() {
             <div className="mt-6 flex items-center gap-3 text-sm">
               {isDigital ? (
                 <span className="flex items-center gap-2 text-saif-accent">
-                  <Zap size={15} /> Digital product — no shipping required
+                  <Zap size={15} /> {t('product.digitalBadge')}
                 </span>
               ) : soldOut ? (
                 <span className="flex items-center gap-2 text-red-400">
-                  <Package size={15} /> Out of stock
+                  <Package size={15} /> {t('product.soldOut')}
                 </span>
               ) : availableStock <= product.low_stock_threshold ? (
                 <span className="flex items-center gap-2 text-yellow-400">
-                  <Package size={15} /> Low stock — only {availableStock} left
+                  <Package size={15} /> {t('product.lowStock', { count: availableStock })}
                 </span>
               ) : (
                 <span className="flex items-center gap-2 text-green-400">
-                  <Package size={15} /> In stock
+                  <Package size={15} /> {t('product.inStock')}
                 </span>
               )}
             </div>
@@ -290,7 +294,7 @@ export default function ProductDetailPage() {
             {/* Quantity */}
             {!soldOut && (
               <div className="mt-8">
-                <span className="label">Quantity</span>
+                <span className="label">{t('product.quantity')}</span>
                 <QuantityStepper
                   value={quantity}
                   onChange={setQuantity}
@@ -306,7 +310,7 @@ export default function ProductDetailPage() {
                 {soldOut ? 'Sold Out' : 'Add to Bag'}
               </button>
               <button onClick={handleBuyNow} disabled={soldOut} className="btn flex-1">
-                Buy Now
+                {t('product.buyNow')}
               </button>
             </div>
 
@@ -314,7 +318,7 @@ export default function ProductDetailPage() {
             <div className="mt-12 border-t border-saif-border">
               <div className="flex gap-6 border-b border-saif-border" role="tablist" aria-label="Product information">
                 <TabButton active={tab === 'description'} onClick={() => setTab('description')}>
-                  Description
+                  {t('product.description')}
                 </TabButton>
                 {Object.keys(specs).length > 0 && (
                   <TabButton active={tab === 'specifications'} onClick={() => setTab('specifications')}>
@@ -322,14 +326,14 @@ export default function ProductDetailPage() {
                   </TabButton>
                 )}
                 <TabButton active={tab === 'shipping'} onClick={() => setTab('shipping')}>
-                  {isDigital ? 'Digital Delivery' : 'Shipping'}
+                  {isDigital ? t('product.digitalDelivery') : t('product.shippingTab')}
                 </TabButton>
               </div>
 
               <div className="py-6">
                 {tab === 'description' && (
                   <div className="text-sm text-saif-dim leading-relaxed whitespace-pre-line">
-                    {product.description || product.short_description}
+                    {loc.description || loc.shortDescription}
                   </div>
                 )}
                 {tab === 'specifications' && (
@@ -368,7 +372,7 @@ export default function ProductDetailPage() {
                         <div className="flex items-start gap-3">
                           <Truck size={16} className="text-saif-text mt-0.5 flex-shrink-0" />
                           <div>
-                            <p className="text-saif-text font-medium">Shipping</p>
+                            <p className="text-saif-text font-medium">{t('product.shippingTab')}</p>
                             <p>
                               {settings?.shipping_fee
                                 ? `Flat shipping fee of ${formatPrice(settings.shipping_fee, currency)} across Egypt.`
@@ -402,7 +406,7 @@ export default function ProductDetailPage() {
         {related.length > 0 && (
           <section className="mt-20 pt-12 border-t border-saif-border" aria-labelledby="related-heading">
             <h2 id="related-heading" className="text-xl font-bold tracking-tight text-saif-text mb-8">
-              You May Also Like
+              {t('product.relatedProducts')}
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {related.map(p => (

@@ -18,58 +18,57 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
+import { useI18n } from '@/i18n'
 
-interface NavItem {
-  path: string
-  label: string
-  icon: typeof Package
-  badge?: 'payments' | 'orders'
-}
-
-const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
+const NAV_GROUPS = [
   {
-    title: 'Overview',
-    items: [{ path: '/admin', label: 'Dashboard', icon: LayoutDashboard }],
+    titleKey: 'admin.nav.overview',
+    items: [{ path: '/admin', labelKey: 'admin.nav.dashboard', icon: LayoutDashboard }],
   },
   {
-    title: 'Catalog',
+    titleKey: 'admin.nav.storefront',
+    items: [{ path: '/admin/site', labelKey: 'admin.nav.siteBuilder', icon: LayoutDashboard }],
+  },
+  {
+    titleKey: 'admin.nav.catalog',
     items: [
-      { path: '/admin/products', label: 'Products', icon: Package },
-      { path: '/admin/categories', label: 'Categories', icon: Tags },
-      { path: '/admin/inventory', label: 'Inventory', icon: Boxes },
+      { path: '/admin/products', labelKey: 'admin.nav.products', icon: Package },
+      { path: '/admin/categories', labelKey: 'admin.nav.categories', icon: Tags },
+      { path: '/admin/inventory', labelKey: 'admin.nav.inventory', icon: Boxes },
     ],
   },
   {
-    title: 'Orders',
+    titleKey: 'admin.nav.orders',
     items: [
-      { path: '/admin/orders', label: 'All Orders', icon: ShoppingCart, badge: 'orders' },
-      { path: '/admin/payments', label: 'Payment Verification', icon: CreditCard, badge: 'payments' },
+      { path: '/admin/orders', labelKey: 'admin.nav.allOrders', icon: ShoppingCart },
+      { path: '/admin/payments', labelKey: 'admin.nav.paymentVerification', icon: CreditCard },
     ],
   },
   {
-    title: 'Customers',
-    items: [{ path: '/admin/customers', label: 'Customers', icon: Users }],
+    titleKey: 'admin.nav.customers',
+    items: [{ path: '/admin/customers', labelKey: 'admin.nav.customers', icon: Users }],
   },
   {
-    title: 'Marketing',
+    titleKey: 'admin.nav.marketing',
     items: [
-      { path: '/admin/coupons', label: 'Coupons', icon: Ticket },
-      { path: '/admin/reviews', label: 'Reviews', icon: Star },
+      { path: '/admin/coupons', labelKey: 'admin.nav.coupons', icon: Ticket },
+      { path: '/admin/reviews', labelKey: 'admin.nav.reviews', icon: Star },
     ],
   },
   {
-    title: 'Analytics',
-    items: [{ path: '/admin/analytics', label: 'Sales Analytics', icon: BarChart3 }],
+    titleKey: 'admin.nav.analytics',
+    items: [{ path: '/admin/analytics', labelKey: 'admin.nav.salesAnalytics', icon: BarChart3 }],
   },
   {
-    title: 'System',
-    items: [{ path: '/admin/settings', label: 'Settings', icon: Settings }],
+    titleKey: 'admin.nav.system',
+    items: [{ path: '/admin/settings', labelKey: 'admin.nav.settings', icon: Settings }],
   },
 ]
 
 export default function AdminLayout() {
   const location = useLocation()
   const { profile } = useAuth()
+  const { t, isRTL } = useI18n()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const isActive = (path: string) =>
@@ -79,16 +78,16 @@ export default function AdminLayout() {
     <div className="flex flex-col h-full">
       <div className="px-5 py-6 border-b border-saif-border">
         <p className="text-sm font-bold tracking-tight text-saif-text">
-          SAIF STORE <span className="text-saif-accent">ADMIN</span>
+          SAIF STORE <span className="text-saif-accent">{t('admin.nav.admin')}</span>
         </p>
-        <p className="text-xs text-saif-dim mt-1 truncate">{profile?.full_name || 'Administrator'}</p>
+        <p className="text-xs text-saif-dim mt-1 truncate">{profile?.full_name || t('admin.nav.admin')}</p>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5" aria-label="Admin navigation">
         {NAV_GROUPS.map(group => (
-          <div key={group.title}>
+          <div key={group.titleKey}>
             <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-saif-faint px-2 mb-1.5">
-              {group.title}
+              {t(group.titleKey)}
             </p>
             <div className="space-y-0.5">
               {group.items.map(item => (
@@ -105,7 +104,7 @@ export default function AdminLayout() {
                   aria-current={isActive(item.path) ? 'page' : undefined}
                 >
                   <item.icon size={15} className={isActive(item.path) ? 'text-saif-accent' : ''} />
-                  {item.label}
+                  {t(item.labelKey)}
                 </Link>
               ))}
             </div>
@@ -118,7 +117,7 @@ export default function AdminLayout() {
           to="/"
           className="flex items-center gap-2 text-xs text-saif-dim hover:text-saif-text transition-colors"
         >
-          <ArrowLeft size={14} /> Back to Store
+          <ArrowLeft size={14} className={isRTL ? 'rotate-180' : ''} /> {t('admin.nav.backToStore')}
         </Link>
       </div>
     </div>
