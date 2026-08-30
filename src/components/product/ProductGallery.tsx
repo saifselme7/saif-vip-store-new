@@ -81,7 +81,7 @@ export default function ProductGallery({ images, alt }: Props) {
       {/* Full-screen preview */}
       {previewOpen && (
         <div
-          className="fixed inset-0 z-[220] bg-black/95 flex items-center justify-center p-4 md:p-10"
+          className="theme-dark fixed inset-0 z-[220] bg-black/95 flex items-center justify-center p-4 md:p-10"
           role="dialog"
           aria-modal="true"
           aria-label={t('a11y.orderPreview')}

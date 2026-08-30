@@ -64,20 +64,20 @@ describe('App smoke render', () => {
 })
 
 describe('Homepage narrative composition', () => {
-  it('renders the hero with the line-mask wordmark and CTAs', async () => {
+  it('renders the hero with the line-mask statement and CTAs', async () => {
     const cleanup = renderApp()
     await settle()
 
     const hero = document.querySelector('section[aria-label^="SAIF STORE"]')
     expect(hero).toBeTruthy()
-    // Both wordmark lines are present
+    // The brand line + campaign statement are present
     const heroText = hero?.textContent || ''
     expect(heroText).toContain('SAIF')
     expect(heroText).toContain('STORE')
-    // Essential CTAs preserved
+    // Essential CTAs preserved (collection + new arrivals — digital is retired)
     const links = Array.from(hero?.querySelectorAll('a') ?? []).map(a => a.getAttribute('href'))
     expect(links).toContain('/products')
-    expect(links).toContain('/products?type=digital')
+    expect(links).toContain('/products?sort=newest')
     // Scroll cue is decorative
     expect(hero?.querySelector('[aria-hidden="true"]')).toBeTruthy()
     cleanup()
@@ -101,10 +101,14 @@ describe('Homepage narrative composition', () => {
 
     // Narrative sections (copy-driven, data-independent)
     expect(text).toContain('The Brand')
-    expect(text).toContain('Made to be worn')
-    expect(text).toContain('Two worlds. One standard.')
+    expect(text).toContain('Made to be worn, not stored.')
+    expect(text).toContain('Pick your uniform.')
     expect(text).toContain('Ordered. Transferred. Verified.')
-    expect(text).toContain('Step into')
+    expect(text).toContain('Wear your')
+
+    // The digital concept is fully retired from the storefront
+    expect(text).not.toContain('Digital Products')
+    expect(text).not.toContain('Digital Essentials')
 
     // The marquee trust band derived from settings fallback
     expect(text).toContain('Payments verified by humans')

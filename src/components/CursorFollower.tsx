@@ -63,12 +63,20 @@ export default function CursorFollower() {
         tx = target.current.x + (cx - target.current.x) * pull
         ty = target.current.y + (cy - target.current.y) * pull
         scale = Math.min(1.9, 1 + (r / 220) * 1.2)
-        // Keep the ring's color tied to the element's hover intent
+        // Keep the ring's color tied to the element's hover intent.
+        // Normal blending (no difference) so the brand red stays red on the
+        // warm off-white sections instead of inverting to teal.
         const ring = ringRef.current
-        if (ring) ring.style.borderColor = 'rgba(230, 57, 70, 0.9)'
+        if (ring) {
+          ring.style.borderColor = 'rgba(230, 57, 70, 0.9)'
+          ring.style.mixBlendMode = 'normal'
+        }
       } else {
         const ring = ringRef.current
-        if (ring) ring.style.borderColor = ''
+        if (ring) {
+          ring.style.borderColor = ''
+          ring.style.mixBlendMode = ''
+        }
       }
 
       pos.current.x += (tx - pos.current.x) * 0.16

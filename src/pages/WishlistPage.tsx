@@ -13,7 +13,7 @@ export default function WishlistPage() {
   const { t } = useI18n()
   const { user } = useAuth()
   const { items, loading } = useWishlist()
-  usePageMeta({ title: 'Wishlist', description: 'Products you saved for later at SAIF STORE.' })
+  usePageMeta({ title: `${t('nav.wishlist')} — SAIF STORE`, description: t('meta.description') })
 
   if (!user) {
     return (
@@ -36,7 +36,7 @@ export default function WishlistPage() {
   return (
     <div className="animate-[pageIn_0.6s_ease] pt-24 md:pt-28 px-5 lg:px-10 pb-20">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-[clamp(34px,6vw,72px)] font-black tracking-tighter text-saif-text mb-10">Wishlist</h1>
+        <h1 className="text-[clamp(34px,6vw,72px)] font-display text-saif-text mb-10">{t('nav.wishlist')}</h1>
         {loading ? (
           <ProductGridSkeleton />
         ) : items.length === 0 ? (

@@ -126,8 +126,8 @@ describe('Localization', () => {
     expect(document.documentElement.lang).toBe('ar')
     expect(document.documentElement.dir).toBe('rtl')
     const text = document.body.textContent || ''
-    expect(text).toContain('تسوق دلوقتي')
-    expect(text).toContain('منتجات رقمية')
+    expect(text).toContain('اكتشف المجموعة')
+    expect(text).toContain('كلامك')
   })
 
   it('persists the language choice to localStorage', async () => {
@@ -140,7 +140,7 @@ describe('Localization', () => {
     localStorage.setItem('saif-lang', 'ar')
     await renderApp()
     expect(document.documentElement.dir).toBe('rtl')
-    expect(document.body.textContent).toContain('تسوق دلوقتي')
+    expect(document.body.textContent).toContain('اكتشف المجموعة')
   })
 
   it('preserves the current route when switching languages', async () => {

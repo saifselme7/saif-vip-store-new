@@ -48,7 +48,7 @@ export default function HowItWorks({
           />
           {steps.map((step, i) => (
             <Reveal key={step.title} as="li" variant="up" delay={i * 160} duration={900} className="relative text-center">
-              <div className="relative z-10 mx-auto w-[6.8rem] h-[6.8rem] rounded-full border border-saif-border bg-black flex items-center justify-center">
+              <div className="relative z-10 mx-auto w-[6.8rem] h-[6.8rem] rounded-full border border-saif-border bg-saif-bg flex items-center justify-center">
                 <step.icon size={26} className="text-saif-accent" aria-hidden="true" />
                 <span className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-saif-accent text-black text-xs font-bold flex items-center justify-center tabular-nums">
                   {i + 1}

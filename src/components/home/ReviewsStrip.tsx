@@ -45,13 +45,13 @@ export default function ReviewsStrip({
               className="group border border-saif-border rounded-sm p-7 md:p-8 bg-saif-surface/40 hover:border-saif-text/25 transition-colors duration-500 flex flex-col"
             >
               <span
-                className="font-display italic text-6xl leading-[0.5] text-saif-accent select-none"
+                className="font-serif italic text-6xl leading-[0.5] text-saif-accent select-none"
                 aria-hidden="true"
               >
                 &ldquo;
               </span>
               <blockquote className="mt-6 flex-1">
-                <p className="font-display italic text-xl md:text-[22px] leading-snug text-saif-text line-clamp-4">
+                <p className="font-serif italic text-xl md:text-[22px] leading-snug text-saif-text line-clamp-4">
                   {review.title}
                 </p>
                 <p className="mt-4 text-sm text-saif-dim leading-relaxed line-clamp-4">{review.body}</p>

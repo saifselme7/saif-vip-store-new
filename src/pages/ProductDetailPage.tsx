@@ -19,12 +19,12 @@ import Loading from '@/components/Loading'
 import EmptyState from '@/components/EmptyState'
 import Reveal from '@/components/motion/Reveal'
 import { useI18n } from '@/i18n'
-import { localizeProduct } from '@/lib/bilingual'
+import { localizeProduct, localizeCategory } from '@/lib/bilingual'
 
 type Tab = 'description' | 'specifications' | 'shipping'
 
 export default function ProductDetailPage() {
-  const { t, lang, formatPrice, isRTL } = useI18n()
+  const { t, lang, formatPrice: fmt, isRTL } = useI18n()
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
   const { product, loading } = useProduct(slug || '')
@@ -121,6 +121,7 @@ export default function ProductDetailPage() {
   const discount = discountPercent(product.price, product.compare_at_price)
   const soldOut = !isDigital && availableStock <= 0
   const specs = loc.specifications
+  const categoryLabel = product.categories ? localizeCategory(product.categories, lang).name : null
 
   function handleAddToCart(openDrawer = true) {
     if (!product) return
@@ -130,10 +131,10 @@ export default function ProductDetailPage() {
     }
     const result = addItem(product, selectedVariant, quantity)
     if (result.ok) {
-      addToast(`${product.name} added to bag`)
+      addToast(t('product.addedToBag', { name: loc.name }))
       if (openDrawer) setIsOpen(true)
     } else {
-      addToast(result.message || 'Could not add to bag', 'error')
+      addToast(result.message || t('product.couldNotAdd'), 'error')
     }
   }
 
@@ -147,7 +148,7 @@ export default function ProductDetailPage() {
     if (result.ok) {
       navigate('/checkout')
     } else {
-      addToast(result.message || 'Could not add to bag', 'error')
+      addToast(result.message || t('product.couldNotAdd'), 'error')
     }
   }
 
@@ -170,254 +171,261 @@ export default function ProductDetailPage() {
     const url = window.location.href
     if (navigator.share) {
       try {
-        await navigator.share({ title: product.name, url })
+        await navigator.share({ title: loc.name, url })
         return
       } catch {
         /* user cancelled */
       }
     }
     const copied = await copyToClipboard(url)
-    addToast(copied ? 'Product link copied' : 'Could not copy link', copied ? 'success' : 'error')
+    addToast(copied ? t('product.shareLinkCopied') : t('errors.generic'), copied ? 'success' : 'error')
   }
 
   return (
     <div className="animate-[pageIn_0.6s_ease]">
-      <div className="pt-24 md:pt-28 px-5 lg:px-10 pb-20 max-w-7xl mx-auto">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-xs text-saif-dim mb-8" aria-label={t('a11y.breadcrumb')}>
-          <Link to="/" className="hover:text-saif-text transition-colors">Home</Link>
-          <ChevronRight size={11} />
-          <Link to="/products" className="hover:text-saif-text transition-colors">Shop</Link>
-          {product.categories && (
-            <>
-              <ChevronRight size={11} />
-              <Link to={`/products?category=${product.categories.id}`} className="hover:text-saif-text transition-colors">
-                {product.categories.name}
-              </Link>
-            </>
-          )}
-          <ChevronRight size={11} />
-          <span className="text-saif-text truncate max-w-[140px] sm:max-w-none">{product.name}</span>
-        </nav>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16">
-          {/* Gallery */}
-          <Reveal variant="mask" duration={1100} className="lg:sticky lg:top-28 lg:self-start">
-            <ProductGallery images={product.images || []} alt={product.name} />
-          </Reveal>
-
-          {/* Info */}
-          <div className="pt-2">
-            <Reveal variant="up" delay={150} duration={900}>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                {product.categories?.name && (
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-saif-dim mb-3">
-                    {product.categories.name}
-                  </p>
-                )}
-                <h1 className="text-[clamp(30px,4.5vw,52px)] font-black tracking-tighter leading-[1.02] text-saif-text">
-                  {product.name}
-                </h1>
-              </div>
-              <div className="flex gap-1.5 mt-2 flex-shrink-0">
-                <button
-                  onClick={toggleWishlist}
-                  className="w-10 h-10 border border-saif-border flex items-center justify-center hover:border-saif-text transition-colors rounded-sm"
-                  aria-label={inWishlist ? t('product.removedFromWishlist') : t('product.addedToWishlist')}
-                  aria-pressed={inWishlist}
-                >
-                  <Heart size={17} className={inWishlist ? 'fill-saif-accent text-saif-accent' : 'text-saif-text'} />
-                </button>
-                <button
-                  onClick={handleShare}
-                  className="w-10 h-10 border border-saif-border flex items-center justify-center hover:border-saif-text transition-colors rounded-sm"
-                  aria-label={t('product.share')}
-                >
-                  <Share2 size={16} className="text-saif-text" />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center flex-wrap gap-3 mt-5">
-              <span className="text-2xl font-bold text-saif-text ltr-iso">{formatPrice(unitPrice)}</span>
-              {product.compare_at_price && product.compare_at_price > unitPrice && (
-                <>
-                  <span className="text-base text-saif-dim line-through">
-                    {formatPrice(product.compare_at_price, currency)}
-                  </span>
-                  <span className="badge bg-saif-accent text-black border-saif-accent">-{discount}%</span>
-                </>
-              )}
-            </div>
-
-            <p className="mt-6 text-sm md:text-base text-saif-dim leading-relaxed">
-              {product.short_description || product.description}
-            </p>
-
-            {/* Stock status */}
-            <div className="mt-6 flex items-center gap-3 text-sm">
-              {isDigital ? (
-                <span className="flex items-center gap-2 text-saif-accent">
-                  <Zap size={15} /> {t('product.digitalBadge')}
-                </span>
-              ) : soldOut ? (
-                <span className="flex items-center gap-2 text-red-400">
-                  <Package size={15} /> {t('product.soldOut')}
-                </span>
-              ) : availableStock <= product.low_stock_threshold ? (
-                <span className="flex items-center gap-2 text-yellow-400">
-                  <Package size={15} /> {t('product.lowStock', { count: availableStock })}
-                </span>
-              ) : (
-                <span className="flex items-center gap-2 text-green-400">
-                  <Package size={15} /> {t('product.inStock')}
-                </span>
-              )}
-            </div>
-
-            {/* Variants */}
-            {!isDigital && variants.length > 0 && (
-              <VariantSelector
-                variants={variants}
-                sizes={sizes}
-                colors={colors}
-                selectedId={selectedVariantId}
-                onSelect={id => {
-                  setSelectedVariantId(id)
-                  setQuantity(1)
-                }}
-                className="mt-8"
-              />
+      <div className="theme-paper min-h-screen pt-24 md:pt-32 px-5 lg:px-10 pb-20">
+        <div className="max-w-7xl mx-auto">
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-1.5 text-xs text-saif-dim mb-8" aria-label={t('a11y.breadcrumb')}>
+            <Link to="/" className="hover:text-saif-text transition-colors">{t('nav.home')}</Link>
+            <ChevronRight size={11} className={isRTL ? 'rotate-180' : ''} />
+            <Link to="/products" className="hover:text-saif-text transition-colors">{t('nav.shop')}</Link>
+            {product.categories && (
+              <>
+                <ChevronRight size={11} className={isRTL ? 'rotate-180' : ''} />
+                <Link to={`/products?category=${product.categories.id}`} className="hover:text-saif-text transition-colors">
+                  {categoryLabel}
+                </Link>
+              </>
             )}
+            <ChevronRight size={11} className={isRTL ? 'rotate-180' : ''} />
+            <span className="text-saif-text truncate max-w-[140px] sm:max-w-none">{loc.name}</span>
+          </nav>
 
-            {/* Quantity */}
-            {!soldOut && (
-              <div className="mt-8">
-                <span className="label">{t('product.quantity')}</span>
-                <QuantityStepper
-                  value={quantity}
-                  onChange={setQuantity}
-                  max={Math.max(1, isDigital ? 99 : availableStock)}
-                  ariaLabel="Quantity"
-                />
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="mt-10 flex flex-col sm:flex-row gap-3">
-              <button onClick={() => handleAddToCart()} disabled={soldOut} className="btn btn-primary flex-1">
-                {soldOut ? 'Sold Out' : 'Add to Bag'}
-              </button>
-              <button onClick={handleBuyNow} disabled={soldOut} className="btn flex-1">
-                {t('product.buyNow')}
-              </button>
-            </div>
-
-            {/* Meta tabs */}
-            <div className="mt-12 border-t border-saif-border">
-              <div className="flex gap-6 border-b border-saif-border" role="tablist" aria-label={t('a11y.productInfo')}>
-                <TabButton active={tab === 'description'} onClick={() => setTab('description')}>
-                  {t('product.description')}
-                </TabButton>
-                {Object.keys(specs).length > 0 && (
-                  <TabButton active={tab === 'specifications'} onClick={() => setTab('specifications')}>
-                    Specifications
-                  </TabButton>
-                )}
-                <TabButton active={tab === 'shipping'} onClick={() => setTab('shipping')}>
-                  {isDigital ? t('product.digitalDelivery') : t('product.shippingTab')}
-                </TabButton>
-              </div>
-
-              <div className="py-6">
-                {tab === 'description' && (
-                  <div className="text-sm text-saif-dim leading-relaxed whitespace-pre-line">
-                    {loc.description || loc.shortDescription}
-                  </div>
-                )}
-                {tab === 'specifications' && (
-                  <dl className="divide-y divide-saif-border">
-                    {Object.entries(specs).map(([key, value]) => (
-                      <div key={key} className="flex justify-between gap-6 py-3 text-sm">
-                        <dt className="text-saif-dim">{key}</dt>
-                        <dd className="text-saif-text text-right">{String(value)}</dd>
-                      </div>
-                    ))}
-                    {product.sku && (
-                      <div className="flex justify-between gap-6 py-3 text-sm">
-                        <dt className="text-saif-dim">SKU</dt>
-                        <dd className="text-saif-text font-mono">{product.sku}</dd>
-                      </div>
-                    )}
-                  </dl>
-                )}
-                {tab === 'shipping' && (
-                  <div className="space-y-4 text-sm text-saif-dim leading-relaxed">
-                    {isDigital ? (
-                      <>
-                        <div className="flex items-start gap-3">
-                          <Zap size={16} className="text-saif-accent mt-0.5 flex-shrink-0" />
-                          <div>
-                            <p className="text-saif-text font-medium">{t('product.digitalDelivery')}</p>
-                            <p>
-                              {product.delivery_info ||
-                                'This item is delivered digitally after your payment is verified. You will be contacted using the details provided at checkout.'}
-                            </p>
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex items-start gap-3">
-                          <Truck size={16} className="text-saif-text mt-0.5 flex-shrink-0" />
-                          <div>
-                            <p className="text-saif-text font-medium">{t('product.shippingTab')}</p>
-                            <p>
-                              {settings?.shipping_fee
-                                ? `Flat shipping fee of ${formatPrice(settings.shipping_fee, currency)} across Egypt.`
-                                : 'Free shipping across Egypt.'}{' '}
-                              {settings?.free_shipping_threshold
-                                ? `Orders over ${formatPrice(settings.free_shipping_threshold, currency)} ship free.`
-                                : ''}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                          <Shield size={16} className="text-saif-text mt-0.5 flex-shrink-0" />
-                          <div>
-                            <p className="text-saif-text font-medium">{t('product.verifiedPayments')}</p>
-                            <p>
-                              Pay with InstaPay or Vodafone Cash. Your transfer is verified by our team before the order ships.
-                            </p>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16">
+            {/* Gallery */}
+            <Reveal variant="mask" duration={1100} className="lg:sticky lg:top-28 lg:self-start">
+              <ProductGallery images={product.images || []} alt={loc.name} />
             </Reveal>
-          </div>
-        </div>
 
-        {/* Related products */}
-        {related.length > 0 && (
-          <section className="mt-20 pt-12 border-t border-saif-border" aria-labelledby="related-heading">
-            <h2 id="related-heading" className="text-xl font-bold tracking-tight text-saif-text mb-8">
-              {t('product.relatedProducts')}
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {related.map(p => (
-                <ProductCard key={p.id} product={p} />
-              ))}
+            {/* Info */}
+            <div className="pt-2">
+              <Reveal variant="up" delay={150} duration={900}>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    {categoryLabel && (
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-saif-dim mb-3">
+                        {categoryLabel}
+                      </p>
+                    )}
+                    <h1 className="text-[clamp(30px,4.5vw,54px)] font-display text-saif-text leading-[1.02]">
+                      {loc.name}
+                    </h1>
+                  </div>
+                  <div className="flex gap-1.5 mt-2 flex-shrink-0">
+                    <button
+                      onClick={toggleWishlist}
+                      className="w-10 h-10 border border-saif-border flex items-center justify-center hover:border-saif-text transition-colors rounded-sm"
+                      aria-label={inWishlist ? t('product.removedFromWishlist') : t('product.addedToWishlist')}
+                      aria-pressed={inWishlist}
+                    >
+                      <Heart size={17} className={inWishlist ? 'fill-saif-accent text-saif-accent' : 'text-saif-text'} />
+                    </button>
+                    <button
+                      onClick={handleShare}
+                      className="w-10 h-10 border border-saif-border flex items-center justify-center hover:border-saif-text transition-colors rounded-sm"
+                      aria-label={t('product.share')}
+                    >
+                      <Share2 size={16} className="text-saif-text" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center flex-wrap gap-3 mt-5">
+                  <span className="text-2xl md:text-3xl font-bold text-saif-text tabular-nums ltr-iso">
+                    {fmt(unitPrice)}
+                  </span>
+                  {product.compare_at_price && product.compare_at_price > unitPrice && (
+                    <>
+                      <span className="text-base text-saif-faint line-through tabular-nums ltr-iso">
+                        {fmt(product.compare_at_price)}
+                      </span>
+                      <span className="badge bg-saif-accent text-black border-saif-accent">−{discount}%</span>
+                    </>
+                  )}
+                </div>
+
+                <p className="mt-6 text-sm md:text-base text-saif-dim leading-relaxed">
+                  {loc.shortDescription || loc.description}
+                </p>
+
+                {/* Stock status */}
+                <div className="mt-6 flex items-center gap-3 text-sm">
+                  {isDigital ? (
+                    <span className="flex items-center gap-2 text-saif-accent">
+                      <Zap size={15} /> {t('product.digitalBadge')}
+                    </span>
+                  ) : soldOut ? (
+                    <span className="flex items-center gap-2 text-saif-accent">
+                      <Package size={15} /> {t('product.soldOut')}
+                    </span>
+                  ) : availableStock <= product.low_stock_threshold ? (
+                    <span className="flex items-center gap-2 text-saif-accent">
+                      <Package size={15} /> {t('product.lowStock', { count: availableStock })}
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2 text-saif-dim">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" aria-hidden="true" />
+                      {t('product.inStock')}
+                    </span>
+                  )}
+                </div>
+
+                {/* Variants */}
+                {!isDigital && variants.length > 0 && (
+                  <VariantSelector
+                    variants={variants}
+                    sizes={sizes}
+                    colors={colors}
+                    selectedId={selectedVariantId}
+                    onSelect={id => {
+                      setSelectedVariantId(id)
+                      setQuantity(1)
+                    }}
+                    className="mt-8"
+                  />
+                )}
+
+                {/* Quantity */}
+                {!soldOut && (
+                  <div className="mt-8">
+                    <span className="label">{t('product.quantity')}</span>
+                    <QuantityStepper
+                      value={quantity}
+                      onChange={setQuantity}
+                      max={Math.max(1, isDigital ? 99 : availableStock)}
+                      ariaLabel={t('product.quantity')}
+                    />
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="mt-10 flex flex-col sm:flex-row gap-3">
+                  <button onClick={() => handleAddToCart()} disabled={soldOut} className="btn btn-primary flex-1">
+                    {soldOut ? t('product.soldOut') : t('product.addToBag')}
+                  </button>
+                  <button onClick={handleBuyNow} disabled={soldOut} className="btn flex-1">
+                    {t('product.buyNow')}
+                  </button>
+                </div>
+
+                {/* Meta tabs */}
+                <div className="mt-14 border-t border-saif-border">
+                  <div className="flex gap-6 border-b border-saif-border" role="tablist" aria-label={t('a11y.productInfo')}>
+                    <TabButton active={tab === 'description'} onClick={() => setTab('description')}>
+                      {t('product.description')}
+                    </TabButton>
+                    {Object.keys(specs).length > 0 && (
+                      <TabButton active={tab === 'specifications'} onClick={() => setTab('specifications')}>
+                        {t('product.specifications')}
+                      </TabButton>
+                    )}
+                    <TabButton active={tab === 'shipping'} onClick={() => setTab('shipping')}>
+                      {isDigital ? t('product.digitalDelivery') : t('product.shippingTab')}
+                    </TabButton>
+                  </div>
+
+                  <div className="py-6">
+                    {tab === 'description' && (
+                      <div className="text-sm text-saif-dim leading-relaxed whitespace-pre-line">
+                        {loc.description || loc.shortDescription}
+                      </div>
+                    )}
+                    {tab === 'specifications' && (
+                      <dl className="divide-y divide-saif-border">
+                        {Object.entries(specs).map(([key, value]) => (
+                          <div key={key} className="flex justify-between gap-6 py-3 text-sm">
+                            <dt className="text-saif-dim">{key}</dt>
+                            <dd className="text-saif-text text-end">{String(value)}</dd>
+                          </div>
+                        ))}
+                        {product.sku && (
+                          <div className="flex justify-between gap-6 py-3 text-sm">
+                            <dt className="text-saif-dim">{t('product.sku')}</dt>
+                            <dd className="text-saif-text font-mono ltr-iso">{product.sku}</dd>
+                          </div>
+                        )}
+                      </dl>
+                    )}
+                    {tab === 'shipping' && (
+                      <div className="space-y-4 text-sm text-saif-dim leading-relaxed">
+                        {isDigital ? (
+                          <div className="flex items-start gap-3">
+                            <Zap size={16} className="text-saif-accent mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="text-saif-text font-medium">{t('product.digitalDelivery')}</p>
+                              <p>{loc.deliveryInfo || t('product.digitalDeliveryFallback')}</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-start gap-3">
+                              <Truck size={16} className="text-saif-text mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="text-saif-text font-medium">{t('product.shippingTab')}</p>
+                                <p>
+                                  {settings?.shipping_fee
+                                    ? t('product.flatShipping', { amount: formatPrice(settings.shipping_fee, currency) })
+                                    : t('home.trustShippingEgypt')}{' '}
+                                  {settings?.free_shipping_threshold
+                                    ? t('product.freeShippingOver', { amount: formatPrice(settings.free_shipping_threshold, currency) })
+                                    : ''}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-start gap-3">
+                              <Shield size={16} className="text-saif-text mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="text-saif-text font-medium">{t('product.verifiedPayments')}</p>
+                                <p>{t('product.verifiedPaymentsDesc')}</p>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Reveal>
             </div>
-          </section>
-        )}
+          </div>
 
-        {/* Reviews */}
-        <ProductReviews product={product} />
+          {/* Related products */}
+          {related.length > 0 && (
+            <section className="mt-24 md:mt-32 pt-12 border-t border-saif-border" aria-labelledby="related-heading">
+              <div className="flex items-end justify-between gap-6 mb-8 md:mb-12">
+                <div>
+                  <p className="eyebrow mb-4">
+                    <span className="text-saif-accent tabular-nums">02</span>
+                    <span className="w-3 h-px bg-saif-border" aria-hidden="true" />
+                    {t('nav.shop')}
+                  </p>
+                  <h2 id="related-heading" className="font-display text-saif-text text-[clamp(26px,4vw,48px)] leading-none">
+                    {t('product.relatedProducts')}
+                  </h2>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-10 md:gap-x-5 md:gap-y-14">
+                {related.map(p => (
+                  <ProductCard key={p.id} product={p} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Reviews */}
+          <ProductReviews product={product} />
+        </div>
       </div>
       <Footer />
     </div>

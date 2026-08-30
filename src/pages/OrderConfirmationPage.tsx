@@ -81,7 +81,7 @@ export default function OrderConfirmationPage() {
           <div className="w-16 h-16 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center mx-auto mb-6">
             <CheckCircle2 size={30} className="text-green-400" />
           </div>
-          <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-saif-text mb-3">
+          <h1 className="text-3xl md:text-4xl font-display text-saif-text mb-3">
             {t('orders.confirmation.title')}
           </h1>
           <p className="text-sm text-saif-dim max-w-md mx-auto leading-relaxed">

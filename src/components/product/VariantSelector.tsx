@@ -50,8 +50,8 @@ export default function VariantSelector({ variants, sizes, colors, selectedId, o
     const options = showSizes ? sizes : colors
     return (
       <div className={cn('space-y-3', className)}>
-        <span className="label mb-0">{showSizes ? 'Size' : 'Color'}</span>
-        <div className="flex flex-wrap gap-2" role="group" aria-label={showSizes ? 'Size' : 'Color'}>
+        <span className="label mb-0">{showSizes ? t('product.chooseSize') : t('product.chooseColor')}</span>
+        <div className="flex flex-wrap gap-2" role="group" aria-label={showSizes ? t('product.chooseSize') : t('product.chooseColor')}>
           {options.map(option => {
             const variant = variants.find(v => (showSizes ? v.size === option : v.color === option))!
             const isSelected = selected?.[showSizes ? 'size' : 'color'] === option
@@ -66,7 +66,7 @@ export default function VariantSelector({ variants, sizes, colors, selectedId, o
                 className={cn(
                   'min-h-[44px] px-4 text-sm font-medium border transition-all rounded-sm',
                   isSelected
-                    ? 'border-saif-text bg-saif-text text-black'
+                    ? 'border-saif-text bg-saif-text text-saif-bg'
                     : 'border-saif-border text-saif-text hover:border-saif-text',
                   disabled && 'opacity-30 line-through pointer-events-none',
                 )}
@@ -77,7 +77,7 @@ export default function VariantSelector({ variants, sizes, colors, selectedId, o
           })}
         </div>
         {selected && selected.stock > 0 && selected.stock <= 5 && (
-          <p className="text-xs text-yellow-400">{t('product.onlyLeft', { count: selected.stock })}</p>
+          <p className="text-xs text-saif-accent">{t('product.onlyLeft', { count: selected.stock })}</p>
         )}
       </div>
     )
@@ -88,7 +88,7 @@ export default function VariantSelector({ variants, sizes, colors, selectedId, o
       {showSizes && (
         <div>
           <span className="label mb-0">
-            Size {selected?.size ? <span className="text-saif-text">· {selected.size}</span> : null}
+            {t('product.chooseSize')} {selected?.size ? <span className="text-saif-text">· {selected.size}</span> : null}
           </span>
           <div className="flex flex-wrap gap-2" role="group" aria-label={t('product.chooseSize')}>
             {sizes.map(size => {
@@ -104,7 +104,7 @@ export default function VariantSelector({ variants, sizes, colors, selectedId, o
                   className={cn(
                     'min-w-[44px] min-h-[44px] px-3.5 text-sm font-medium border transition-all rounded-sm',
                     isSelected
-                      ? 'border-saif-text bg-saif-text text-black'
+                      ? 'border-saif-text bg-saif-text text-saif-bg'
                       : 'border-saif-border text-saif-text hover:border-saif-text',
                     disabled && 'opacity-30 line-through pointer-events-none',
                   )}
@@ -119,7 +119,7 @@ export default function VariantSelector({ variants, sizes, colors, selectedId, o
       {showColors && (
         <div>
           <span className="label mb-0">
-            Color {selected?.color ? <span className="text-saif-text">· {selected.color}</span> : null}
+            {t('product.chooseColor')} {selected?.color ? <span className="text-saif-text">· {selected.color}</span> : null}
           </span>
           <div className="flex flex-wrap gap-2" role="group" aria-label={t('product.chooseColor')}>
             {colors.map(color => {
@@ -135,7 +135,7 @@ export default function VariantSelector({ variants, sizes, colors, selectedId, o
                   className={cn(
                     'min-h-[44px] px-4 text-sm font-medium border transition-all rounded-sm',
                     isSelected
-                      ? 'border-saif-text bg-saif-text text-black'
+                      ? 'border-saif-text bg-saif-text text-saif-bg'
                       : 'border-saif-border text-saif-text hover:border-saif-text',
                     disabled && 'opacity-30 line-through pointer-events-none',
                   )}
@@ -148,7 +148,7 @@ export default function VariantSelector({ variants, sizes, colors, selectedId, o
         </div>
       )}
       {selected && selected.stock > 0 && selected.stock <= 5 && (
-        <p className="text-xs text-yellow-400">{t('product.onlyLeft', { count: selected.stock })}</p>
+        <p className="text-xs text-saif-accent">{t('product.onlyLeft', { count: selected.stock })}</p>
       )}
       {!selected && (
         <p className="text-xs text-saif-dim">{t('product.selectSizeColor')}</p>

@@ -7,22 +7,31 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Semantic tokens resolved from CSS variables (RGB triplets) so that
+        // opacity modifiers keep working and any wrapper can flip the whole
+        // palette between the black "ink" theme and the warm off-white
+        // "paper" theme (see .theme-paper in index.css). The accent is a
+        // fixed brand red on both surfaces.
         saif: {
-          bg: '#000000',
-          text: '#F5F0E8',                 // cream — 18.5:1 on black
-          dim: '#9C9C9C',                  // secondary text — 7.6:1 on black
-          faint: '#787878',                // tertiary/metadata text — 4.75:1 on black (AA)
+          bg: 'rgb(var(--saif-bg) / <alpha-value>)',
+          text: 'rgb(var(--saif-text) / <alpha-value>)',
+          dim: 'rgb(var(--saif-dim) / <alpha-value>)',
+          faint: 'rgb(var(--saif-faint) / <alpha-value>)',
           accent: '#E63946',
           accentDark: '#C1121F',
-          surface: '#0A0A0A',
-          panel: '#0D0D0D',                // elevated panels (replaces raw #111)
-          border: 'rgba(245, 240, 232, 0.08)',
-          borderStrong: 'rgba(245, 240, 232, 0.16)',
+          surface: 'rgb(var(--saif-surface) / <alpha-value>)',
+          panel: 'rgb(var(--saif-panel) / <alpha-value>)',
+          border: 'rgb(var(--saif-border-rgb) / var(--saif-border-alpha, 1))',
+          borderStrong: 'rgb(var(--saif-border-rgb) / var(--saif-border-strong-alpha, 1))',
+          ink: '#111111',
+          paper: '#F2EFE9',
         }
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
-        display: ['"Instrument Serif"', 'Georgia', 'serif'],
+        display: ['Anton', 'Inter', '"IBM Plex Sans Arabic"', 'system-ui', 'sans-serif'],
+        serif: ['"Instrument Serif"', 'Georgia', 'serif'],
+        mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       letterSpacing: {
         tighter: '-0.04em',
@@ -46,6 +55,10 @@ export default {
           '45%': { transform: 'scaleY(1)', transformOrigin: 'top' },
           '55%': { transform: 'scaleY(1)', transformOrigin: 'bottom' },
           '100%': { transform: 'scaleY(0)', transformOrigin: 'bottom' },
+        },
+        introCurtain: {
+          '0%': { transform: 'translateY(0)' },
+          '100%': { transform: 'translateY(-101%)' },
         },
       },
       animation: {

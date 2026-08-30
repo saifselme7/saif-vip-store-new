@@ -1,33 +1,34 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Zap } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import Reveal from '@/components/motion/Reveal'
 import { useParallax } from '@/hooks/useParallax'
 import { useCart } from '@/context/CartContext'
 import { useToast } from '@/context/ToastContext'
-import { useApp } from '@/context/AppContext'
 import { formatPrice, discountPercent } from '@/lib/utils'
 import { useI18n } from '@/i18n'
+import { localizeProduct } from '@/lib/bilingual'
 import { configText, type SpotlightConfig } from '@/hooks/useHomepageSections'
 import type { Product } from '@/types'
 
 /**
- * The editorial product moment — one product presented like a campaign.
- * Uses the first featured (or best-selling) product from the database.
+ * Featured look — one product staged like a campaign: a fully-lit parallax
+ * image on one side, oversized type and the live price/stock logic on the
+ * other. The add-to-bag flow is the real cart flow.
  */
 export default function EditorialMoment({ product, config }: { product: Product | null; config?: unknown }) {
-  const { t, lang } = useI18n()
+  const { t, lang, formatPrice: fmt } = useI18n()
   const cfg = (config ?? {}) as SpotlightConfig
   const { addItem, setIsOpen } = useCart()
   const { addToast } = useToast()
-  const { settings } = useApp()
-  const currency = settings?.currency ?? 'EGP'
-  const parallaxRef = useParallax<HTMLDivElement>(-55)
+  const parallaxRef = useParallax<HTMLDivElement>(-46)
 
   if (!product) return null
 
+  const loc = localizeProduct(product, lang)
   const discount = discountPercent(product.price, product.compare_at_price)
   const defaultVariant = product.variants?.find(v => v.stock > 0) ?? null
   const needsSelection = product.product_type === 'physical' && (product.variants?.length ?? 0) > 0
+  const image = product.thumbnail || product.images?.[0] || ''
 
   function handleAddToCart() {
     if (needsSelection && !defaultVariant) {
@@ -36,18 +37,18 @@ export default function EditorialMoment({ product, config }: { product: Product 
     }
     const result = addItem(product!, defaultVariant, 1)
     if (result.ok) {
-      addToast(`${product!.name} added to bag`)
+      addToast(t('product.addedToBag', { name: loc.name }))
       setIsOpen(true)
     } else {
-      addToast(result.message || 'Could not add to bag', 'error')
+      addToast(result.message || t('product.couldNotAdd'), 'error')
     }
   }
 
   return (
-    <section className="relative py-24 md:py-36 overflow-hidden border-y border-saif-border bg-saif-surface/40" aria-labelledby="spotlight-heading">
+    <section className="relative py-24 md:py-36 overflow-hidden" aria-labelledby="spotlight-heading">
       {/* Oversized ghost index — signature numbering motif */}
       <span
-        className="absolute -top-8 right-0 text-outline-faint text-[clamp(140px,26vw,380px)] font-black leading-none tracking-tighter select-none pointer-events-none hidden md:block"
+        className="ghost-index text-outline-faint -top-8 end-0 text-[clamp(140px,26vw,380px)] font-display hidden md:block"
         aria-hidden="true"
       >
         Nº1
@@ -67,37 +68,32 @@ export default function EditorialMoment({ product, config }: { product: Product 
           <Reveal variant="up" delay={100}>
             <h2
               id="spotlight-heading"
-              className="mt-5 text-[clamp(38px,6vw,84px)] font-black tracking-tighter leading-[0.95] text-saif-text text-balance"
+              className="mt-5 text-[clamp(38px,6vw,84px)] font-display text-saif-text leading-[0.98] text-balance"
             >
-              {product.name}
+              {loc.name}
             </h2>
           </Reveal>
 
-          {product.short_description && (
+          {loc.shortDescription && (
             <Reveal variant="fade" delay={220} duration={900}>
               <p className="mt-6 text-sm md:text-[15px] text-saif-dim leading-relaxed max-w-md">
-                {product.short_description}
+                {loc.shortDescription}
               </p>
             </Reveal>
           )}
 
           <Reveal variant="fade" delay={300}>
             <div className="mt-8 flex items-baseline gap-4 flex-wrap">
-              <span className="text-3xl md:text-4xl font-bold text-saif-text tabular-nums">
-                {formatPrice(product.price, currency)}
+              <span className="text-3xl md:text-4xl font-bold text-saif-text tabular-nums ltr-iso">
+                {fmt(product.price)}
               </span>
-              {product.compare_at_price && product.compare_at_price > product.price && (
+              {discount > 0 && product.compare_at_price && (
                 <>
-                  <span className="text-lg text-saif-faint line-through tabular-nums">
-                    {formatPrice(product.compare_at_price, currency)}
+                  <span className="text-lg text-saif-faint line-through tabular-nums ltr-iso">
+                    {fmt(product.compare_at_price)}
                   </span>
                   <span className="badge bg-saif-accent text-black border-saif-accent">−{discount}%</span>
                 </>
-              )}
-              {product.product_type === 'digital' && (
-                <span className="badge border-saif-accent/40 text-saif-accent">
-                  <Zap size={10} aria-hidden="true" /> Digital
-                </span>
               )}
             </div>
           </Reveal>
@@ -105,10 +101,13 @@ export default function EditorialMoment({ product, config }: { product: Product 
           <Reveal variant="scale" delay={400} duration={700}>
             <div className="mt-10 flex flex-col sm:flex-row gap-3">
               <button onClick={handleAddToCart} data-magnetic className="btn btn-primary">
-                {needsSelection && !defaultVariant ? (configText(cfg, 'choose_text', lang) ?? t('spotlight.chooseOptions')) : t('product.addToBag')}
+                {needsSelection && !defaultVariant
+                  ? (configText(cfg, 'choose_text', lang) ?? t('spotlight.chooseOptions'))
+                  : t('product.addToBag')}
               </button>
               <Link to={`/products/${product.slug}`} className="btn">
-                {configText(cfg, 'cta_text', lang) ?? t('spotlight.cta')} <ArrowRight size={14} aria-hidden="true" />
+                {configText(cfg, 'cta_text', lang) ?? t('spotlight.cta')}
+                <ArrowRight size={14} className={lang === 'ar' ? 'rotate-180' : ''} aria-hidden="true" />
               </Link>
             </div>
           </Reveal>
@@ -116,19 +115,20 @@ export default function EditorialMoment({ product, config }: { product: Product 
 
         {/* Campaign image */}
         <Reveal variant="mask" duration={1200} className="order-1 lg:order-2">
-          <div className="relative aspect-[4/5] overflow-hidden rounded-sm">
+          <div className="relative aspect-[4/5] overflow-hidden bg-saif-panel">
             <div ref={parallaxRef} className="parallax absolute -inset-y-[8%] inset-x-0">
               <img
-                src={product.thumbnail || product.images?.[0] || ''}
-                alt={product.name}
+                src={image}
+                alt={loc.name}
                 loading="lazy"
                 decoding="async"
                 className="w-full h-full object-cover"
               />
             </div>
-            <div className="absolute inset-0 [background:linear-gradient(to_top,rgba(0,0,0,0.55),transparent_40%)]" aria-hidden="true" />
             {product.bestseller && (
-              <span className="absolute top-5 left-5 badge bg-saif-text text-black border-saif-text">Bestseller</span>
+              <span className="absolute top-5 start-5 badge bg-black/85 backdrop-blur-sm text-saif-text border-saif-border">
+                {t('rails.bestsellers.eyebrow')}
+              </span>
             )}
           </div>
         </Reveal>

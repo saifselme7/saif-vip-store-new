@@ -343,7 +343,7 @@ export default function CheckoutPage() {
           description={t('checkout.emptyCartDesc')}
           action={
             <Link to="/products" className="btn btn-primary">
-              Continue Shopping
+              {t('cart.continueShopping')}
             </Link>
           }
         />
@@ -357,7 +357,7 @@ export default function CheckoutPage() {
   return (
     <div className="animate-[pageIn_0.6s_ease] pt-24 md:pt-28 px-5 lg:px-10 pb-20">
       <div className="max-w-5xl mx-auto">
-        <h1 className="text-[clamp(34px,5vw,60px)] font-black tracking-tighter text-saif-text mb-8">{t('checkout.title')}</h1>
+        <h1 className="text-[clamp(34px,5vw,60px)] font-display text-saif-text mb-8">{t('checkout.title')}</h1>
 
         {/* Step indicator */}
         <ol className="flex items-center gap-2 sm:gap-3 mb-12" aria-label={t('checkout.title')}>
@@ -410,8 +410,19 @@ export default function CheckoutPage() {
 
         {stockIssues.length > 0 && (
           <div className="border border-yellow-500/40 bg-yellow-500/10 text-yellow-400 text-sm px-4 py-3 mb-6 rounded-sm">
-            Some items in your bag exceed available stock: {stockIssues.map(i => i.product.name).join(', ')}. Update
-            quantities in your <Link to="/cart" className="underline">{t('checkout.bagLink')}</Link> before continuing.
+            {(() => {
+              const parts = t('checkout.stockWarning', {
+                items: stockIssues.map(i => i.product.name).join(', '),
+                bagLink: '|||',
+              }).split('|||')
+              return (
+                <>
+                  {parts[0]}
+                  <Link to="/cart" className="underline">{t('checkout.bagLink')}</Link>
+                  {parts[1] ?? ''}
+                </>
+              )
+            })()}
           </div>
         )}
 

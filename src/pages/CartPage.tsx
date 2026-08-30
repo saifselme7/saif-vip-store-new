@@ -37,7 +37,7 @@ export default function CartPage() {
   const { addToast } = useToast()
   const [couponCode, setCouponCode] = useState('')
   const [clearOpen, setClearOpen] = useState(false)
-  usePageMeta({ title: 'Your Bag', description: 'Review the items in your SAIF STORE bag.' })
+  usePageMeta({ title: `${t('cart.title')} — SAIF STORE`, description: 'Review the items in your SAIF STORE bag.' })
 
   const currency = settings?.currency ?? 'EGP'
 
@@ -47,7 +47,7 @@ export default function CartPage() {
         <EmptyState
           icon={ShoppingBag}
           title={t('cart.empty')}
-          description="Items you add will stay here — even after you close the browser."
+          description={t('cart.emptyDesc')}
           action={<ShopAction />}
         />
         <Footer />
@@ -59,14 +59,14 @@ export default function CartPage() {
     <div className="animate-[pageIn_0.6s_ease] pt-24 md:pt-28 px-5 lg:px-10 pb-20">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between gap-4 mb-10">
-          <h1 className="text-[clamp(34px,6vw,72px)] font-black tracking-tighter text-saif-text">
+          <h1 className="text-[clamp(34px,6vw,72px)] font-display text-saif-text">
             {t('cart.title')} <span className="text-saif-dim font-normal text-2xl md:text-4xl">({count})</span>
           </h1>
           <button
             onClick={() => setClearOpen(true)}
             className="text-xs text-saif-dim hover:text-saif-accent transition-colors flex items-center gap-1.5"
           >
-            <Trash2 size={13} /> Clear Bag
+            <Trash2 size={13} /> {t('cart.clearBag')}
           </button>
         </div>
 
@@ -115,7 +115,7 @@ export default function CartPage() {
                         </Link>
                         {item.variant && <p className="text-xs text-saif-dim mt-0.5">{item.variant.name}</p>}
                         {item.product.product_type === 'digital' && (
-                          <p className="text-[10px] text-saif-accent uppercase tracking-wider mt-0.5">Digital</p>
+                          <p className="text-[10px] text-saif-accent uppercase tracking-wider mt-0.5">{t('product.digital')}</p>
                         )}
                         {item.product.product_type === 'physical' && item.quantity >= stock && (
                           <p className="text-[10px] text-yellow-400 mt-0.5">{t('cart.maxStock', { count: stock })}</p>
@@ -155,7 +155,7 @@ export default function CartPage() {
                         <p className="text-sm font-semibold text-saif-text">
                           {formatPrice(price * item.quantity)}
                         </p>
-                        <p className="text-xs text-saif-dim">{formatPrice(price)} each</p>
+                        <p className="text-xs text-saif-dim">{formatPrice(price)} {t('cart.eachPrice')}</p>
                       </div>
                     </div>
                   </div>
@@ -201,12 +201,12 @@ export default function CartPage() {
                       onClick={async () => {
                         const ok = await applyCoupon(couponCode)
                         if (ok) {
-                          addToast(`Coupon ${couponCode} applied`)
+                          addToast(t('cart.applied', { code: couponCode }))
                           setCouponCode('')
                         }
                       }}
                     >
-                      {couponChecking ? '…' : 'Apply'}
+                      {couponChecking ? '…' : t('cart.apply')}
                     </button>
                   </div>
                   {couponError && <p className="field-error">{couponError}</p>}
@@ -227,7 +227,7 @@ export default function CartPage() {
                 <div className="flex justify-between text-saif-dim">
                   <span>{t('common.shipping')}</span>
                   <span className={cn(!hasPhysical || shipping === 0 ? 'text-green-400' : 'text-saif-text')}>
-                    {!hasPhysical ? '—' : shipping === 0 ? 'Free' : formatPrice(shipping)}
+                    {!hasPhysical ? '—' : shipping === 0 ? t('common.free') : formatPrice(shipping)}
                   </span>
                 </div>
                 <div className="flex justify-between text-base font-bold text-saif-text pt-3 border-t border-saif-border">
@@ -237,10 +237,10 @@ export default function CartPage() {
               </div>
 
               <Link to="/checkout" className="btn btn-primary w-full mt-6">
-                Checkout
+                {t('cart.checkout')}
               </Link>
               <Link to="/products" className="btn btn-sm w-full mt-3">
-                Continue Shopping
+                {t('cart.continueShopping')}
               </Link>
               <p className="text-[11px] text-saif-faint mt-4 leading-relaxed text-center">
                 {t('cart.payNote')}
@@ -259,8 +259,8 @@ export default function CartPage() {
           addToast(t('cart.empty'))
         }}
         title={t('cart.clearConfirmTitle')}
-        message="{t('cart.clearConfirmDesc')}"
-        confirmLabel="Clear Bag"
+        message={t('cart.clearConfirmDesc')}
+        confirmLabel={t('cart.clearBag')}
         danger
       />
 

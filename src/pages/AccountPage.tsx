@@ -29,7 +29,7 @@ export default function AccountPage() {
     phone: profile?.phone || '',
   })
   const [errors, setErrors] = useState<FieldErrors>({})
-  usePageMeta({ title: 'My Account', description: 'Manage your SAIF STORE account, orders and payments.' })
+  usePageMeta({ title: `${t('account.title')} — SAIF STORE`, description: t('meta.description') })
 
   const stats = useMemo(() => {
     const totalSpent = orders
@@ -84,7 +84,7 @@ export default function AccountPage() {
   return (
     <div className="animate-[pageIn_0.6s_ease] pt-24 md:pt-28 px-5 lg:px-10 pb-20">
       <div className="max-w-5xl mx-auto">
-        <h1 className="text-[clamp(34px,6vw,72px)] font-black tracking-tighter text-saif-text mb-10">Account</h1>
+        <h1 className="text-[clamp(34px,6vw,72px)] font-display text-saif-text mb-10">{t('account.title')}</h1>
 
         <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-8">
           {/* Sidebar */}

@@ -1,23 +1,28 @@
 import { memo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Heart, Eye, ShoppingBag, Zap, Package } from 'lucide-react'
+import { Heart, Eye, ShoppingBag } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useWishlist } from '@/hooks/useWishlist'
 import { useToast } from '@/context/ToastContext'
 import { useCart } from '@/context/CartContext'
 import { useProductRatings } from '@/hooks/useProductRatings'
-import { formatPrice, discountPercent, cn } from '@/lib/utils'
+import { discountPercent, cn } from '@/lib/utils'
 import type { Product } from '@/types'
 import QuickViewModal from './product/QuickViewModal'
 import RatingStars from './ui/RatingStars'
 import { useI18n } from '@/i18n'
-import { localizeProduct } from '@/lib/bilingual'
+import { localizeProduct, localizeCategory } from '@/lib/bilingual'
 
 interface Props {
   product: Product
   priorityImage?: boolean
 }
 
+/**
+ * The fashion product card — photography leads, information whispers.
+ * Works on both themes (ink & paper) through the saif-* tokens; imagery is
+ * always shown at its natural colours.
+ */
 function ProductCard({ product, priorityImage }: Props) {
   const { user } = useAuth()
   const { t, lang, formatPrice } = useI18n()
@@ -37,6 +42,7 @@ function ProductCard({ product, priorityImage }: Props) {
   const lowStock = !isDigital && !soldOut && product.stock <= product.low_stock_threshold
   const primaryImage = product.thumbnail || product.images?.[0] || ''
   const secondaryImage = product.images?.[1] || ''
+  const categoryName = product.categories ? localizeCategory(product.categories, lang).name : null
 
   async function toggleWishlist(e: React.MouseEvent) {
     e.preventDefault()
@@ -87,16 +93,15 @@ function ProductCard({ product, priorityImage }: Props) {
         aria-label={`${loc.name}${soldOut ? ` — ${t('product.soldOut')}` : ''}`}
       >
         {/* ---------- Image ---------- */}
-        <div className="relative aspect-[3/4] overflow-hidden bg-saif-panel rounded-sm">
+        <div className="relative aspect-[3/4] overflow-hidden bg-saif-panel">
           <img
             src={primaryImage}
             alt={loc.name}
             loading={priorityImage ? 'eager' : 'lazy'}
             decoding="async"
             className={cn(
-              'absolute inset-0 w-full h-full object-cover transition-all duration-[900ms] ease-saif group-hover:scale-[1.045]',
+              'absolute inset-0 w-full h-full object-cover transition-all duration-[900ms] ease-saif group-hover:scale-[1.05]',
               secondaryImage && 'group-hover:opacity-0',
-              soldOut && 'opacity-40 grayscale',
             )}
           />
           {secondaryImage && (
@@ -106,26 +111,23 @@ function ProductCard({ product, priorityImage }: Props) {
               aria-hidden="true"
               loading="lazy"
               decoding="async"
-              className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-[900ms] ease-saif group-hover:scale-[1.045]"
+              className="absolute inset-0 w-full h-full object-cover opacity-0 scale-[1.05] group-hover:opacity-100 group-hover:scale-[1.05] transition-all duration-[900ms] ease-saif"
             />
           )}
 
-          {/* Badges — top left */}
-          <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start pointer-events-none">
+          {/* Badges — top start corner */}
+          <div className="absolute top-3 start-3 flex flex-col gap-1.5 items-start pointer-events-none">
             {discount > 0 && (
               <span className="badge bg-saif-accent text-black border-saif-accent">−{discount}%</span>
             )}
-            {product.bestseller && <span className="badge bg-saif-text text-black border-saif-text">Bestseller</span>}
-            {soldOut && <span className="badge bg-black/85 backdrop-blur-sm text-saif-text border-saif-text/40">{t('product.soldOut')}</span>}
-            {lowStock && (
-              <span className="badge bg-black/80 backdrop-blur-sm text-yellow-400 border-yellow-500/40">
-                {t('product.onlyLeft', { count: product.stock })}
-              </span>
+            {product.bestseller && (
+              <span className="badge bg-saif-text text-saif-bg border-saif-text">{t('rails.bestsellers.eyebrow')}</span>
             )}
+            {soldOut && <span className="badge bg-black/85 backdrop-blur-sm text-saif-text border-saif-border">{t('product.soldOut')}</span>}
           </div>
 
           {/* Quick actions — 44px targets, visible on touch, revealed on hover on pointer devices */}
-          <div className="absolute top-2.5 right-2.5 flex flex-col gap-2">
+          <div className="absolute top-2.5 end-2.5 flex flex-col gap-2">
             <button
               onClick={toggleWishlist}
               aria-label={inWishlist ? t('a11y.removeItem', { name: loc.name }) : `${t('product.addToBag')} — ${loc.name}`}
@@ -134,7 +136,7 @@ function ProductCard({ product, priorityImage }: Props) {
                 'w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300',
                 inWishlist
                   ? 'bg-saif-accent text-black'
-                  : 'bg-black/60 backdrop-blur-sm text-saif-text hover:bg-black',
+                  : 'bg-black/55 backdrop-blur-sm text-saif-text hover:bg-black',
                 'max-lg:opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100',
               )}
             >
@@ -149,19 +151,19 @@ function ProductCard({ product, priorityImage }: Props) {
             <button
               onClick={openQuickView}
               aria-label={`${t('product.quickView')} — ${loc.name}`}
-              className="w-11 h-11 rounded-full bg-black/60 backdrop-blur-sm text-saif-text hover:bg-black flex items-center justify-center max-lg:hidden lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100 transition-all duration-300"
+              className="w-11 h-11 rounded-full bg-black/55 backdrop-blur-sm text-saif-text hover:bg-black flex items-center justify-center max-lg:hidden lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100 transition-all duration-300"
             >
               <Eye size={17} />
             </button>
           </div>
 
-          {/* Add to bag — slides up on hover (pointer), always visible bar on touch */}
+          {/* Add to bag — slides up on hover (pointer), compact button on touch */}
           {!soldOut && (
             <>
               <button
                 onClick={handleAddToCart}
                 aria-label={`${t('product.addToBag')} — ${loc.name}`}
-                className="hidden lg:flex absolute bottom-0 inset-x-0 items-center justify-center gap-2 bg-saif-text text-black text-[11px] font-bold uppercase tracking-[0.14em] h-12 translate-y-full group-hover:translate-y-0 group:focus-within:translate-y-0 transition-transform duration-500 ease-saif hover:bg-saif-accent"
+                className="hidden lg:flex absolute bottom-0 inset-x-0 items-center justify-center gap-2 bg-saif-text text-saif-bg text-[11px] font-bold uppercase tracking-[0.14em] h-12 translate-y-full group-hover:translate-y-0 group:focus-within:translate-y-0 transition-transform duration-500 ease-saif hover:bg-saif-accent hover:text-black"
               >
                 <ShoppingBag size={14} aria-hidden="true" />
                 {product.variants?.length ? t('product.quickAdd') : t('product.addToBag')}
@@ -170,33 +172,18 @@ function ProductCard({ product, priorityImage }: Props) {
               <button
                 onClick={handleAddToCart}
                 aria-label={`${t('product.addToBag')} — ${loc.name}`}
-                className="lg:hidden absolute bottom-3 right-3 w-11 h-11 rounded-full bg-saif-text text-black flex items-center justify-center active:scale-90 active:bg-saif-accent transition-transform duration-200 shadow-lg"
+                className="lg:hidden absolute bottom-3 end-3 w-11 h-11 rounded-full bg-saif-text text-saif-bg flex items-center justify-center active:scale-90 active:bg-saif-accent active:text-black transition-transform duration-200 shadow-lg"
               >
                 <ShoppingBag size={17} aria-hidden="true" />
               </button>
             </>
           )}
-
-          {/* Type marker */}
-          <span
-            className={cn(
-              'absolute bottom-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] rounded-full bg-black/60 backdrop-blur-sm',
-              isDigital ? 'text-saif-accent' : 'text-saif-dim',
-            )}
-          >
-            {isDigital ? <Zap size={10} aria-hidden="true" /> : <Package size={10} aria-hidden="true" />}
-            {isDigital ? t('product.digital') : t('product.physical')}
-          </span>
         </div>
 
         {/* ---------- Info ---------- */}
         <div className="mt-4">
-          {product.categories && (
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-saif-faint">
-              {(lang === 'ar' && (product.categories as { name_ar?: string | null }).name_ar?.trim()
-                ? (product.categories as { name_ar?: string | null }).name_ar
-                : product.categories.name) || ''}
-            </p>
+          {categoryName && (
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-saif-faint">{categoryName}</p>
           )}
           <h3 className="mt-1.5 text-sm font-medium text-saif-text group-hover:text-saif-accent transition-colors duration-300 line-clamp-1">
             {loc.name}
@@ -212,9 +199,11 @@ function ProductCard({ product, priorityImage }: Props) {
                 </span>
               )}
             </div>
-            {rating && rating.review_count > 0 && (
+            {lowStock ? (
+              <span className="text-[11px] text-saif-accent">{t('product.onlyLeft', { count: product.stock })}</span>
+            ) : rating && rating.review_count > 0 ? (
               <RatingStars value={rating.avg_rating ?? 0} size={11} showValue />
-            )}
+            ) : null}
           </div>
         </div>
       </Link>
