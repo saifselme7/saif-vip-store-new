@@ -1,10 +1,10 @@
 # SAIF STORE
 
-Premium e-commerce storefront + admin dashboard built with React, Vite, TypeScript and Supabase. Black / cream / red brand identity.
+Premium fashion e-commerce storefront + admin dashboard built with React, Vite, TypeScript and Supabase. Black / warm off-white / red editorial brand identity.
 
 ## Features
 
-- **Storefront** — homepage rails (featured, new arrivals, best sellers, offers, digital), product listing with server-side filters + sorting, product detail pages with gallery/zoom, variants (size × color), reviews with moderation, wishlist, persistent stock-aware cart with drawer, debounced search with suggestions.
+- **Storefront** — editorial fashion homepage (campaign hero, new drop, category tiles, best sellers, brand story, featured look), product listing with server-side filters + sorting, product detail pages with gallery/zoom, variants (size × color), reviews with moderation, wishlist, persistent stock-aware cart with drawer, debounced search with suggestions.
 - **Manual payments** — InstaPay & Vodafone Cash with receiving number `01040324811`. Customers upload a transfer screenshot (private Supabase Storage bucket); admins verify manually (approve / reject with reason / under review / cancel). Payments are never auto-approved.
 - **Atomic checkout** — the `place_order` RPC validates the cart against live stock with row locks, recomputes totals server-side, applies coupons, creates order + items + payment record + timeline event and reserves inventory in one transaction.
 - **Admin dashboard** — live KPIs, payment verification queue with zoomable screenshots, order management with timeline and internal notes, product management (variants, image manager, specs, duplication, bulk actions), inventory adjustments with an audit log, customers with real order stats, coupons, review moderation, sales analytics, and full site settings (payment number, method toggles, shipping, announcement, maintenance mode).
@@ -21,8 +21,11 @@ Premium e-commerce storefront + admin dashboard built with React, Vite, TypeScri
 2. `supabase/migrations/2026-08-28-admin-reconcile.sql` — additive, idempotent; converges BOTH known lineages (original v1 and the sibling v2 where payments used `status` and `review_payment` took `p_action`)
 3. `supabase/functions.sql`
 4. `supabase/migrations/2026-08-29-bilingual-cms.sql` — bilingual content fields + homepage CMS
-5. `supabase/rls.sql`
-6. `supabase/diagnostics/verify_admin.sql` — read-only verification (every row should say OK)
+5. `supabase/migrations/2026-08-30-fashion-storefront.sql` — **fashion storefront rebrand** (retires the legacy digital categories/rail, refreshes homepage CMS copy to the fashion campaign, reorders sections). Content-only, idempotent and fully reversible.
+6. `supabase/rls.sql`
+7. `supabase/diagnostics/verify_admin.sql` — read-only verification (every row should say OK)
+
+> **About the fashion migration** — it never deletes data: digital categories are deactivated (not removed), digital products are archived (`status='archived'`; bring them back with `UPDATE products SET status='active' WHERE product_type='digital';`), and homepage copy/section order is refreshed. Everything stays editable from **Admin → Site Builder / Settings** afterwards.
 
 The reconciliation never drops tables and never deletes rows; superseded duplicate payment rows are only *marked* cancelled. Re-running any step is safe.
 

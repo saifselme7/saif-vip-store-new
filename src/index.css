@@ -4,11 +4,53 @@
 
 @layer base {
   :root {
-    --bg: #000000;
-    --text: #F5F0E8;
-    --text-dim: #9C9C9C;
+    /* ---- Black "ink" theme (default storefront chrome) ---- */
+    --saif-bg: 0 0 0;
+    --saif-text: 245 240 232;           /* cream — 18.5:1 on black */
+    --saif-dim: 156 156 156;            /* secondary text — 7.6:1 on black */
+    --saif-faint: 120 120 120;          /* tertiary text — 4.75:1 on black (AA) */
+    --saif-surface: 10 10 10;
+    --saif-panel: 19 19 19;             /* elevated panels / image placeholder */
+    --saif-border-rgb: 245 240 232;
+    --saif-border-alpha: 0.09;
+    --saif-border-strong-alpha: 0.18;
     --accent: #E63946;
     --ease-saif: cubic-bezier(0.16, 1, 0.3, 1);
+    color-scheme: dark;
+  }
+
+  /* ---- Warm off-white "paper" theme (editorial fashion sections) ---- */
+  /* Applied to a wrapper element — every saif-* token inside flips.      */
+  .theme-paper {
+    --saif-bg: 242 239 233;
+    --saif-text: 19 19 17;              /* ink — 16.8:1 on paper */
+    --saif-dim: 87 84 77;               /* 7.1:1 on paper */
+    --saif-faint: 139 134 124;          /* metadata text on paper */
+    --saif-surface: 255 255 255;
+    --saif-panel: 231 227 216;          /* image placeholder / skeletons */
+    --saif-border-rgb: 19 19 17;
+    --saif-border-alpha: 0.12;
+    --saif-border-strong-alpha: 0.3;
+    background-color: rgb(var(--saif-bg));
+    color: rgb(var(--saif-text));
+    color-scheme: light;
+  }
+
+  /* Explicit dark anchor for overlays (modals, drawers, previews) that must
+     stay black even when rendered inside a .theme-paper subtree. */
+  .theme-dark {
+    --saif-bg: 0 0 0;
+    --saif-text: 245 240 232;
+    --saif-dim: 156 156 156;
+    --saif-faint: 120 120 120;
+    --saif-surface: 10 10 10;
+    --saif-panel: 19 19 19;
+    --saif-border-rgb: 245 240 232;
+    --saif-border-alpha: 0.09;
+    --saif-border-strong-alpha: 0.18;
+    background-color: rgb(var(--saif-bg));
+    color: rgb(var(--saif-text));
+    color-scheme: dark;
   }
 
   html {
@@ -17,8 +59,8 @@
 
   body {
     font-family: 'Inter', system-ui, sans-serif;
-    background: var(--bg);
-    color: var(--text);
+    background: rgb(var(--saif-bg));
+    color: rgb(var(--saif-text));
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -27,7 +69,7 @@
 
   ::selection {
     background: var(--accent);
-    color: var(--bg);
+    color: #000;
   }
 
   /* Accessibility: strong visible focus for keyboard users */
@@ -63,9 +105,25 @@
   html[dir='rtl'] body {
     font-family: 'IBM Plex Sans Arabic', 'Inter', system-ui, sans-serif;
   }
+  /* Arabic display headings: geometric Kufi, no letter-spacing,
+     taller leading than Latin display type (Arabic ascenders/descenders) */
+  html[dir='rtl'] .font-display {
+    font-family: 'Noto Kufi Arabic', 'IBM Plex Sans Arabic', 'Inter', system-ui, sans-serif;
+    font-weight: 700;
+    font-style: normal;
+    letter-spacing: 0;
+    line-height: 1.12;
+  }
+  /* Arabic doesn't italicize — serif accents stay upright */
+  html[dir='rtl'] .font-serif {
+    font-family: 'Noto Kufi Arabic', 'IBM Plex Sans Arabic', 'Inter', system-ui, sans-serif;
+    font-style: normal;
+    font-weight: 500;
+  }
   /* Arabic display headings: no letter-spacing, comfortable leading */
   html[dir='rtl'] .tracking-tighter,
   html[dir='rtl'] .tracking-tight,
+  html[dir='rtl'] .tracking-wide,
   html[dir='rtl'] .tracking-wider,
   html[dir='rtl'] .tracking-widest,
   html[dir='rtl'] .tracking-\[0\.3em\],
@@ -75,10 +133,6 @@
   html[dir='rtl'] .tracking-\[0\.14em\],
   html[dir='rtl'] .tracking-\[0\.12em\] {
     letter-spacing: 0;
-  }
-  html[dir='rtl'] .font-display {
-    font-family: 'IBM Plex Sans Arabic', 'Instrument Serif', serif;
-    font-style: normal;
   }
   /* Keep Latin technical strings (order numbers, phones, amounts) LTR inside RTL text */
   html[dir='rtl'] .ltr-iso {
@@ -118,14 +172,14 @@
 
 @layer components {
   /* ------------------------------------------------------------------
-   * Buttons — one consistent language.
+   * Buttons — one consistent language, theme-aware (ink on paper, cream on black).
    * ------------------------------------------------------------------ */
   .btn {
-    @apply inline-flex items-center justify-center gap-2.5 px-8 py-4 text-xs font-semibold uppercase tracking-[0.15em] border border-saif-text bg-transparent text-saif-text cursor-pointer transition-all duration-500 ease-saif hover:bg-saif-text hover:text-black disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed rounded-sm;
+    @apply inline-flex items-center justify-center gap-2.5 px-8 py-4 text-xs font-semibold uppercase tracking-[0.15em] border border-saif-text bg-transparent text-saif-text cursor-pointer transition-all duration-500 ease-saif hover:bg-saif-text hover:text-saif-bg disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed rounded-sm;
   }
 
   .btn-primary {
-    @apply bg-saif-text text-black hover:bg-saif-accent hover:border-saif-accent;
+    @apply bg-saif-text text-saif-bg hover:bg-saif-accent hover:border-saif-accent hover:text-black;
   }
 
   .btn-accent {
@@ -185,7 +239,7 @@
   }
 
   .card {
-    @apply border border-saif-border bg-saif-surface/60 rounded-sm;
+    @apply border border-saif-border bg-saif-surface rounded-sm;
   }
 
   .badge {
@@ -193,7 +247,7 @@
   }
 
   .skip-link {
-    @apply absolute left-4 top-4 z-[999] bg-saif-text text-black px-4 py-2 text-xs font-bold uppercase tracking-wider -translate-y-20 focus:translate-y-0 transition-transform;
+    @apply absolute left-4 top-4 z-[999] bg-saif-text text-saif-bg px-4 py-2 text-xs font-bold uppercase tracking-wider -translate-y-20 focus:translate-y-0 transition-transform;
   }
 
   /* ------------------------------------------------------------------
@@ -208,6 +262,11 @@
     height: 2px;
     background: var(--accent);
     flex-shrink: 0;
+  }
+
+  /* Oversized ghost index number / wordmark (decorative) */
+  .ghost-index {
+    @apply absolute select-none pointer-events-none font-black leading-none tracking-tighter;
   }
 }
 
@@ -245,6 +304,12 @@
     color: transparent;
     -webkit-text-stroke: 1px rgba(245, 240, 232, 0.07);
   }
+  .theme-paper .text-outline {
+    -webkit-text-stroke-color: rgba(19, 19, 17, 0.16);
+  }
+  .theme-paper .text-outline-faint {
+    -webkit-text-stroke-color: rgba(19, 19, 17, 0.09);
+  }
 
   /* Film grain — hero only, zero JS cost */
   .grain::after {
@@ -254,6 +319,9 @@
     pointer-events: none;
     opacity: 0.05;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+  }
+  .theme-paper .grain::after {
+    opacity: 0.035;
   }
 
   /* ------------------------------------------------------------------
@@ -324,35 +392,6 @@
   .line-mask.is-visible > span {
     transform: translate3d(0, 0, 0);
   }
-  /* ------------------------------------------------------------
-   * RTL / Arabic typography
-   * ------------------------------------------------------------ */
-  html[dir='rtl'] body {
-    font-family: 'IBM Plex Sans Arabic', 'Inter', system-ui, sans-serif;
-  }
-  /* Arabic display headings: no letter-spacing, comfortable leading */
-  html[dir='rtl'] .tracking-tighter,
-  html[dir='rtl'] .tracking-tight,
-  html[dir='rtl'] .tracking-wider,
-  html[dir='rtl'] .tracking-widest,
-  html[dir='rtl'] .tracking-\[0\.3em\],
-  html[dir='rtl'] .tracking-\[0\.25em\],
-  html[dir='rtl'] .tracking-\[0\.2em\],
-  html[dir='rtl'] .tracking-\[0\.15em\],
-  html[dir='rtl'] .tracking-\[0\.14em\],
-  html[dir='rtl'] .tracking-\[0\.12em\] {
-    letter-spacing: 0;
-  }
-  html[dir='rtl'] .font-display {
-    font-family: 'IBM Plex Sans Arabic', 'Instrument Serif', serif;
-    font-style: normal;
-  }
-  /* Keep Latin technical strings (order numbers, phones, amounts) LTR inside RTL text */
-  html[dir='rtl'] .ltr-iso {
-    direction: ltr;
-    unicode-bidi: isolate;
-    display: inline-block;
-  }
 
   @media (prefers-reduced-motion: reduce) {
     .line-mask > span {
@@ -369,6 +408,14 @@
 
   .marquee-track {
     animation: marquee 30s linear infinite;
+  }
+
+  /* Fashion intro curtain (first load only) */
+  .intro-curtain {
+    animation: introCurtain 0.7s cubic-bezier(0.7, 0, 0.2, 1) 0.55s forwards;
+  }
+  .intro-wordmark {
+    animation: introWord 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 }
 
@@ -416,9 +463,41 @@ html[dir='rtl'] .animate-drawerIn {
   to { transform: translateX(-50%); }
 }
 
+/* Marquee flows with reading direction — RTL scrolls the other way */
+html[dir='rtl'] .marquee-track {
+  animation-name: marqueeRtl;
+}
+@keyframes marqueeRtl {
+  from { transform: translateX(0); }
+  to { transform: translateX(50%); }
+}
+
+/* First-load brand intro: wordmark fades in, curtain lifts */
+@keyframes introWord {
+  from { opacity: 0; transform: translateY(14px); letter-spacing: 0.4em; }
+  to { opacity: 1; transform: translateY(0); letter-spacing: 0.22em; }
+}
+
+@keyframes introCurtain {
+  from { transform: translateY(0); }
+  to { transform: translateY(-101%); }
+}
+
+@keyframes introRule {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes loadingRule {
+  0% { transform: scaleX(0); transform-origin: right; }
+  49% { transform: scaleX(1); transform-origin: right; }
+  50% { transform: scaleX(1); transform-origin: left; }
+  100% { transform: scaleX(0); transform-origin: left; }
+}
+
 .reveal-skeleton,
 .skeleton {
-  background: linear-gradient(90deg, #101010 25%, #181818 50%, #101010 75%);
+  background: linear-gradient(90deg, rgb(var(--saif-panel)) 25%, rgb(var(--saif-surface)) 50%, rgb(var(--saif-panel)) 75%);
   background-size: 200% 100%;
   animation: skeleton 1.5s infinite;
 }

@@ -13,7 +13,7 @@ export default function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', message: '' })
   const [errors, setErrors] = useState<FieldErrors>({})
   const [sent, setSent] = useState(false)
-  usePageMeta({ title: 'Contact', description: 'Get in touch with the SAIF STORE team.' })
+  usePageMeta({ title: `${t('pages.contact.title')} — SAIF STORE`, description: t('meta.description') })
 
   const contactEmail = settings?.contact_email || 'hello@saifstore.com'
 
@@ -39,7 +39,7 @@ export default function ContactPage() {
   return (
     <div className="animate-[pageIn_0.6s_ease] pt-24 md:pt-28 px-5 lg:px-10 pb-20">
       <div className="max-w-xl mx-auto">
-        <h1 className="text-[clamp(36px,6vw,72px)] font-black tracking-tighter text-saif-text mb-10">Contact</h1>
+        <h1 className="text-[clamp(36px,6vw,72px)] font-display text-saif-text mb-10">{t('pages.contact.title')}</h1>
 
         <div className="space-y-3 mb-10">
           <a

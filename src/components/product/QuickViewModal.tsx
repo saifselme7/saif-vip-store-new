@@ -9,6 +9,7 @@ import { useToast } from '@/context/ToastContext'
 import { formatPrice } from '@/lib/utils'
 import type { Product } from '@/types'
 import { useI18n } from '@/i18n'
+import { localizeProduct, localizeCategory } from '@/lib/bilingual'
 
 interface Props {
   product: Product
@@ -17,7 +18,8 @@ interface Props {
 }
 
 export default function QuickViewModal({ product, open, onClose }: Props) {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
+  const loc = localizeProduct(product, lang)
   const { addItem, setIsOpen } = useCart()
   const { addToast } = useToast()
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null)
@@ -40,7 +42,7 @@ export default function QuickViewModal({ product, open, onClose }: Props) {
     }
     const result = addItem(product, selectedVariant, quantity)
     if (result.ok) {
-      addToast(t('product.addedToBag', { name: product.name }))
+      addToast(t('product.addedToBag', { name: loc.name }))
       onClose()
       setIsOpen(true)
       setSelectedVariantId(null)
@@ -56,19 +58,19 @@ export default function QuickViewModal({ product, open, onClose }: Props) {
         <div className="aspect-[3/4] bg-saif-panel overflow-hidden rounded-sm">
           <img
             src={selectedVariant?.image || product.thumbnail || product.images?.[0] || ''}
-            alt={product.name}
+            alt={loc.name}
             className="w-full h-full object-cover"
             loading="lazy"
           />
         </div>
 
         <div className="flex flex-col">
-          {product.categories?.name && (
+          {product.categories && (
             <p className="text-[10px] font-semibold uppercase tracking-wider text-saif-dim">
-              {product.categories.name}
+              {localizeCategory(product.categories, lang).name}
             </p>
           )}
-          <h3 className="text-xl font-bold tracking-tight text-saif-text mt-1">{product.name}</h3>
+          <h3 className="text-xl font-bold tracking-tight text-saif-text mt-1">{loc.name}</h3>
 
           <div className="flex items-baseline gap-3 mt-3">
             <span className="text-xl font-bold text-saif-text">{formatPrice(unitPrice)}</span>
@@ -78,7 +80,7 @@ export default function QuickViewModal({ product, open, onClose }: Props) {
           </div>
 
           <p className="mt-4 text-sm text-saif-dim leading-relaxed line-clamp-4">
-            {product.short_description || product.description}
+            {loc.shortDescription || loc.description}
           </p>
 
           {!isDigital && variants.length > 0 && (
@@ -101,10 +103,10 @@ export default function QuickViewModal({ product, open, onClose }: Props) {
               value={quantity}
               onChange={setQuantity}
               max={Math.max(1, isDigital ? 99 : availableStock)}
-              ariaLabel="Quantity"
+              ariaLabel={t('product.quantity')}
             />
             {!isDigital && availableStock > 0 && availableStock <= product.low_stock_threshold && (
-              <p className="text-xs text-yellow-400 mt-2">{t('product.lowStock', { count: availableStock })}</p>
+              <p className="text-xs text-saif-accent mt-2">{t('product.lowStock', { count: availableStock })}</p>
             )}
           </div>
 
@@ -114,14 +116,14 @@ export default function QuickViewModal({ product, open, onClose }: Props) {
               disabled={!isDigital && availableStock <= 0}
               className="btn btn-primary w-full"
             >
-              {!isDigital && availableStock <= 0 ? 'Sold Out' : 'Add to Bag'}
+              {!isDigital && availableStock <= 0 ? t('product.soldOut') : t('product.addToBag')}
             </button>
             <Link
               to={`/products/${product.slug}`}
               onClick={onClose}
               className="btn w-full"
             >
-              Full Details <ArrowRight size={13} />
+              {t('spotlight.cta')} <ArrowRight size={13} className={lang === 'ar' ? 'rotate-180' : ''} />
             </Link>
           </div>
         </div>

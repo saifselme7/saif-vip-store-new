@@ -1,6 +1,22 @@
-import type { OrderStatus, PaymentStatus, PaymentMethod } from '@/types'
+import type { Category, OrderStatus, PaymentStatus, PaymentMethod } from '@/types'
 
 export const STORE_NAME = 'SAIF STORE'
+
+/**
+ * Legacy digital-catalogue category slugs hidden from the fashion storefront
+ * chrome (navigation, category tiles, shop filters). The categories, their
+ * products and the admin dashboard remain fully intact — this only curates
+ * what the clothing storefront advertises. The fashion migration
+ * (supabase/migrations/2026-08-30-fashion-storefront.sql) deactivates these
+ * categories at the source as well, so this list is a bridge until it runs.
+ */
+export const HIDDEN_CATEGORY_SLUGS = new Set(['digital-products', 'social-media'])
+
+/** Categories shown in the storefront chrome (nav, tiles, shop filters). */
+export function isStorefrontCategory(category: Pick<Category, 'slug'>): boolean {
+  return !HIDDEN_CATEGORY_SLUGS.has(category.slug)
+}
+
 
 /** Fallback receiving number; the live value comes from site_settings. */
 export const DEFAULT_PAYMENT_NUMBER = '01040324811'

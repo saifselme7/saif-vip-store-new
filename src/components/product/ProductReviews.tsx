@@ -94,7 +94,7 @@ export default function ProductReviews({ product }: { product: Product }) {
                   <div key={d.rating} className="flex items-center gap-2 text-xs text-saif-dim">
                     <span className="w-3 text-right">{d.rating}</span>
                     <Star size={10} className="fill-saif-dim text-saif-dim" />
-                    <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div className="flex-1 h-1.5 bg-saif-text/10 rounded-full overflow-hidden">
                       <div className="h-full bg-saif-accent rounded-full" style={{ width: `${pct}%` }} />
                     </div>
                     <span className="w-6 text-right tabular-nums">{d.count}</span>
@@ -109,7 +109,7 @@ export default function ProductReviews({ product }: { product: Product }) {
             {reviews.map(r => (
               <article key={r.id} className="pb-6 border-b border-saif-border last:border-0">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="w-8 h-8 bg-white/5 rounded-full flex items-center justify-center text-xs font-bold text-saif-dim">
+                  <div className="w-8 h-8 bg-saif-text/5 rounded-full flex items-center justify-center text-xs font-bold text-saif-dim">
                     {(r.profiles?.full_name || 'A').charAt(0).toUpperCase()}
                   </div>
                   <div>

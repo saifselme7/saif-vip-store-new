@@ -6,6 +6,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/context/ToastContext'
 import { useI18n } from '@/i18n'
+import { RETIRED_SECTION_KEYS } from '@/hooks/useHomepageSections'
 import { useAdminProducts } from '@/hooks/admin/useAdminData'
 import Modal from '@/components/ui/Modal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -144,10 +145,13 @@ export default function AdminSiteBuilder() {
         </span>
       </div>
 
-      {/* Section list */}
+      {/* Section list — retired sections (legacy digital rail) stay in the
+          database but are hidden here because the storefront no longer
+          renders them. */}
       <ol className="space-y-2">
         {sections
           .filter(s => s.section_key !== 'announcement')
+          .filter(s => !RETIRED_SECTION_KEYS.has(s.section_key))
           .map((section, i, arr) => (
             <li
               key={section.id}

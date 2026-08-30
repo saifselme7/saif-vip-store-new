@@ -8,32 +8,39 @@ interface Props {
   config?: Record<string, unknown> | null
 }
 
+/**
+ * The editorial pause after the hero — a serif-inflected brand statement set
+ * on warm paper, followed by the three codes the label lives by. Copy comes
+ * from the CMS with the fashion defaults as fallback.
+ */
 export default function BrandStatement({ heading, description, config }: Props) {
   const { t, lang } = useI18n()
   const cfg = (config ?? {}) as BrandConfig
   const FACTS = [
-  {
-    title: configText(cfg, 'fact1_title', lang) ?? t('brand.fact1Title'),
-    text: configText(cfg, 'fact1_text', lang) ?? t('brand.fact1Text'),
-  },
-  {
-    title: configText(cfg, 'fact2_title', lang) ?? t('brand.fact2Title'),
-    text: configText(cfg, 'fact2_text', lang) ?? t('brand.fact2Text'),
-  },
-  {
-    title: configText(cfg, 'fact3_title', lang) ?? t('brand.fact3Title'),
-    text: configText(cfg, 'fact3_text', lang) ?? t('brand.fact3Text'),
-  },
-]
-
-/**
- * Brand statement — the editorial pause after the hero. Serif italic accent
- * type against the grotesque wordmark is part of the signature language.
- */
+    {
+      title: configText(cfg, 'fact1_title', lang) ?? t('brand.fact1Title'),
+      text: configText(cfg, 'fact1_text', lang) ?? t('brand.fact1Text'),
+    },
+    {
+      title: configText(cfg, 'fact2_title', lang) ?? t('brand.fact2Title'),
+      text: configText(cfg, 'fact2_text', lang) ?? t('brand.fact2Text'),
+    },
+    {
+      title: configText(cfg, 'fact3_title', lang) ?? t('brand.fact3Title'),
+      text: configText(cfg, 'fact3_text', lang) ?? t('brand.fact3Text'),
+    },
+  ]
 
   return (
-    <section className="relative px-5 lg:px-10 py-24 md:py-36" aria-labelledby="brand-statement">
-      <div className="max-w-4xl mx-auto text-center">
+    <section className="theme-paper px-5 lg:px-10 py-24 md:py-36 relative" aria-labelledby="brand-statement">
+      <span
+        className="ghost-index text-outline-faint hidden lg:block text-[clamp(120px,18vw,280px)] top-10 end-8 font-display"
+        aria-hidden="true"
+      >
+        SAIF
+      </span>
+
+      <div className="max-w-4xl mx-auto text-center relative z-10">
         <Reveal variant="fade" duration={700}>
           <p className="eyebrow justify-center mb-8">
             <span className="text-saif-accent tabular-nums">01</span>
@@ -44,9 +51,13 @@ export default function BrandStatement({ heading, description, config }: Props) 
 
         <Reveal variant="up" duration={900}>
           <h2 id="brand-statement" className="text-[clamp(34px,6vw,76px)] leading-[1.04] tracking-tight text-balance">
-            {heading ?? <><span className="font-display italic font-normal text-saif-text">{t('brand.seg1')}</span>{' '}
-            <span className="font-black text-saif-text">{t('brand.seg2')}</span>{' '}
-            <span className="font-display italic font-normal text-saif-accent">{t('brand.seg3')}</span></>}
+            {heading ?? (
+              <>
+                <span className="font-serif italic font-normal text-saif-text">{t('brand.seg1')}</span>{' '}
+                <span className="font-black text-saif-text">{t('brand.seg2')}</span>{' '}
+                <span className="font-serif italic font-normal text-saif-accent">{t('brand.seg3')}</span>
+              </>
+            )}
           </h2>
         </Reveal>
 
@@ -56,14 +67,14 @@ export default function BrandStatement({ heading, description, config }: Props) 
           </p>
         </Reveal>
 
-        <div className="mt-16 md:mt-20 grid grid-cols-1 sm:grid-cols-3 gap-px bg-saif-border border border-saif-border rounded-sm overflow-hidden text-left">
+        <div className="mt-16 md:mt-20 grid grid-cols-1 sm:grid-cols-3 gap-px bg-saif-border border border-saif-border rounded-sm overflow-hidden text-start">
           {FACTS.map((fact, i) => (
             <Reveal
               key={fact.title}
               variant="fade"
               delay={i * 140}
               duration={900}
-              className="bg-black p-6 md:p-8 group hover:bg-saif-surface transition-colors duration-500"
+              className="bg-saif-bg p-6 md:p-8 group hover:bg-saif-surface transition-colors duration-500"
             >
               <span className="block w-7 h-0.5 bg-saif-accent mb-5 transition-all duration-500 group-hover:w-12" aria-hidden="true" />
               <h3 className="text-sm font-semibold text-saif-text uppercase tracking-wider">{fact.title}</h3>

@@ -1,35 +1,40 @@
 import Footer from '@/components/Footer'
 import { useApp } from '@/context/AppContext'
 import { usePageMeta } from '@/hooks/usePageMeta'
-import { formatPrice } from '@/lib/utils'
+import { useI18n } from '@/i18n'
 
 export default function ShippingPage() {
+  const { t, formatPrice } = useI18n()
   const { settings } = useApp()
-  usePageMeta({ title: 'Shipping & Returns', description: 'SAIF STORE shipping and return policies.' })
+  usePageMeta({ title: `${t('pages.shipping.title')} — SAIF STORE`, description: t('pages.shipping.title') })
   const currency = settings?.currency ?? 'EGP'
+  const contactEmail = settings?.contact_email || 'hello@saifstore.com'
 
   return (
     <div className="animate-[pageIn_0.6s_ease] pt-24 md:pt-28 px-5 lg:px-10 pb-20">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-[clamp(36px,6vw,72px)] font-black tracking-tighter text-saif-text mb-10">Shipping & Returns</h1>
+        <h1 className="text-[clamp(36px,6vw,72px)] font-display text-saif-text mb-10">{t('pages.shipping.title')}</h1>
         <div className="space-y-8">
           <section>
-            <h2 className="text-lg font-bold text-saif-text mb-3">Shipping</h2>
+            <h2 className="text-lg font-bold text-saif-text mb-3">{t('pages.shipping.shippingTitle')}</h2>
             <p className="text-sm text-saif-dim leading-relaxed">
-              Orders are processed within 1-2 business days after your payment is approved.
-              {settings?.shipping_fee ? ` A flat shipping fee of ${formatPrice(settings.shipping_fee, currency)} applies across Egypt.` : ' Shipping is free across Egypt.'}
-              {settings?.free_shipping_threshold ? ` Orders over ${formatPrice(settings.free_shipping_threshold, currency)} ship for free.` : ''}
-              {' '}Digital products are delivered electronically after payment verification — nothing is shipped.
+              {settings?.shipping_fee
+                ? t('product.flatShipping', { amount: formatPrice(settings.shipping_fee, currency) })
+                : t('home.trustShippingEgypt')}{' '}
+              {settings?.free_shipping_threshold
+                ? t('product.freeShippingOver', { amount: formatPrice(settings.free_shipping_threshold, currency) })
+                : ''}
             </p>
           </section>
           <section>
-            <h2 className="text-lg font-bold text-saif-text mb-3">Returns</h2>
-            <p className="text-sm text-saif-dim leading-relaxed">Physical items may be returned within 30 days of delivery. Items must be unused and in original packaging. Digital products are non-refundable.</p>
+            <h2 className="text-lg font-bold text-saif-text mb-3">{t('pages.shipping.returnsTitle')}</h2>
+            <p className="text-sm text-saif-dim leading-relaxed">{t('pages.shipping.returnsText')}</p>
           </section>
           <section>
-            <h2 className="text-lg font-bold text-saif-text mb-3">Need Help?</h2>
+            <h2 className="text-lg font-bold text-saif-text mb-3">{t('pages.shipping.helpTitle')}</h2>
             <p className="text-sm text-saif-dim leading-relaxed">
-              Contact us at <a href={`mailto:${settings?.contact_email || 'hello@saifstore.com'}`} className="text-saif-accent underline">{settings?.contact_email || 'hello@saifstore.com'}</a> for any shipping or return inquiries.
+              {t('pages.shipping.helpText', { email: contactEmail })}{' '}
+              <a href={`mailto:${contactEmail}`} className="text-saif-accent underline">{contactEmail}</a>
             </p>
           </section>
         </div>

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Zap } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import Reveal, { RevealLine } from '@/components/motion/Reveal'
 import { useParallax } from '@/hooks/useParallax'
 import { useI18n } from '@/i18n'
@@ -8,92 +8,111 @@ import { configText, type HeroConfig } from '@/hooks/useHomepageSections'
 interface HeroSectionProps {
   heroTitle: string
   heroSubtitle: string
-  /** Ambient campaign image (first featured/best product). Optional. */
+  /** Campaign image (first featured/best product). Optional. */
   heroImage?: string | null
   config?: unknown
 }
 
 /**
- * Cinematic opening scene: ambient product imagery under a heavy black
- * gradient, editorial line-mask wordmark, staggered entrance, parallax depth.
- * The essential brand messaging and CTAs are preserved.
+ * The opening campaign: oversized editorial statement, a fully-lit campaign
+ * image (never tinted or desaturated), staggered masked-line entrance and a
+ * whisper of parallax depth. CTAs stay above the fold on every viewport.
  */
 export default function HeroSection({ heroTitle, heroSubtitle, heroImage, config }: HeroSectionProps) {
-  const { t, lang, isRTL } = useI18n()
+  const { t, isRTL } = useI18n()
   const cfg = (config ?? {}) as HeroConfig
-  const parallaxRef = useParallax<HTMLDivElement>(90)
-  const glowRef = useParallax<HTMLDivElement>(-50)
-
-  const words = (heroTitle || 'SAIF STORE').trim().split(/\s+/)
-  const line1 = words[0] ?? 'SAIF'
-  const line2 = words.slice(1).join(' ') || 'STORE'
+  const parallaxRef = useParallax<HTMLDivElement>(46)
 
   return (
     <section
-      className="relative min-h-[100svh] flex flex-col justify-center overflow-hidden grain"
-      aria-label="SAIF STORE — premium streetwear and digital products"
+      className="relative min-h-[100svh] flex flex-col overflow-hidden grain"
+      aria-label="SAIF STORE — premium fashion label"
     >
-      {/* Ambient campaign image — heavily masked, slow parallax */}
-      {heroImage && (
-        <div className="absolute inset-0" aria-hidden="true">
-          <div ref={parallaxRef} className="parallax absolute -inset-y-[12%] inset-x-0">
-            <img
-              src={heroImage}
-              alt=""
-              style={{ opacity: (cfg.overlay ?? 20) / 100 }}
-              className="w-full h-full object-cover scale-[1.04]"
-              loading="eager"
-              decoding="async"
-            />
-          </div>
-          {/* Legibility gradients */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/45 to-black" />
-          <div className="absolute inset-0 [background:radial-gradient(70%_60%_at_50%_45%,transparent_0%,rgba(0,0,0,0.75)_100%)]" />
+      {/* Ghost outline wordmark behind the composition */}
+      <span
+        className="ghost-index text-outline-faint hidden xl:block text-[clamp(140px,22vw,340px)] -bottom-10 -start-6 font-display"
+        aria-hidden="true"
+      >
+        SAIF
+      </span>
+
+      <div className="relative z-10 flex-1 w-full max-w-[100rem] mx-auto px-5 lg:px-10 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center pt-32 pb-16 md:pt-36 md:pb-20">
+        {/* ---------- Copy ---------- */}
+        <div className="lg:col-span-7">
+          <Reveal variant="fade" duration={800}>
+            <p className="eyebrow">
+              {heroTitle || 'SAIF STORE'}
+              <span className="w-1.5 h-1.5 rotate-45 bg-saif-accent flex-shrink-0" aria-hidden="true" />
+              {t('hero.eyebrow')}
+            </p>
+          </Reveal>
+
+          <h1 className="mt-6 md:mt-8 font-display text-saif-text leading-[0.92] text-[clamp(64px,12.5vw,176px)]">
+            <RevealLine delay={140}>{t('hero.statement1')}</RevealLine>
+            <RevealLine delay={300}>
+              <span className="font-serif italic font-normal tracking-tight">{t('hero.statement2')}</span>
+            </RevealLine>
+          </h1>
+
+          <Reveal variant="fade" delay={520} duration={1000}>
+            <p className="mt-8 md:mt-10 text-sm md:text-[15px] text-saif-dim leading-relaxed max-w-md text-balance">
+              {heroSubtitle || t('hero.subtitle')}
+            </p>
+          </Reveal>
+
+          <Reveal variant="up" delay={680} duration={800}>
+            <div className="mt-10 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+              <Link to={cfg.cta1_dest || '/products'} data-magnetic className="btn btn-primary">
+                {configText(cfg, 'cta1_text', isRTL ? 'ar' : 'en') ?? t('hero.shopCollection')}
+                <ArrowRight size={14} className={isRTL ? 'rotate-180' : ''} aria-hidden="true" />
+              </Link>
+              <Link to={cfg.cta2_dest || '/products?sort=newest'} className="btn">
+                {configText(cfg, 'cta2_text', isRTL ? 'ar' : 'en') ?? t('hero.shopNew')}
+              </Link>
+            </div>
+          </Reveal>
+
+          {/* Trust meta line */}
+          <Reveal variant="fade" delay={860} duration={1000}>
+            <ul className="mt-12 md:mt-14 flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] md:text-[11px] font-medium uppercase tracking-[0.22em] text-saif-faint">
+              <li>{t('home.trustShippingEgypt')}</li>
+              <li className="w-1 h-1 rotate-45 bg-saif-accent" aria-hidden="true" />
+              <li>{t('home.trustVerified')}</li>
+              <li className="w-1 h-1 rotate-45 bg-saif-accent" aria-hidden="true" />
+              <li>{t('home.trustMethods')}</li>
+            </ul>
+          </Reveal>
         </div>
-      )}
 
-      {/* Red ambient accents */}
-      <div ref={glowRef} className="parallax absolute inset-0 pointer-events-none" aria-hidden="true">
-        <div className="absolute -top-40 -left-40 w-[34rem] h-[34rem] bg-saif-accent/[0.07] rounded-full blur-[130px]" />
-        <div className="absolute bottom-0 -right-40 w-[34rem] h-[34rem] bg-saif-accent/[0.05] rounded-full blur-[130px]" />
-      </div>
-
-      {/* Composition */}
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-5 lg:px-10 pt-32 pb-28 md:pt-36 md:pb-32">
-        <Reveal variant="fade" duration={900}>
-          <p className="eyebrow justify-center text-center">
-            {configText(cfg, 'eyebrow', lang) ?? t('home.trustEgypt')}
-            <span className="w-1.5 h-1.5 rotate-45 bg-saif-accent flex-shrink-0" aria-hidden="true" />
-            {configText(cfg, 'eyebrow_mid', lang) ?? t('hero.digitalProducts')}
-            <span className="w-1.5 h-1.5 rotate-45 bg-saif-accent flex-shrink-0" aria-hidden="true" />
-            {configText(cfg, 'eyebrow_end', lang) ?? t('home.trustEgypt')}
-          </p>
-        </Reveal>
-
-        <h1 className="mt-8 text-center text-saif-text font-black tracking-tighter leading-[0.84] text-[clamp(72px,17vw,200px)]">
-          <RevealLine delay={120}>{line1}</RevealLine>
-          <RevealLine delay={280}>
-            {line2}
-            <sup className="text-[0.14em] font-normal align-super ml-2 tracking-normal text-saif-dim">®</sup>
-          </RevealLine>
-        </h1>
-
-        <Reveal variant="fade" delay={650} duration={1000}>
-          <p className="mt-9 text-sm md:text-base text-saif-dim text-center max-w-md mx-auto leading-relaxed text-balance">
-            {heroSubtitle}
-          </p>
-        </Reveal>
-
-        <Reveal variant="scale" delay={800} duration={800}>
-          <div className="mt-11 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
-            <Link to={cfg.cta1_dest || '/products'} data-magnetic className="btn btn-primary w-full sm:w-auto">
-              {configText(cfg, 'cta1_text', lang) ?? t('hero.shopNow')} <ArrowRight size={14} className={isRTL ? 'rotate-180' : ''} aria-hidden="true" />
-            </Link>
-            <Link to={cfg.cta2_dest || '/products?type=digital'} className="btn w-full sm:w-auto">
-              <Zap size={14} className="text-saif-accent" aria-hidden="true" /> {configText(cfg, 'cta2_text', lang) ?? t('hero.digitalProducts')}
-            </Link>
-          </div>
-        </Reveal>
+        {/* ---------- Campaign image — natural colours, never tinted ---------- */}
+        <div className="lg:col-span-5">
+          <Reveal variant="mask" duration={1200} className="relative">
+            <div className="relative aspect-[4/3] sm:aspect-[16/10] lg:aspect-auto lg:h-[calc(100svh-13rem)] min-h-[24rem] overflow-hidden bg-saif-panel">
+              {heroImage ? (
+                <div ref={parallaxRef} className="parallax absolute -inset-y-[8%] inset-x-0">
+                  <img
+                    src={heroImage}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    loading="eager"
+                    decoding="async"
+                  />
+                </div>
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="font-display text-outline text-[clamp(70px,10vw,150px)] leading-none" aria-hidden="true">
+                    SAIF
+                  </span>
+                </div>
+              )}
+              {/* Campaign tag — solid chip, image itself stays untouched */}
+              <span className="absolute bottom-4 start-4 inline-flex items-center gap-2 bg-black text-saif-text text-[10px] font-semibold uppercase tracking-[0.25em] px-3 py-2">
+                <span className="w-1.5 h-1.5 bg-saif-accent" aria-hidden="true" />
+                {t('hero.campaignMeta')}
+              </span>
+            </div>
+          </Reveal>
+        </div>
       </div>
 
       {/* Scroll cue */}

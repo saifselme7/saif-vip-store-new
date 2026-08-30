@@ -2,6 +2,9 @@ import { Link } from 'react-router-dom'
 import { Instagram, Twitter, Youtube, Mail, Phone, ArrowUpRight } from 'lucide-react'
 import { useApp } from '@/context/AppContext'
 import { useI18n } from '@/i18n'
+import { useCategories } from '@/hooks/useCategories'
+import { localizeCategory } from '@/lib/bilingual'
+import { isStorefrontCategory } from '@/lib/constants'
 
 const SOCIAL_ICONS: Record<string, typeof Instagram> = {
   instagram: Instagram,
@@ -13,14 +16,27 @@ const SOCIAL_ICONS: Record<string, typeof Instagram> = {
 export default function Footer() {
   const { settings } = useApp()
   const { t, lang } = useI18n()
+  const { categories } = useCategories()
   const socialLinks = (settings?.social_links ?? {}) as Record<string, string>
   const socialEntries = Object.entries(socialLinks).filter(([, url]) => !!url)
 
+  // Clothing categories first, then the always-relevant quick links
+  const shopLinks: [string, string][] = [
+    [t('footer.allProducts'), '/products'],
+    [t('footer.newArrivals'), '/products?sort=newest'],
+    ...categories
+      .filter(isStorefrontCategory)
+      .slice(0, 4)
+      .map(cat => [localizeCategory(cat, lang).name, `/products?category=${cat.id}`] as [string, string]),
+    [t('footer.offers'), '/products?onSale=true'],
+    [t('footer.bestSellers'), '/products?bestseller=true'],
+  ]
+
   return (
-    <footer className="relative border-t border-saif-border pt-20 pb-10 px-5 lg:px-10 mt-4 overflow-hidden">
+    <footer className="relative border-t border-saif-border pt-20 pb-10 px-5 lg:px-10 overflow-hidden">
       {/* Ghost signature */}
       <span
-        className="absolute -bottom-4 right-4 text-outline-faint text-[clamp(80px,14vw,200px)] font-black leading-none tracking-tighter select-none pointer-events-none"
+        className="ghost-index text-outline-faint -bottom-4 end-4 text-[clamp(80px,14vw,200px)] font-display"
         aria-hidden="true"
       >
         SAIF®
@@ -38,7 +54,7 @@ export default function Footer() {
               <span className="font-light text-saif-dim group-hover:text-saif-text transition-colors duration-300">
                 STORE
               </span>
-              <sup className="text-[9px] font-normal text-saif-faint ml-0.5" aria-hidden="true">
+              <sup className="text-[9px] font-normal text-saif-faint ms-0.5" aria-hidden="true">
                 ®
               </sup>
             </Link>
@@ -71,14 +87,8 @@ export default function Footer() {
           <nav aria-label={t('a11y.shopLinks')}>
             <h4 className="text-[11px] font-semibold text-saif-text mb-5 tracking-[0.2em] uppercase">{t('footer.shop')}</h4>
             <ul className="space-y-1">
-              {[
-                [t('footer.allProducts'), '/products'],
-                [t('footer.streetwear'), '/products?type=physical'],
-                [t('footer.digital'), '/products?type=digital'],
-                [t('footer.offers'), '/products?onSale=true'],
-                [t('footer.bestSellers'), '/products?bestseller=true'],
-              ].map(([label, to]) => (
-                <li key={to}>
+              {shopLinks.map(([label, to]) => (
+                <li key={to + label}>
                   <Link
                     to={to}
                     className="inline-flex items-center gap-1.5 min-h-[44px] md:min-h-[36px] text-sm text-saif-dim hover:text-saif-text transition-colors py-2 md:py-1"

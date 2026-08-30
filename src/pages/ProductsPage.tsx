@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { SlidersHorizontal, X, ChevronDown } from 'lucide-react'
 import { useProducts, type ProductFilters } from '@/hooks/useProducts'
 import { useCategories } from '@/hooks/useCategories'
@@ -10,19 +10,12 @@ import EmptyState from '@/components/EmptyState'
 import { ProductGridSkeleton } from '@/components/ui/Skeletons'
 import { usePageMeta } from '@/hooks/usePageMeta'
 import { useI18n } from '@/i18n'
-import { cn, formatPrice } from '@/lib/utils'
+import { localizeCategory } from '@/lib/bilingual'
+import { isStorefrontCategory } from '@/lib/constants'
+import { cn } from '@/lib/utils'
 import type { Product } from '@/types'
 
 type SortOption = 'newest' | 'oldest' | 'price_asc' | 'price_desc' | 'popular' | 'rating'
-
-const SORT_LABELS: Record<SortOption, string> = {
-  newest: 'Newest',
-  oldest: 'Oldest',
-  price_asc: 'Price: Low → High',
-  price_desc: 'Price: High → Low',
-  popular: 'Popularity',
-  rating: 'Top Rated',
-}
 
 interface LocalFilters {
   category: string
@@ -70,15 +63,15 @@ function filtersFromParams(params: URLSearchParams): LocalFilters {
 }
 
 export default function ProductsPage() {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const [searchParams, setSearchParams] = useSearchParams()
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [localFilters, setLocalFilters] = useState<LocalFilters>(() => filtersFromParams(searchParams))
   const { categories } = useCategories()
   const { getRating } = useProductRatings()
   usePageMeta({
-    title: 'Shop — All Products',
-    description: 'Browse premium streetwear, accessories and digital products at SAIF STORE.',
+    title: `${t('nav.shop')} — SAIF STORE`,
+    description: t('meta.description'),
   })
 
   // Sync URL → state (back/forward navigation)
@@ -168,50 +161,43 @@ export default function ProductsPage() {
     localFilters.maxPrice || localFilters.size || localFilters.color
 
   const activeCategory = categories.find(c => c.id === localFilters.category)
+  const visibleCategories = categories.filter(isStorefrontCategory)
 
   const filterPanel = (
-    <div className="space-y-6">
-      <FilterGroup title="Category">
-        <select
-          value={localFilters.category}
-          onChange={e => applyFilter('category', e.target.value)}
-          className="input"
-          aria-label={t('filters.category')}
-        >
-          <option value="">{t('filters.allCategories')}</option>
-          {categories.map(c => (
-            <option key={c.id} value={c.id} className="bg-black">
-              {c.name}
-            </option>
-          ))}
-        </select>
-      </FilterGroup>
-
-      <FilterGroup title="Product Type">
-        <div className="flex flex-wrap gap-2" role="group" aria-label={t('filters.type')}>
-          {[
-            { value: '', label: t('filters.all') },
-            { value: 'physical', label: t('filters.physical') },
-            { value: 'digital', label: t('filters.digital') },
-          ].map(opt => (
+    <div className="space-y-7">
+      <FilterGroup title={t('filters.category')}>
+        <div className="flex flex-wrap gap-2" role="group" aria-label={t('filters.category')}>
+          <button
+            onClick={() => applyFilter('category', '')}
+            aria-pressed={localFilters.category === ''}
+            className={cn(
+              'min-h-[44px] px-4 text-xs border rounded-full transition-colors',
+              localFilters.category === ''
+                ? 'border-saif-text bg-saif-text text-saif-bg font-semibold'
+                : 'border-saif-border text-saif-dim hover:text-saif-text hover:border-saif-text',
+            )}
+          >
+            {t('filters.allCategories')}
+          </button>
+          {visibleCategories.map(c => (
             <button
-              key={opt.value}
-              onClick={() => applyFilter('type', opt.value)}
-              aria-pressed={localFilters.type === opt.value}
+              key={c.id}
+              onClick={() => applyFilter('category', c.id)}
+              aria-pressed={localFilters.category === c.id}
               className={cn(
                 'min-h-[44px] px-4 text-xs border rounded-full transition-colors',
-                localFilters.type === opt.value
-                  ? 'border-saif-text bg-saif-text text-black font-semibold'
+                localFilters.category === c.id
+                  ? 'border-saif-text bg-saif-text text-saif-bg font-semibold'
                   : 'border-saif-border text-saif-dim hover:text-saif-text hover:border-saif-text',
               )}
             >
-              {opt.label}
+              {localizeCategory(c, lang).name}
             </button>
           ))}
         </div>
       </FilterGroup>
 
-      <FilterGroup title="Price Range">
+      <FilterGroup title={t('filters.priceRange')}>
         <div className="flex items-center gap-2">
           <input
             type="number"
@@ -236,7 +222,7 @@ export default function ProductsPage() {
       </FilterGroup>
 
       {availableSizes.length > 0 && (
-        <FilterGroup title="Size">
+        <FilterGroup title={t('filters.size')}>
           <div className="flex flex-wrap gap-2" role="group" aria-label={t('filters.size')}>
             {availableSizes.map(size => (
               <button
@@ -246,7 +232,7 @@ export default function ProductsPage() {
                 className={cn(
                   'min-w-[44px] min-h-[44px] px-3 text-xs border rounded-sm transition-colors',
                   localFilters.size === size
-                    ? 'border-saif-text bg-saif-text text-black font-semibold'
+                    ? 'border-saif-text bg-saif-text text-saif-bg font-semibold'
                     : 'border-saif-border text-saif-dim hover:text-saif-text hover:border-saif-text',
                 )}
               >
@@ -258,7 +244,7 @@ export default function ProductsPage() {
       )}
 
       {availableColors.length > 0 && (
-        <FilterGroup title="Color">
+        <FilterGroup title={t('filters.color')}>
           <div className="flex flex-wrap gap-2" role="group" aria-label={t('filters.color')}>
             {availableColors.map(color => (
               <button
@@ -268,7 +254,7 @@ export default function ProductsPage() {
                 className={cn(
                   'min-h-[44px] px-4 text-xs border rounded-full transition-colors',
                   localFilters.color === color
-                    ? 'border-saif-text bg-saif-text text-black font-semibold'
+                    ? 'border-saif-text bg-saif-text text-saif-bg font-semibold'
                     : 'border-saif-border text-saif-dim hover:text-saif-text hover:border-saif-text',
                 )}
               >
@@ -279,16 +265,16 @@ export default function ProductsPage() {
         </FilterGroup>
       )}
 
-      <FilterGroup title="Availability">
+      <FilterGroup title={t('filters.availability')}>
         <div className="space-y-2.5">
           <Toggle
-            label="In stock only"
+            label={t('filters.inStockOnly')}
             checked={localFilters.inStock}
             onChange={v => applyFilter('inStock', v)}
           />
-          <Toggle label="On sale" checked={localFilters.onSale} onChange={v => applyFilter('onSale', v)} />
-          <Toggle label="Featured" checked={localFilters.featured} onChange={v => applyFilter('featured', v)} />
-          <Toggle label="Best sellers" checked={localFilters.bestseller} onChange={v => applyFilter('bestseller', v)} />
+          <Toggle label={t('filters.onSale')} checked={localFilters.onSale} onChange={v => applyFilter('onSale', v)} />
+          <Toggle label={t('filters.featured')} checked={localFilters.featured} onChange={v => applyFilter('featured', v)} />
+          <Toggle label={t('filters.bestSellers')} checked={localFilters.bestseller} onChange={v => applyFilter('bestseller', v)} />
         </div>
       </FilterGroup>
 
@@ -297,114 +283,121 @@ export default function ProductsPage() {
           onClick={clearFilters}
           className="text-xs text-saif-dim hover:text-saif-accent transition-colors flex items-center gap-1"
         >
-          <X size={12} /> Clear all filters
+          <X size={12} /> {t('filters.clearAll')}
         </button>
       ) : null}
     </div>
   )
 
   return (
-    <div className="animate-[pageIn_0.6s_ease] pt-24 md:pt-28 px-5 lg:px-10 pb-20">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-saif-dim mb-2">
-              {activeCategory ? activeCategory.name : 'Collection'}
-            </p>
-            <h1 className="text-[clamp(40px,7vw,96px)] font-black tracking-tighter leading-[0.9] text-saif-text">
-              {activeCategory ? activeCategory.name : 'Shop'}
-            </h1>
-            <p className="mt-3 text-sm text-saif-dim" aria-live="polite">
-              {loading ? t('common.loading') : `${displayProducts.length} ${displayProducts.length === 1 ? 'item' : 'items'}`}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <label className="sr-only" htmlFor="sort-select">
-              Sort products
-            </label>
-            <div className="relative">
-              <select
-                id="sort-select"
-                value={localFilters.sort}
-                onChange={e => applyFilter('sort', e.target.value as SortOption)}
-                className="appearance-none bg-transparent border border-saif-border text-saif-text text-xs px-4 py-2.5 pr-8 focus:outline-none focus:border-saif-text cursor-pointer rounded-sm"
-              >
-                {Object.entries(SORT_LABELS).map(([value, label]) => (
-                  <option key={value} value={value} className="bg-black">
-                    {label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-saif-dim pointer-events-none" />
+    <div className="animate-[pageIn_0.6s_ease]">
+      <div className="theme-paper min-h-screen pt-28 md:pt-32 px-5 lg:px-10 pb-20">
+        <div className="max-w-7xl mx-auto">
+          {/* Editorial header */}
+          <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-5 mb-10 md:mb-14">
+            <div className="min-w-0">
+              <p className="eyebrow mb-4">
+                <span className="text-saif-accent tabular-nums">01</span>
+                <span className="w-3 h-px bg-saif-border" aria-hidden="true" />
+                {t('filters.shop')}
+              </p>
+              <h1 className="font-display text-saif-text text-[clamp(42px,8vw,110px)] leading-[0.92]">
+                {activeCategory ? localizeCategory(activeCategory, lang).name : t('filters.shop')}
+              </h1>
+              <p className="mt-4 text-sm text-saif-dim" aria-live="polite">
+                {loading
+                  ? t('common.loading')
+                  : t.plural('filters.results', displayProducts.length)}
+              </p>
             </div>
-            <button
-              onClick={() => setFiltersOpen(!filtersOpen)}
-              className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-saif-text border border-saif-border px-4 py-2.5 hover:border-saif-text transition-colors rounded-sm lg:hidden"
-              aria-expanded={filtersOpen}
-            >
-              <SlidersHorizontal size={14} />
-              Filters{hasFilters ? ' •' : ''}
-            </button>
+
+            <div className="flex items-center gap-3">
+              <label className="sr-only" htmlFor="sort-select">
+                {t('filters.sortBy')}
+              </label>
+              <div className="relative">
+                <select
+                  id="sort-select"
+                  value={localFilters.sort}
+                  onChange={e => applyFilter('sort', e.target.value as SortOption)}
+                  className="appearance-none bg-transparent border border-saif-border text-saif-text text-xs px-4 py-2.5 pe-8 focus:outline-none focus:border-saif-text cursor-pointer rounded-sm"
+                >
+                  {(['newest', 'oldest', 'price_asc', 'price_desc', 'popular', 'rating'] as SortOption[]).map(value => (
+                    <option key={value} value={value} className="bg-black text-white">
+                      {t(`filters.sort.${value}`)}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={13} className="absolute end-2.5 top-1/2 -translate-y-1/2 text-saif-dim pointer-events-none" />
+              </div>
+              <button
+                onClick={() => setFiltersOpen(!filtersOpen)}
+                className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-saif-text border border-saif-border px-4 py-2.5 hover:border-saif-text transition-colors rounded-sm lg:hidden"
+                aria-expanded={filtersOpen}
+              >
+                <SlidersHorizontal size={14} />
+                {t('filters.showFilters')}{hasFilters ? ' •' : ''}
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-10">
-          {/* Desktop filters */}
-          <aside className="hidden lg:block" aria-label={t('filters.title')}>
-            <div className="sticky top-28 max-h-[calc(100vh-8rem)] overflow-y-auto pr-2">{filterPanel}</div>
-          </aside>
+          <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-10">
+            {/* Desktop filters */}
+            <aside className="hidden lg:block" aria-label={t('filters.title')}>
+              <div className="sticky top-28 max-h-[calc(100vh-8rem)] overflow-y-auto pe-2">{filterPanel}</div>
+            </aside>
 
-          {/* Mobile filter drawer */}
-          {filtersOpen && (
-            <div className="fixed inset-0 z-[150] lg:hidden" role="dialog" aria-modal="true" aria-label={t('filters.title')}>
-              <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setFiltersOpen(false)} />
-              <div className="absolute bottom-0 left-0 right-0 max-h-[85vh] overflow-y-auto bg-black border-t border-saif-border p-6 rounded-t-xl animate-scaleIn">
-                <div className="flex items-center justify-between mb-6 sticky top-0 bg-black pb-2">
-                  <h2 className="text-base font-bold text-saif-text">Filters</h2>
-                  <button onClick={() => setFiltersOpen(false)} aria-label={t('common.close')} className="p-1 text-saif-dim hover:text-saif-text">
-                    <X size={20} />
+            {/* Mobile filter sheet — same paper theme as the catalogue */}
+            {filtersOpen && (
+              <div className="fixed inset-0 z-[150] lg:hidden" role="dialog" aria-modal="true" aria-label={t('filters.title')}>
+                <div className="absolute inset-0 bg-black/70" onClick={() => setFiltersOpen(false)} />
+                <div className="theme-paper absolute bottom-0 inset-x-0 max-h-[85vh] overflow-y-auto border-t border-saif-border p-6 rounded-t-2xl animate-scaleIn">
+                  <div className="flex items-center justify-between mb-6 sticky top-0 pb-2" style={{ backgroundColor: 'rgb(var(--saif-bg))' }}>
+                    <h2 className="text-base font-bold text-saif-text">{t('filters.filters')}</h2>
+                    <button onClick={() => setFiltersOpen(false)} aria-label={t('common.close')} className="w-11 h-11 flex items-center justify-center text-saif-dim hover:text-saif-text">
+                      <X size={20} />
+                    </button>
+                  </div>
+                  {filterPanel}
+                  <button onClick={() => setFiltersOpen(false)} className="btn btn-primary w-full mt-8">
+                    {t('filters.showResults', { count: displayProducts.length })}
                   </button>
                 </div>
-                {filterPanel}
-                <button onClick={() => setFiltersOpen(false)} className="btn btn-primary w-full mt-8">
-                  Show {displayProducts.length} Results
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Results */}
-          <div>
-            {loading ? (
-              <ProductGridSkeleton count={12} />
-            ) : error ? (
-              <EmptyState
-                title="Couldn't load products"
-                description={error}
-                action={
-                  <button className="btn btn-sm" onClick={() => window.location.reload()}>
-                    Retry
-                  </button>
-                }
-              />
-            ) : displayProducts.length === 0 ? (
-              <EmptyState
-                title={t('filters.noProducts')}
-                description={t('filters.noProductsDesc')}
-                action={
-                  <button className="btn btn-sm" onClick={clearFilters}>
-                    Clear Filters
-                  </button>
-                }
-              />
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-                {displayProducts.map(p => (
-                  <ProductCard key={p.id} product={p} />
-                ))}
               </div>
             )}
+
+            {/* Results */}
+            <div>
+              {loading ? (
+                <ProductGridSkeleton count={12} />
+              ) : error ? (
+                <EmptyState
+                  title={t('filters.couldNotLoad')}
+                  description={error}
+                  action={
+                    <button className="btn btn-sm" onClick={() => window.location.reload()}>
+                      {t('common.retry')}
+                    </button>
+                  }
+                />
+              ) : displayProducts.length === 0 ? (
+                <EmptyState
+                  title={t('filters.noProducts')}
+                  description={t('filters.noProductsDesc')}
+                  action={
+                    <button className="btn btn-sm" onClick={clearFilters}>
+                      {t('filters.clearAll')}
+                    </button>
+                  }
+                />
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-10 md:gap-x-5 md:gap-y-14">
+                  {displayProducts.map(p => (
+                    <ProductCard key={p.id} product={p} />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

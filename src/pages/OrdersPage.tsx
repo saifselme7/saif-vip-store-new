@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Package, ChevronRight } from 'lucide-react'
 import { useOrders } from '@/hooks/useOrders'
+import { useI18n } from '@/i18n'
 import { usePageMeta } from '@/hooks/usePageMeta'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { OrderStatusBadge, PaymentStatusBadge } from '@/components/ui/StatusBadge'
@@ -10,7 +11,8 @@ import EmptyState from '@/components/EmptyState'
 
 export default function OrdersPage() {
   const { orders, loading } = useOrders()
-  usePageMeta({ title: 'My Orders', description: 'Track your SAIF STORE orders and payment verification status.' })
+  const { t } = useI18n()
+  usePageMeta({ title: `${t('orders.title')} — SAIF STORE`, description: t('meta.description') })
 
   if (loading) {
     return (
@@ -24,7 +26,7 @@ export default function OrdersPage() {
   return (
     <div className="animate-[pageIn_0.6s_ease] pt-24 md:pt-28 px-5 lg:px-10 pb-20">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-[clamp(34px,6vw,72px)] font-black tracking-tighter text-saif-text mb-10">My Orders</h1>
+        <h1 className="text-[clamp(34px,6vw,72px)] font-display text-saif-text mb-10">{t('orders.title')}</h1>
 
         {orders.length === 0 ? (
           <EmptyState

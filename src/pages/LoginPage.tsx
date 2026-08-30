@@ -43,7 +43,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-5 pt-20">
       <div className="w-full max-w-sm">
-        <h1 className="text-3xl font-black tracking-tighter text-saif-text mb-2">{t('auth.signInTitle')}</h1>
+        <h1 className="text-3xl font-display text-saif-text mb-2">{t('auth.signInTitle')}</h1>
         <p className="text-sm text-saif-dim mb-8">{t('auth.signInSubtitle')}</p>
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>

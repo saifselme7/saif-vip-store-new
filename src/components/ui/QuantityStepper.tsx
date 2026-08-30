@@ -22,7 +22,7 @@ export default function QuantityStepper({ value, onChange, max = 99, min = 1, sm
         type="button"
         onClick={() => onChange(clamp(value - 1))}
         className={cn(
-          'w-11 h-11 flex items-center justify-center text-saif-text hover:bg-white/5 active:bg-white/10 transition-colors disabled:opacity-30 disabled:pointer-events-none',
+          'w-11 h-11 flex items-center justify-center text-saif-text hover:bg-saif-text/5 active:bg-saif-text/10 transition-colors disabled:opacity-30 disabled:pointer-events-none',
           small && 'w-9 h-9',
         )}
         disabled={value <= min}
@@ -43,7 +43,7 @@ export default function QuantityStepper({ value, onChange, max = 99, min = 1, sm
         type="button"
         onClick={() => onChange(clamp(value + 1))}
         className={cn(
-          'w-11 h-11 flex items-center justify-center text-saif-text hover:bg-white/5 active:bg-white/10 transition-colors disabled:opacity-30 disabled:pointer-events-none',
+          'w-11 h-11 flex items-center justify-center text-saif-text hover:bg-saif-text/5 active:bg-saif-text/10 transition-colors disabled:opacity-30 disabled:pointer-events-none',
           small && 'w-9 h-9',
         )}
         disabled={value >= max}

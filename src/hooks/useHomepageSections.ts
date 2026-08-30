@@ -28,6 +28,14 @@ export interface RailConfig {
   view_all?: string
 }
 
+/**
+ * Sections the fashion storefront no longer renders. `rail_digital` belonged
+ * to the retired digital-catalogue concept: the storefront skips it whenever
+ * it is enabled (legacy databases keep the row so the site builder and its
+ * history stay intact), and the fashion migration disables it at the source.
+ */
+export const RETIRED_SECTION_KEYS = new Set(['rail_digital'])
+
 export interface SpotlightConfig {
   product_id?: string | null
   heading_en?: string
@@ -110,12 +118,16 @@ export const SECTION_KEYS = [
   'how_it_works',
   'final_cta',
 ] as const
+// The storefront renders every key above except the retired ones.
+export const RENDERABLE_SECTION_KEYS = SECTION_KEYS.filter(k => !RETIRED_SECTION_KEYS.has(k))
 
 export type SectionKey = (typeof SECTION_KEYS)[number]
 
 /**
- * Fallback defaults mirroring the DB seed — used when the CMS table is empty
- * or unreachable, so the storefront never renders a blank homepage.
+ * Fallback defaults for the fashion storefront — used when the CMS table is
+ * empty or unreachable, so the homepage never renders blank. Mirrors the
+ * content shipped in the fashion migration so an un-migrated database and
+ * the code defaults tell the same story.
  */
 export const DEFAULT_SECTIONS: HomepageSection[] = [
   {
@@ -127,26 +139,24 @@ export const DEFAULT_SECTIONS: HomepageSection[] = [
     id: 'def-hero', section_key: 'hero', is_enabled: true, position: 1,
     title_en: null, title_ar: null, subtitle_en: null, subtitle_ar: null,
     config: {
-      eyebrow_en: 'Streetwear', eyebrow_mid_en: 'Digital', eyebrow_end_en: 'Curated',
-      cta1_text_en: 'Shop Now', cta1_dest: '/products',
-      cta2_text_en: 'Digital Products', cta2_dest: '/products?type=digital',
-      overlay: 20,
+      cta1_text_en: 'Explore the Collection', cta1_dest: '/products',
+      cta2_text_en: 'See What\u2019s New', cta2_dest: '/products?sort=newest',
     }, created_at: '', updated_at: '',
   },
   {
     id: 'def-brand', section_key: 'brand', is_enabled: true, position: 2,
-    title_en: 'Made to be worn. Or judged. Or both.',
-    subtitle_en: 'SAIF STORE curates premium streetwear alongside digital culture essentials — one standard for both worlds: real quality, honest information, and payments verified by people, not promises.',
-    title_ar: 'اتعملت عشان تتلبس. أو تحكم عليها. أو الاتنين.',
-    subtitle_ar: 'SAIF STORE بتختار لك أحسن الستريت وير مع كل حاجة رقمية محترمة — معيار واحد للعالمين: جودة حقيقية، ومعلومات صريحة، ودفع بيتأكد بناس حقيقية مش وعود.',
+    title_en: 'Made to be worn, not stored.',
+    subtitle_en: 'SAIF STORE is an Egyptian fashion label building pieces that outlast trends — heavy fabrics, considered cuts, honest details. Every drop is small and limited, and every piece has a story.',
+    title_ar: 'اتعملت عشان تتلبس، مش تتخزن.',
+    subtitle_ar: 'SAIF STORE ماركة ملابس مصرية بتصمم قطع تعيش أطول من الترند — خامات تقيلة، قصات مدروسة، وتفاصيل مضبوطة. كل دروب صغير ومحدود، وكل قطعة ليها قصة.',
     config: {}, created_at: '', updated_at: '',
   },
   {
     id: 'def-categories', section_key: 'categories', is_enabled: true, position: 3,
-    title_en: 'Two worlds. One standard.',
-    subtitle_en: 'Heavyweight streetwear shipped across Egypt, and digital essentials delivered after verification.',
-    title_ar: 'عالمين. معيار واحد.',
-    subtitle_ar: 'ستريت وير تقيل بيوصل لكل مصر، وأساسيات رقمية بتوصلك بعد التأكيد.',
+    title_en: 'Pick your uniform.',
+    subtitle_en: 'From tees to jackets — every category holds pieces chosen with one standard.',
+    title_ar: 'اختار ستايلك.',
+    subtitle_ar: 'من التيشيرت للجاكيت — كل قسم فيه قطع مختارة بعناية لكل اللوكات.',
     config: {}, created_at: '', updated_at: '',
   },
   {
@@ -177,15 +187,7 @@ export const DEFAULT_SECTIONS: HomepageSection[] = [
     config: { source: 'offers', limit: 4, view_all: '/products?onSale=true' }, created_at: '', updated_at: '',
   },
   {
-    id: 'def-rail-digital', section_key: 'rail_digital', is_enabled: true, position: 8,
-    title_en: 'Delivered after verification.',
-    subtitle_en: 'No shipping, no waiting on couriers — digital orders are fulfilled by our team once your payment is approved.',
-    title_ar: 'بيوصلك بعد التأكيد.',
-    subtitle_ar: 'من غير شحن ولا استنى مندوب — المنتجات الرقمية بنسلمها بنفسنا أول ما الدفع يتعتمد.',
-    config: { source: 'digital', limit: 4, view_all: '/products?type=digital' }, created_at: '', updated_at: '',
-  },
-  {
-    id: 'def-rail-bestsellers', section_key: 'rail_bestsellers', is_enabled: true, position: 9,
+    id: 'def-rail-bestsellers', section_key: 'rail_bestsellers', is_enabled: true, position: 8,
     title_en: 'The pieces everyone comes back for.',
     subtitle_en: 'Best sellers, ranked by real orders.',
     title_ar: 'القطع اللي الناس بترجع تدور عليها.',
@@ -193,7 +195,7 @@ export const DEFAULT_SECTIONS: HomepageSection[] = [
     config: { source: 'bestsellers', limit: 8, view_all: '/products?bestseller=true' }, created_at: '', updated_at: '',
   },
   {
-    id: 'def-reviews', section_key: 'reviews', is_enabled: true, position: 10,
+    id: 'def-reviews', section_key: 'reviews', is_enabled: true, position: 9,
     title_en: 'What customers say.',
     subtitle_en: 'Approved reviews from verified orders — moderated by our team.',
     title_ar: 'اللي العملاء بيقولوه.',
@@ -201,7 +203,7 @@ export const DEFAULT_SECTIONS: HomepageSection[] = [
     config: { count: 3, mode: 'latest' }, created_at: '', updated_at: '',
   },
   {
-    id: 'def-how', section_key: 'how_it_works', is_enabled: true, position: 11,
+    id: 'def-how', section_key: 'how_it_works', is_enabled: true, position: 10,
     title_en: 'Ordered. Transferred. Verified.',
     subtitle_en: 'No card needed. A payment flow built on manual verification — slow enough to be careful, fast enough to feel instant.',
     title_ar: 'طلبت. حوّلت. اتأكدنا.',
@@ -209,10 +211,10 @@ export const DEFAULT_SECTIONS: HomepageSection[] = [
     config: {}, created_at: '', updated_at: '',
   },
   {
-    id: 'def-final', section_key: 'final_cta', is_enabled: true, position: 12,
+    id: 'def-final', section_key: 'final_cta', is_enabled: true, position: 11,
     title_en: null, title_ar: null,
-    subtitle_en: 'Spacing kept tight. Standards kept higher. Explore the pieces — or the digital essentials.',
-    subtitle_ar: 'مسافات مضبوطة ومعايير أعلى. اتفرج على القطع — أو على الأساسيات الرقمية.',
+    subtitle_en: 'Limited pieces, heavy fabrics, and details you won\u2019t find anywhere else.',
+    subtitle_ar: 'قطع محدودة، خامات تقيلة، وتفاصيل مش هتلاقيها في أي حتة تانية.',
     config: {}, created_at: '', updated_at: '',
   },
 ]

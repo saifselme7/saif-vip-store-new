@@ -82,7 +82,7 @@ export default function Modal({ open, onClose, title, children, className, wide 
       <div
         ref={panelRef}
         className={cn(
-          'relative w-full bg-black border border-saif-border max-h-[92vh] overflow-y-auto animate-scaleIn rounded-t-lg sm:rounded-sm',
+          'theme-dark relative w-full bg-black border border-saif-border max-h-[92vh] overflow-y-auto animate-scaleIn rounded-t-lg sm:rounded-sm',
           wide ? 'sm:max-w-4xl' : 'sm:max-w-lg',
           className,
         )}

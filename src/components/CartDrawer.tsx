@@ -5,11 +5,12 @@ import { useCart } from '@/context/CartContext'
 import { useI18n } from '@/i18n'
 import { useApp } from '@/context/AppContext'
 import { formatPrice, cn } from '@/lib/utils'
+import { localizeProduct } from '@/lib/bilingual'
 import { effectiveStock } from '@/lib/pricing'
 import QuantityStepper from './ui/QuantityStepper'
 
 export default function CartDrawer() {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const closeRef = useRef<HTMLButtonElement>(null)
   const {
     items,
@@ -47,7 +48,7 @@ export default function CartDrawer() {
   return (
     <div className="fixed inset-0 z-[150]" role="dialog" aria-modal="true" aria-label={t('a11y.shoppingBag', { count })}>
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsOpen(false)} aria-hidden="true" />
-      <aside className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-black border-l border-saif-border flex flex-col animate-drawerIn shadow-2xl">
+      <aside className="theme-dark absolute right-0 top-0 bottom-0 w-full max-w-md bg-black border-l border-saif-border flex flex-col animate-drawerIn shadow-2xl">
         <header className="flex items-center justify-between px-6 py-5 border-b border-saif-border">
           <h2 className="text-base font-bold tracking-tight text-saif-text flex items-center gap-2.5">
             <ShoppingBag size={16} />
@@ -68,7 +69,7 @@ export default function CartDrawer() {
             <ShoppingBag size={40} className="text-saif-faint" />
             <p className="text-sm text-saif-dim">{t('cart.empty')}</p>
             <button className="btn btn-sm" onClick={() => setIsOpen(false)}>
-              Continue Shopping
+              {t('cart.continueShopping')}
             </button>
           </div>
         ) : (
@@ -91,7 +92,7 @@ export default function CartDrawer() {
                     >
                       <img
                         src={item.variant?.image || item.product.thumbnail || item.product.images?.[0] || ''}
-                        alt={item.product.name}
+                        alt={localizeProduct(item.product, lang).name}
                         className="w-full h-full object-cover"
                         loading="lazy"
                       />
@@ -111,13 +112,13 @@ export default function CartDrawer() {
                             <p className="text-[10px] text-saif-accent uppercase tracking-wider mt-0.5">{t('product.digital')}</p>
                           )}
                           {item.quantity >= stock && stock > 0 && (
-                            <p className="text-[10px] text-yellow-400 mt-0.5">{t('cart.maxStock', { count: stock })}</p>
+                            <p className="text-[10px] text-saif-accent mt-0.5">{t('cart.maxStock', { count: stock })}</p>
                           )}
                         </div>
                         <button
                           onClick={() => removeItem(item.id)}
                           className="w-9 h-9 flex items-center justify-center text-saif-dim hover:text-saif-accent transition-colors"
-                          aria-label={`Remove ${item.product.name} from bag`}
+                          aria-label={t('a11y.removeItem', { name: localizeProduct(item.product, lang).name })}
                         >
                           <Trash2 size={14} />
                         </button>
@@ -127,7 +128,7 @@ export default function CartDrawer() {
                           value={item.quantity}
                           onChange={qty => updateQty(item.id, qty)}
                           max={Math.max(1, item.product.product_type === 'digital' ? 99 : stock)}
-                          ariaLabel={`Quantity for ${item.product.name}`}
+                          ariaLabel={t('cart.quantityFor', { name: localizeProduct(item.product, lang).name })}
                         />
                         <span className="text-sm font-semibold text-saif-text">
                           {formatPrice(price * item.quantity)}
@@ -148,7 +149,7 @@ export default function CartDrawer() {
                 {discount > 0 && coupon && (
                   <div className="flex justify-between text-saif-dim">
                     <span>
-                      Discount <span className="text-green-400 font-mono text-xs">{coupon.code}</span>
+                      {t('common.discount')} <span className="text-green-400 font-mono text-xs">{coupon.code}</span>
                     </span>
                     <span className="text-green-400">−{formatPrice(discount)}</span>
                   </div>
@@ -156,7 +157,7 @@ export default function CartDrawer() {
                 <div className="flex justify-between text-saif-dim">
                   <span>{t('common.shipping')}</span>
                   <span className={cn(shipping === 0 && 'text-green-400')}>
-                    {shipping === 0 ? 'Free' : formatPrice(shipping)}
+                    {shipping === 0 ? t('common.free') : formatPrice(shipping)}
                   </span>
                 </div>
                 <div className="flex justify-between text-base font-bold text-saif-text pt-2 border-t border-saif-border">
@@ -169,10 +170,10 @@ export default function CartDrawer() {
                 onClick={() => setIsOpen(false)}
                 className="btn btn-primary w-full"
               >
-                Checkout
+                {t('cart.checkout')}
               </Link>
               <Link to="/cart" onClick={() => setIsOpen(false)} className="btn btn-sm w-full">
-                View Full Bag
+                {t('cart.viewFullBag')}
               </Link>
             </footer>
           </>

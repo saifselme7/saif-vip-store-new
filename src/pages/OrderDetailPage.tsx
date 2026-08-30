@@ -240,7 +240,7 @@ export default function OrderDetailPage() {
 
         <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-saif-text flex items-center gap-3 flex-wrap">
+            <h1 className="text-3xl md:text-4xl font-display text-saif-text flex items-center gap-3 flex-wrap">
               {order.order_number}
               <button onClick={handleCopyNumber} className="text-saif-dim hover:text-saif-accent transition-colors" aria-label={t('orders.copyOrderNumber')}>
                 <Copy size={16} />
