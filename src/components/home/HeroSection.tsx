@@ -14,6 +14,28 @@ interface HeroSectionProps {
 }
 
 /**
+ * The retired digital-catalogue CTA ("Digital Products" / «منتجات رقمية» →
+ * /products?type=digital) still lives in databases seeded before the fashion
+ * rebrand. It must never render on the storefront: when the CMS config
+ * carries it, fall back to the default campaign CTA instead.
+ */
+function retireDigitalCta(
+  text: string | undefined,
+  dest: string | undefined,
+  fallbackText: string,
+  fallbackDest: string,
+): { text: string; dest: string } {
+  const digital =
+    dest?.includes('type=digital') ||
+    text === 'Digital Products' ||
+    text === 'منتجات رقمية' ||
+    text === 'المنتجات الرقمية'
+  return digital
+    ? { text: fallbackText, dest: fallbackDest }
+    : { text: text ?? fallbackText, dest: dest || fallbackDest }
+}
+
+/**
  * The opening campaign: oversized editorial statement, a fully-lit campaign
  * image (never tinted or desaturated), staggered masked-line entrance and a
  * whisper of parallax depth. CTAs stay above the fold on every viewport.
@@ -22,6 +44,21 @@ export default function HeroSection({ heroTitle, heroSubtitle, heroImage, config
   const { t, isRTL } = useI18n()
   const cfg = (config ?? {}) as HeroConfig
   const parallaxRef = useParallax<HTMLDivElement>(46)
+
+  // Hero CTAs from the CMS config, with the retired digital-catalogue CTA
+  // swapped for the campaign default (label and destination).
+  const cta1 = retireDigitalCta(
+    configText(cfg, 'cta1_text', isRTL ? 'ar' : 'en'),
+    cfg.cta1_dest,
+    t('hero.shopCollection'),
+    '/products',
+  )
+  const cta2 = retireDigitalCta(
+    configText(cfg, 'cta2_text', isRTL ? 'ar' : 'en'),
+    cfg.cta2_dest,
+    t('hero.shopNew'),
+    '/products?sort=newest',
+  )
 
   return (
     <section
@@ -62,12 +99,12 @@ export default function HeroSection({ heroTitle, heroSubtitle, heroImage, config
 
           <Reveal variant="up" delay={680} duration={800}>
             <div className="mt-10 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-              <Link to={cfg.cta1_dest || '/products'} data-magnetic className="btn btn-primary">
-                {configText(cfg, 'cta1_text', isRTL ? 'ar' : 'en') ?? t('hero.shopCollection')}
+              <Link to={cta1.dest} data-magnetic className="btn btn-primary">
+                {cta1.text}
                 <ArrowRight size={14} className={isRTL ? 'rotate-180' : ''} aria-hidden="true" />
               </Link>
-              <Link to={cfg.cta2_dest || '/products?sort=newest'} className="btn">
-                {configText(cfg, 'cta2_text', isRTL ? 'ar' : 'en') ?? t('hero.shopNew')}
+              <Link to={cta2.dest} className="btn">
+                {cta2.text}
               </Link>
             </div>
           </Reveal>
