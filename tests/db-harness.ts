@@ -73,6 +73,11 @@ export async function createTestDb() {
     RETURNS TEXT[] LANGUAGE sql IMMUTABLE AS $$
       SELECT string_to_array(name, '/')
     $$;
+
+    CREATE OR REPLACE FUNCTION public.is_admin()
+    RETURNS BOOLEAN LANGUAGE sql STABLE AS $$
+      SELECT false
+    $$;
   `)
 
   // uuid-ossp is unavailable in PGlite; gen_random_uuid() is core in PG13+.
@@ -100,12 +105,18 @@ export function readSql(file: string) {
 export async function readOldSchema() {
   // The pre-upgrade schema, pinned to the commit before the transformation
   // so the migration path keeps being tested no matter what HEAD is.
-  const { execSync } = await import('node:child_process')
-  const sql = execSync('git show a050038e3986e65d2dc2a7f3cc8f5fe759ae6479:supabase/schema.sql', {
-    cwd: join(SUPABASE_DIR, '..'),
-    encoding: 'utf8',
-  })
-  return stripExtensionStatements(sql)
+  try {
+    const { execSync } = await import('node:child_process')
+    const sql = execSync('git show a050038e3986e65d2dc2a7f3cc8f5fe759ae6479:supabase/schema.sql', {
+      cwd: join(SUPABASE_DIR, '..'),
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'ignore'],
+    })
+    return stripExtensionStatements(sql)
+  } catch {
+    // If git commit object is missing in container, fallback to the v1 fixture
+    return stripExtensionStatements(readFileSync(join(SUPABASE_DIR, '../tests/fixtures/v1-pre-upgrade-schema.sql'), 'utf8'))
+  }
 }
 
 export async function applyFullSchema(db: PGlite) {

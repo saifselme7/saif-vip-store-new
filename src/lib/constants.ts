@@ -10,7 +10,15 @@ export const STORE_NAME = 'SAIF STORE'
  * (supabase/migrations/2026-08-30-fashion-storefront.sql) deactivates these
  * categories at the source as well, so this list is a bridge until it runs.
  */
-export const HIDDEN_CATEGORY_SLUGS = new Set(['digital-products', 'social-media'])
+export const HIDDEN_CATEGORY_SLUGS = new Set([
+  'digital-products',
+  'digital',
+  'social-media',
+  'social',
+  'services',
+  'accounts',
+  'software',
+])
 
 /** Categories shown in the storefront chrome (nav, tiles, shop filters). */
 export function isStorefrontCategory(category: Pick<Category, 'slug'>): boolean {

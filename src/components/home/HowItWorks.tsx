@@ -2,7 +2,7 @@ import { ClipboardList, Send, ShieldCheck } from 'lucide-react'
 import Reveal from '@/components/motion/Reveal'
 import SectionHeader from '@/components/SectionHeader'
 import { useI18n } from '@/i18n'
-import type { HowItWorksConfig } from '@/hooks/useHomepageSections'
+import { isLegacyDigitalText, type HowItWorksConfig } from '@/hooks/useHomepageSections'
 
 /**
  * Trust through transparency — the manual payment flow explained honestly,
@@ -27,7 +27,17 @@ export default function HowItWorks({
   const ICONS = [ClipboardList, Send, ShieldCheck]
   const steps: { title: string; text: string; icon: typeof ClipboardList }[] =
     cfg.steps && cfg.steps.length > 0
-      ? cfg.steps.map((s, i) => ({ title: (lang === 'ar' && s.title_ar ? s.title_ar : s.title_en) || '', text: (lang === 'ar' && s.text_ar ? s.text_ar : s.text_en) || '', icon: ICONS[i % ICONS.length] }))
+      ? cfg.steps.map((s, i) => {
+          const rawTitle = (lang === 'ar' && s.title_ar ? s.title_ar : s.title_en) || ''
+          const rawText = (lang === 'ar' && s.text_ar ? s.text_ar : s.text_en) || ''
+          const titleVal = isLegacyDigitalText(rawTitle) ? fallbackSteps[i]?.title ?? rawTitle : rawTitle
+          const textVal = isLegacyDigitalText(rawText) ? fallbackSteps[i]?.text ?? rawText : rawText
+          return {
+            title: titleVal || fallbackSteps[i]?.title || '',
+            text: textVal || fallbackSteps[i]?.text || '',
+            icon: ICONS[i % ICONS.length],
+          }
+        })
       : fallbackSteps.map((s, i) => ({ ...s, icon: ICONS[i % ICONS.length] }))
   return (
     <section className="px-5 lg:px-10 py-24 md:py-32" aria-labelledby="how-it-works">

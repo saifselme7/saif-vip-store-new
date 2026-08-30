@@ -27,6 +27,7 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS delivery_info TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_fee NUMERIC(12,2) DEFAULT 0;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS stock_reserved BOOLEAN DEFAULT FALSE;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS internal_note TEXT;
 
@@ -95,10 +96,9 @@ CREATE TABLE IF NOT EXISTS inventory_logs (
 -- ------------------------------------------------------------
 DO $$
 BEGIN
+  EXECUTE 'ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check';
   UPDATE orders SET status = 'processing' WHERE status = 'ready';
   UPDATE orders SET status = 'cancelled' WHERE status = 'rejected';
-
-  EXECUTE 'ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check';
   EXECUTE 'ALTER TABLE orders ADD CONSTRAINT orders_status_check CHECK (status IN (''pending'',''payment_review'',''confirmed'',''processing'',''shipped'',''delivered'',''completed'',''cancelled'',''refunded''))';
 EXCEPTION WHEN others THEN
   RAISE NOTICE 'order status constraint update skipped: %', SQLERRM;

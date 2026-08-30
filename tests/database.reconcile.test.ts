@@ -26,20 +26,31 @@ const SIBLING_SQL = readFileSync(join(TESTS_DIR, 'fixtures/sibling-upgrade-v2.sq
   .join('\n')
 
 function originalSchemaSql(): string {
-  return execSync('git show a050038e3986e65d2dc2a7f3cc8f5fe759ae6479:supabase/schema.sql', {
-    cwd: join(TESTS_DIR, '..'),
-    encoding: 'utf8',
-  })
-    .split('\n')
-    .filter(line => !/^\s*CREATE EXTENSION/i.test(line))
-    .join('\n')
+  try {
+    return execSync('git show a050038e3986e65d2dc2a7f3cc8f5fe759ae6479:supabase/schema.sql', {
+      cwd: join(TESTS_DIR, '..'),
+      encoding: 'utf8',
+    })
+      .split('\n')
+      .filter(line => !/^\s*CREATE EXTENSION/i.test(line))
+      .join('\n')
+  } catch {
+    return readFileSync(join(TESTS_DIR, 'fixtures/v1-pre-upgrade-schema.sql'), 'utf8')
+      .split('\n')
+      .filter(line => !/^\s*CREATE EXTENSION/i.test(line))
+      .join('\n')
+  }
 }
 
 function originalRlsSql(): string {
-  return execSync('git show a050038e3986e65d2dc2a7f3cc8f5fe759ae6479:supabase/rls.sql', {
-    cwd: join(TESTS_DIR, '..'),
-    encoding: 'utf8',
-  })
+  try {
+    return execSync('git show a050038e3986e65d2dc2a7f3cc8f5fe759ae6479:supabase/rls.sql', {
+      cwd: join(TESTS_DIR, '..'),
+      encoding: 'utf8',
+    })
+  } catch {
+    return readFileSync(join(TESTS_DIR, 'fixtures/v1-pre-upgrade-rls.sql'), 'utf8')
+  }
 }
 
 /** The full reconciliation stack, in the documented run order. */

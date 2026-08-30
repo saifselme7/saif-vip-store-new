@@ -253,25 +253,47 @@ export function useHomepageSections() {
   return { sections, loading }
 }
 
+const LEGACY_DIGITAL_PATTERNS = [
+  /digital\s+culture/i,
+  /digital\s+products/i,
+  /digital\s+essentials/i,
+  /digital\s+goods/i,
+  /digital\s+items/i,
+  /two\s+worlds/i,
+  /or\s+judged/i,
+  /منتجات\s+رقمية/i,
+  /المنتجات\s+الرقمية/i,
+  /عالمين/i,
+  /أو\s+يتحكم\s+عليك/i,
+]
+
+export function isLegacyDigitalText(text: string | null | undefined): boolean {
+  if (!text) return false
+  return LEGACY_DIGITAL_PATTERNS.some(p => p.test(text))
+}
+
 /** Picks the localized title/subtitle of a section. */
 export function sectionText(
   section: HomepageSection,
   lang: 'en' | 'ar',
 ): { title: string | null; subtitle: string | null } {
-  const pick = (own: string | null | undefined) =>
-    typeof own === 'string' && own.trim() ? own : null
+  const pick = (own: string | null | undefined) => {
+    if (typeof own === 'string' && own.trim() && !isLegacyDigitalText(own)) {
+      return own
+    }
+    return null
+  }
   return {
     title: pick(lang === 'ar' ? section.title_ar : section.title_en),
     subtitle: pick(lang === 'ar' ? section.subtitle_ar : section.subtitle_en),
   }
 }
 
-/** Picks a bilingual config field like cta1_text_en / cta1_text_ar. */
 /**
  * Picks a bilingual config field (e.g. cta1_text_en / cta1_text_ar).
- * Returns undefined when the requested language's value is missing —
- * callers fall back to t() so untranslated CMS content degrades to the
- * UI dictionary, never to the wrong language.
+ * Returns undefined when the requested language's value is missing or contains
+ * legacy digital copy — callers fall back to t() so untranslated or legacy CMS
+ * content degrades to the fashion UI dictionary.
  */
 export function configText(
   config: object | null | undefined,
@@ -281,5 +303,8 @@ export function configText(
   if (!config) return undefined
   const record = config as Record<string, unknown>
   const value = record[`${base}_${lang}`]
-  return typeof value === 'string' && value.trim() ? value : undefined
+  if (typeof value === 'string' && value.trim() && !isLegacyDigitalText(value)) {
+    return value
+  }
+  return undefined
 }

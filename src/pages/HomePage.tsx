@@ -6,6 +6,7 @@ import { useI18n } from '@/i18n'
 import {
   useHomepageSections,
   sectionText,
+  isLegacyDigitalText,
   RETIRED_SECTION_KEYS,
   type RailConfig,
   type SpotlightConfig,
@@ -36,11 +37,14 @@ const PAPER_SECTIONS = new Set(['rail_new', 'rail_bestsellers', 'brand', 'rail_f
 export default function HomePage() {
   const { settings } = useApp()
   const { t, lang } = useI18n()
+  const rawDesc =
+    lang === 'ar' && settings?.seo_description ? settings.seo_description : settings?.store_description
+  const pageDescription =
+    rawDesc && !isLegacyDigitalText(rawDesc) ? rawDesc : t('meta.description')
+
   usePageMeta({
     title: settings?.seo_title || 'SAIF STORE — Wear Your Statement',
-    description:
-      (lang === 'ar' && settings?.seo_description ? settings.seo_description : settings?.store_description) ||
-      t('meta.description'),
+    description: pageDescription,
     image: settings?.og_image ?? undefined,
   })
 
@@ -113,12 +117,23 @@ export default function HomePage() {
           )
 
         switch (section.section_key) {
-          case 'hero':
+          case 'hero': {
+            const rawSubtitle =
+              lang === 'ar' && settings?.hero_subtitle_ar
+                ? settings.hero_subtitle_ar
+                : (settings?.hero_subtitle || t('hero.subtitle'))
+            const sanitizedSubtitle =
+              rawSubtitle && !isLegacyDigitalText(rawSubtitle) ? rawSubtitle : t('hero.subtitle')
+
             return (
               <div key={section.id}>
                 <HeroSection
-                  heroTitle={lang === 'ar' && settings?.hero_title_ar ? settings.hero_title_ar : (settings?.hero_title || 'SAIF STORE')}
-                  heroSubtitle={lang === 'ar' && settings?.hero_subtitle_ar ? settings.hero_subtitle_ar : (settings?.hero_subtitle || t('hero.subtitle'))}
+                  heroTitle={
+                    lang === 'ar' && settings?.hero_title_ar
+                      ? settings.hero_title_ar
+                      : (settings?.hero_title || 'SAIF STORE')
+                  }
+                  heroSubtitle={sanitizedSubtitle}
                   heroImage={heroImage}
                   config={section.config}
                 />
@@ -126,6 +141,7 @@ export default function HomePage() {
                 <MarqueeBand />
               </div>
             )
+          }
           case 'brand':
             return themed(
               <BrandStatement

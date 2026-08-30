@@ -11,6 +11,7 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0',
+    port: 3000,
     // Allow the sandbox preview proxy host in addition to localhost.
     allowedHosts: true,
   },

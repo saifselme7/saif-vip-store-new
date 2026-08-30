@@ -74,12 +74,17 @@ export default function AccountPage() {
     }
   }
 
-  const TABS: { id: Tab; label: string; icon: typeof User }[] = [
-    { id: 'overview', label: 'Overview', icon: User },
-    { id: 'orders', label: 'Orders', icon: Package },
-    { id: 'digital', label: 'Digital', icon: Zap },
-    { id: 'settings', label: 'Settings', icon: SettingsIcon },
-  ]
+  const TABS = useMemo(() => {
+    const list: { id: Tab; label: string; icon: typeof User }[] = [
+      { id: 'overview', label: t('account.tabs.overview'), icon: User },
+      { id: 'orders', label: t('account.tabs.orders'), icon: Package },
+    ]
+    if (digitalItems.length > 0) {
+      list.push({ id: 'digital', label: t('account.tabs.digital'), icon: Zap })
+    }
+    list.push({ id: 'settings', label: t('account.tabs.settings'), icon: SettingsIcon })
+    return list
+  }, [t, digitalItems.length])
 
   return (
     <div className="animate-[pageIn_0.6s_ease] pt-24 md:pt-28 px-5 lg:px-10 pb-20">
@@ -99,42 +104,42 @@ export default function AccountPage() {
             </div>
 
             <nav className="space-y-1" aria-label={t('a11y.accountSections')}>
-              {TABS.map(t => (
+              {TABS.map(tabItem => (
                 <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
-                  aria-current={tab === t.id ? 'page' : undefined}
+                  key={tabItem.id}
+                  onClick={() => setTab(tabItem.id)}
+                  aria-current={tab === tabItem.id ? 'page' : undefined}
                   className={cn(
-                    'w-full flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm transition-colors text-left',
-                    tab === t.id ? 'bg-white/10 text-saif-text' : 'text-saif-dim hover:text-saif-text hover:bg-white/5',
+                    'w-full flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm transition-colors text-start',
+                    tab === tabItem.id ? 'bg-white/10 text-saif-text font-medium' : 'text-saif-dim hover:text-saif-text hover:bg-white/5',
                   )}
                 >
-                  <t.icon size={15} />
-                  {t.label}
+                  <tabItem.icon size={15} />
+                  {tabItem.label}
                 </button>
               ))}
               <Link
                 to="/wishlist"
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm transition-colors text-left text-saif-dim hover:text-saif-text hover:bg-white/5"
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm transition-colors text-start text-saif-dim hover:text-saif-text hover:bg-white/5"
               >
                 <Heart size={15} />
-                Wishlist
+                {t('nav.wishlist')}
               </Link>
               {profile?.role === 'admin' && (
                 <Link
                   to="/admin"
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm transition-colors text-left text-saif-accent hover:bg-saif-accent/10"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm transition-colors text-start text-saif-accent hover:bg-saif-accent/10"
                 >
                   <ClipboardList size={15} />
-                  Admin Dashboard
+                  {t('account.adminPanel')}
                 </Link>
               )}
               <button
                 onClick={signOut}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm transition-colors text-left text-saif-dim hover:text-saif-accent hover:bg-white/5"
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm transition-colors text-start text-saif-dim hover:text-saif-accent hover:bg-white/5"
               >
                 <LogOut size={15} />
-                Sign Out
+                {t('account.signOut')}
               </button>
             </nav>
           </aside>
@@ -144,12 +149,11 @@ export default function AccountPage() {
             {tab === 'overview' && (
               <>
                 {/* Stats */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <StatCard label="Orders" value={String(stats.totalOrders)} />
-                  <StatCard label="Total Spent" value={formatPrice(stats.totalSpent)} />
-                  <StatCard label="Digital Items" value={String(digitalItems.length)} />
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                  <StatCard label={t('account.stats.orders')} value={String(stats.totalOrders)} />
+                  <StatCard label={t('account.stats.spent')} value={formatPrice(stats.totalSpent)} />
                   <StatCard
-                    label="Action Needed"
+                    label={t('account.stats.actionNeeded')}
                     value={String(stats.pendingPayments)}
                     alert={stats.pendingPayments > 0}
                   />
@@ -176,7 +180,7 @@ export default function AccountPage() {
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-sm font-bold uppercase tracking-wider text-saif-text">{t('account.recentOrders')}</h2>
                     <button onClick={() => setTab('orders')} className="text-xs text-saif-dim hover:text-saif-text transition-colors">
-                      View All
+                      {t('account.viewAll')}
                     </button>
                   </div>
                   {loading ? (
