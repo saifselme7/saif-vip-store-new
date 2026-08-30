@@ -102,7 +102,6 @@ function ProductCard({ product, priorityImage }: Props) {
             className={cn(
               'absolute inset-0 w-full h-full object-cover transition-all duration-[900ms] ease-saif group-hover:scale-[1.05]',
               secondaryImage && 'group-hover:opacity-0',
-              soldOut && 'opacity-90',
             )}
           />
           {secondaryImage && (
